@@ -1,0 +1,1312 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+/* ─────────────────────────────────────────────────────────────────
+   ESTILO ESPECÍFICO DA PÁGINA DE UNIDADE — modelo "planilha amarela"
+   Sobrescreve o style.css só dentro desta página.
+   ───────────────────────────────────────────────────────────────── */
+
+.schedule-table {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 10px;
+  color: #d4d4d8;
+  background: #0c0c0c;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  table-layout: fixed;
+}
+.schedule-table * { box-sizing: border-box; min-width: 0; }
+
+/* Border-radius dos cantos via células (sem overflow:hidden pra não cortar dropdown) */
+.schedule-table thead tr:first-child th:first-child { border-top-left-radius: 10px; }
+.schedule-table thead tr:first-child th:last-child  { border-top-right-radius: 10px; }
+.schedule-table tbody tr:last-child td:first-child  { border-bottom-left-radius: 10px; }
+.schedule-table tbody tr:last-child td:last-child   { border-bottom-right-radius: 10px; }
+
+/* Cabeçalho amarelo dourado igual ao modelo */
+.schedule-table thead th {
+  background: #fbbf24;
+  color: #18181b;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 8.5px;
+  letter-spacing: 0.2px;
+  padding: 7px 1px;
+  text-align: center;
+  white-space: nowrap;
+  border-right: 1px solid rgba(0,0,0,0.08);
+  position: relative;
+}
+.schedule-table thead th:last-child { border-right: none; }
+
+/* Larguras das colunas: definidas via <colgroup> no JS (porcentagens) */
+
+/* Linhas — fundo escuro com alternância sutil */
+.schedule-table tbody td {
+  padding: 5px 2px;
+  text-align: center;
+  background: #141414;
+  border-bottom: 1px solid #1f1f1f;
+  vertical-align: middle;
+  color: #d4d4d8;
+}
+.schedule-table tbody tr.row-alt td { background: #1a1a1a; }
+.schedule-table tbody tr:hover td   { background: #222; transition: background 0.15s; }
+
+/* Alinhamento das primeiras colunas (MÊS/ANO/DATA/LÍDER) */
+.schedule-table tbody td:nth-child(1),
+.schedule-table tbody td:nth-child(2),
+.schedule-table tbody td:nth-child(3),
+.schedule-table tbody td:nth-child(4) {
+  color: #a1a1aa;
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 9.5px;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Coluna NOME (5ª) com dropdown */
+.schedule-table tbody td:nth-child(5) {
+  text-align: left;
+}
+
+.cell-select, .cell-input {
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #e4e4e7;
+  padding: 4px 6px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-family: inherit;
+  width: 100%;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.cell-select { appearance: none; -webkit-appearance: none; padding-right: 20px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23a1a1aa' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 5px center;
+}
+.cell-select:focus, .cell-input:focus { outline: none; border-color: #fbbf24; }
+
+/* Inputs de slot — destacam quando preenchidos */
+.slot-input {
+  width: 100%;
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #52525b;
+  text-align: center;
+  padding: 4px 0;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.slot-input:focus { outline: none; border-color: #fbbf24; }
+.slot-input.slot-filled {
+  background: rgba(251, 191, 36, 0.15);
+  border-color: rgba(251, 191, 36, 0.45);
+  color: #fbbf24;
+}
+
+/* Badge do total — bolinha amarela quando > 0 */
+.total-badge {
+  display: inline-block;
+  min-width: 22px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #2a2a2a;
+  color: #71717a;
+  font-weight: 700;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.total-badge.total-active {
+  background: #fbbf24;
+  color: #18181b;
+}
+
+/* Botão de lixeira da linha */
+.del-btn {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 1px 3px;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.del-btn:hover { opacity: 1; }
+
+/* Célula combinada TOTAL + lixeira — bolinha e ícone lado a lado */
+.total-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* ─── Dropdown customizado de NOME (igual ao print 1) ───────────────────── */
+.name-dd {
+  position: relative;
+  width: 100%;
+}
+.name-dd-trigger {
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #e4e4e7;
+  padding: 5px 28px 5px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s;
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.name-dd-trigger.empty { color: #71717a; }
+.name-dd-trigger:hover, .name-dd-trigger.open { border-color: #fbbf24; }
+.name-dd-trigger::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  margin-top: -3px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid #a1a1aa;
+  transition: transform 0.15s;
+}
+.name-dd-trigger.open::after { transform: rotate(180deg); }
+
+.name-dd-menu {
+  position: fixed;  /* fixed pra escapar de overflow do pai (tabela) */
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  z-index: 9999;
+  max-height: 240px;
+  overflow-y: auto;
+  display: none;
+  padding: 4px;
+  /* top, left e width vêm do JS via getBoundingClientRect */
+}
+.name-dd-menu.open { display: block; }
+
+.name-dd-option {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #d4d4d8;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  transition: background 0.1s;
+}
+.name-dd-option:hover { background: #2a2a2a; }
+.name-dd-option.selected {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  font-weight: 600;
+}
+.name-dd-option.selected::after {
+  content: '✓';
+  color: #22c55e;
+  font-weight: 700;
+}
+.name-dd-option.placeholder { color: #52525b; font-style: italic; }
+.name-dd-option.placeholder:hover { background: #2a2a2a; color: #71717a; }
+
+.empty-row {
+  text-align: center !important;
+  padding: 48px !important;
+  color: #71717a;
+  background: #141414 !important;
+  font-style: italic;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  width: 100%;
+  max-width: 100%;
+}
+.table-card {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Em telas decentes, esconde a barra de rolagem (a tabela cabe) */
+@media (min-width: 1000px) {
+  .table-wrap { overflow-x: hidden; }
+}
+
+/* Barra de rolagem discreta combinando com o tema escuro (telas pequenas) */
+.table-wrap::-webkit-scrollbar { height: 8px; }
+.table-wrap::-webkit-scrollbar-track { background: #1a1a1a; border-radius: 4px; }
+.table-wrap::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 4px; }
+.table-wrap::-webkit-scrollbar-thumb:hover { background: #fbbf24; }
+
+/* Aviso de data inválida */
+.date-invalid-warning {
+  display: none;
+  padding: 14px 18px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 8px;
+  color: #fca5a5;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+.date-invalid-warning.show { display: block; }
+</style>
+
+<div class="page-content">
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <div class="title-bar">
+        <div class="title-accent"></div>
+        <h1 class="page-title" id="unit-title">{{ unit }}</h1>
+        <span class="saving-badge" id="saving-badge" style="display:none">💾 Salvando...</span>
+        <span class="saved-badge" id="saved-badge" style="display:none">✓ Salvo</span>
+      </div>
+      <p class="page-subtitle" style="margin-left:20px">Gestão de agendamentos por horário</p>
+    </div>
+    <div class="action-bar">
+      <button class="btn btn-primary" onclick="addRow()">+ Adicionar Linha</button>
+      <a class="btn btn-outline" href="/unit/{{ unit | urlencode }}/leads">📥 Leads Recebidos</a>
+      <button class="btn btn-outline" onclick="openSummary()">📋 Resumo do Dia</button>
+      <button class="btn btn-outline" onclick="openComparecimento()">✅ Comparecimento</button>
+      <button class="btn btn-outline" onclick="openExportModal()">⬇ Exportar CSV</button>
+      <button class="btn btn-danger" onclick="clearDay()">🗑 Limpar Dia</button>
+    </div>
+  </div>
+
+  <!-- Date selector -->
+  <div class="card" style="padding:16px">
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label class="filter-label">MÊS</label>
+        <select class="select" id="sel-month" onchange="onDateChange()">
+          {% set months_list = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"] %}
+          {% for m in months_list %}
+          <option value="{{ loop.index0 }}">{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">ANO</label>
+        <select class="select" id="sel-year" onchange="onDateChange()">
+          {% for y in range(2024, 2031) %}
+          <option value="{{ y }}">{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">DIA</label>
+        <select class="select" id="sel-day" onchange="onDateChange()">
+          {% for d in range(1, 32) %}
+          <option value="{{ d }}">{{ '%02d' % d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">LÍDER</label>
+        <input class="input" id="inp-leader" placeholder="Nome do líder"
+               oninput="updateLeaderCells(); scheduleSave()" style="width:200px"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Aviso quando a data ficar inválida -->
+  <div class="date-invalid-warning" id="date-warning">
+    ⚠ Selecione um <b>mês</b>, <b>ano</b> e <b>dia</b> válidos para visualizar os agendamentos.
+  </div>
+
+  <!-- Schedule table -->
+  <div class="card table-card">
+    <div class="table-wrap">
+      <table class="schedule-table" id="schedule-table">
+        <thead id="table-head"></thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Summary Modal -->
+<div class="modal-overlay" id="modal-summary" onclick="closeModal('modal-summary')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span>🕐 Resumo do Dia — <span id="sum-unit"></span></span>
+      <button class="modal-close" onclick="closeModal('modal-summary')">✕</button>
+    </div>
+    <div class="modal-body" style="overflow-x:hidden">
+      <div class="stats-grid" style="margin-bottom:16px;grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card sm" style="min-width:0"><div class="stat-icon">👥</div><div style="min-width:0"><div class="stat-value" id="sum-pessoas">0</div><div class="stat-label">Pessoas</div></div></div>
+        <div class="stat-card sm" style="min-width:0"><div class="stat-icon">📅</div><div style="min-width:0"><div class="stat-value" id="sum-total">0</div><div class="stat-label">Agendamentos</div></div></div>
+        <div class="stat-card sm" style="min-width:0"><div class="stat-icon">🔥</div><div style="min-width:0"><div class="stat-value" id="sum-pico" style="font-size:15px;line-height:1.1;white-space:nowrap">—</div><div class="stat-label" id="sum-pico-lbl">Pico</div></div></div>
+      </div>
+      <p class="section-title">RANKING DO DIA</p>
+      <div id="sum-ranking"></div>
+      <p class="section-title" style="margin-top:16px">OCUPAÇÃO POR HORÁRIO</p>
+      <div id="sum-slots"></div>
+
+      <p class="section-title" style="margin-top:24px">RESUMO DO MÊS</p>
+      <div id="sum-month-loading" style="color:#71717a;font-size:13px;padding:8px 0">Carregando...</div>
+      <div id="sum-month" style="display:none">
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead>
+              <tr style="background:#1f1f1f">
+                <th style="padding:7px 10px;text-align:left;color:#a1a1aa;font-weight:600;border-bottom:1px solid #2a2a2a">DIA</th>
+                <th style="padding:7px 10px;text-align:center;color:#fbbf24;font-weight:600;border-bottom:1px solid #2a2a2a">AGEND.</th>
+                <th style="padding:7px 10px;text-align:center;color:#22c55e;font-weight:600;border-bottom:1px solid #2a2a2a">COMP.</th>
+                <th style="padding:7px 10px;text-align:center;color:#f59e0b;font-weight:600;border-bottom:1px solid #2a2a2a">CONV.%</th>
+              </tr>
+            </thead>
+            <tbody id="sum-month-body"></tbody>
+            <tfoot id="sum-month-foot"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Comparecimento Modal -->
+<div class="modal-overlay" id="modal-comp" onclick="closeModal('modal-comp')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span>✅ Comparecimento — <span id="comp-unit"></span></span>
+      <button class="modal-close" onclick="closeModal('modal-comp')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="comp-header-row" id="comp-header">
+        <span>NOME</span><span>AGENDAMENTO</span><span>COMPARECIMENTO</span>
+      </div>
+      <div id="comp-list"></div>
+      <div class="comp-footer" id="comp-totals"></div>
+
+      <!-- Seção de nomes (apenas PARÁ) -->
+      <div id="comp-names-section" style="display:none;margin-top:20px">
+        <div class="comp-header-row" id="comp-names-header">
+          <span>NOME</span><span>AGENDAMENTO</span><span>COMPARECIMENTO</span>
+        </div>
+        <div id="comp-names-list"></div>
+        <div class="comp-footer" id="comp-names-totals"></div>
+      </div>
+
+      <div style="text-align:right;margin-top:12px">
+        <button class="btn btn-primary" onclick="saveComparecimento()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Exportar CSV -->
+<div class="modal-overlay" id="modal-export" onclick="closeModal('modal-export')">
+  <div class="modal" style="max-width:460px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span>⬇ Exportar CSV</span>
+      <button class="modal-close" onclick="closeModal('modal-export')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Período -->
+      <div class="filter-group" style="margin-bottom:14px">
+        <label class="filter-label">PERÍODO</label>
+        <select class="select" id="exp-period" onchange="onExportPeriodChange()" style="width:100%">
+          <option value="day">Dia atual</option>
+          <option value="month">Mês inteiro</option>
+          <option value="range">Intervalo de dias</option>
+        </select>
+      </div>
+
+      <!-- Mês/Ano (visível quando 'month') -->
+      <div id="exp-month-block" style="display:none;margin-bottom:14px">
+        <div style="display:flex;gap:8px">
+          <div class="filter-group" style="flex:1">
+            <label class="filter-label">MÊS</label>
+            <select class="select" id="exp-month" style="width:100%"></select>
+          </div>
+          <div class="filter-group" style="flex:1">
+            <label class="filter-label">ANO</label>
+            <select class="select" id="exp-year" style="width:100%"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Intervalo (visível quando 'range') -->
+      <div id="exp-range-block" style="display:none;margin-bottom:14px">
+        <div style="display:flex;gap:8px">
+          <div class="filter-group" style="flex:1">
+            <label class="filter-label">DATA INICIAL</label>
+            <input class="input" type="date" id="exp-start" style="width:100%"/>
+          </div>
+          <div class="filter-group" style="flex:1">
+            <label class="filter-label">DATA FINAL</label>
+            <input class="input" type="date" id="exp-end" style="width:100%"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- Escopo de unidades -->
+      <div class="filter-group" style="margin-bottom:18px">
+        <label class="filter-label">UNIDADES</label>
+        <select class="select" id="exp-scope" style="width:100%">
+          <option value="current">Apenas esta unidade ({{ unit }})</option>
+          <option value="all">Todas as unidades</option>
+        </select>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="closeModal('modal-export')">Cancelar</button>
+        <button class="btn btn-primary" onclick="runExport()" id="exp-btn">Exportar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const UNIT = decodeURIComponent("{{ unit | urlencode }}");
+let rows = [];
+let employees = [];
+let saveTimer = null;
+let compPeople = [];
+
+document.getElementById('unit-title').textContent = UNIT;
+document.getElementById('sum-unit').textContent = UNIT;
+document.getElementById('comp-unit').textContent = UNIT;
+
+// ── Inicialização imediata ────────────────────────────────────────────────────
+// Roda assim que o HTML carrega, SEM esperar /api/constants.
+// Garante que mês/ano/dia já estão prontos pro usuário.
+function initDateSelectors() {
+  const now = new Date();
+  const selMonth = document.getElementById('sel-month');
+  const selYear  = document.getElementById('sel-year');
+  const selDay   = document.getElementById('sel-day');
+
+  // Mês atual (os <option> já estão lá via Jinja)
+  selMonth.value = String(now.getMonth());
+  selYear.value  = String(now.getFullYear());
+
+  // Ajusta os dias para o número correto do mês (28/29/30/31)
+  updateDayOptions(now.getDate());
+}
+
+// Atualiza as opções do select de DIA conforme mês/ano selecionados.
+// `preferDay`: dia que se quer manter selecionado, se ainda existir naquele mês.
+function updateDayOptions(preferDay) {
+  const selMonth = document.getElementById('sel-month');
+  const selYear  = document.getElementById('sel-year');
+  const selDay   = document.getElementById('sel-day');
+
+  const mi = parseInt(selMonth.value);
+  const y  = parseInt(selYear.value);
+  if(isNaN(mi) || isNaN(y)) return;
+
+  const daysInMonth = new Date(y, mi+1, 0).getDate();
+  const target = Math.min(parseInt(preferDay) || parseInt(selDay.value) || 1, daysInMonth) || 1;
+
+  selDay.innerHTML = '';
+  for(let d=1; d<=daysInMonth; d++) {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = String(d).padStart(2,'0');
+    if(d === target) opt.selected = true;
+    selDay.appendChild(opt);
+  }
+}
+
+// Dispara inicialização AGORA (script roda depois do DOM parseado neste ponto)
+initDateSelectors();
+
+async function onConstantsLoaded() {
+  // Como já inicializamos no carregamento, aqui só carrega a tabela.
+  buildTableHead();
+  // Importante: carregar funcionários ANTES dos agendamentos,
+  // senão a tabela renderiza sem o dropdown de nomes.
+  await loadEmployees();
+  await loadAppointment();
+}
+
+function buildTableHead() {
+  const table = document.getElementById('schedule-table');
+  table.querySelectorAll('colgroup').forEach(c => c.remove());
+
+  // Colunas: MÊS, ANO, DATA, LÍDER, NOME, 13 slots, TOTAL+lixeira
+  // Total: 3.5 + 2.5 + 5.5 + 4 + 10 + 13*4.5 + 11 = 95% (sobra 5% pra paddings/bordas)
+  const colgroup = document.createElement('colgroup');
+  const widths = ['3.5%', '2.5%', '5.5%', '4%', '10%'];   // MÊS, ANO, DATA, LÍDER, NOME
+  TIME_SLOTS.forEach(() => widths.push('4.5%'));          // N slots × 4.5%
+  widths.push('11%');                                     // TOTAL + lixeira juntos
+  widths.forEach(w => {
+    const col = document.createElement('col');
+    col.style.width = w;
+    colgroup.appendChild(col);
+  });
+  table.insertBefore(colgroup, table.firstChild);
+
+  const head = document.getElementById('table-head');
+  let html = '<tr><th>MÊS</th><th>ANO</th><th>DATA</th><th>LÍDER</th><th>NOME</th>';
+  TIME_SLOTS.forEach(s => { html += `<th>${s.label}</th>`; });
+  html += '<th>TOTAL</th></tr>';
+  head.innerHTML = html;
+}
+
+async function loadEmployees() {
+  const res = await fetch(`/api/employees?unit=${encodeURIComponent(UNIT)}&active=true`);
+  employees = await res.json();
+}
+
+// ── Guards contra data inválida (bug do NaN) ──────────────────────────────────
+function isDateValid() {
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  const d  = parseInt(document.getElementById('sel-day').value);
+  return !isNaN(mi) && !isNaN(y) && !isNaN(d)
+      && mi >= 0 && mi <= 11 && y >= 1900 && d >= 1 && d <= 31;
+}
+
+function showDateWarning(show) {
+  document.getElementById('date-warning').classList.toggle('show', show);
+}
+
+function getDateKey() {
+  if(!isDateValid()) return null;
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  const d  = parseInt(document.getElementById('sel-day').value);
+  return formatDateKey(y, mi, d);
+}
+
+function getDateStr() {
+  if(!isDateValid()) return '—';
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  const d  = parseInt(document.getElementById('sel-day').value);
+  return `${String(d).padStart(2,'0')}/${String(mi+1).padStart(2,'0')}/${y}`;
+}
+
+async function loadAppointment() {
+  const dateKey = getDateKey();
+  if(!dateKey) {
+    showDateWarning(true);
+    rows = [];
+    renderTable();
+    return;
+  }
+  showDateWarning(false);
+  const res = await fetch(`/api/appointments/${encodeURIComponent(UNIT)}/${dateKey}`);
+  const appt = await res.json();
+  document.getElementById('inp-leader').value = appt.leader || '';
+  rows = appt.rows || [];
+  renderTable();
+}
+
+function onDateChange() {
+  // Re-popula os dias do select conforme o mês/ano selecionados
+  updateDayOptions();
+  loadAppointment();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('table-body');
+  const colspan = 5 + TIME_SLOTS.length + 1; // 5 fixas + 10 slots + 1 (TOTAL+lixeira)
+
+  if(rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="${colspan}" class="empty-row">Nenhuma linha. Clique em "+ Adicionar Linha" para começar.</td></tr>`;
+    return;
+  }
+  const dateStr = getDateStr();
+  const leader = document.getElementById('inp-leader').value;
+  const monthIdx = parseInt(document.getElementById('sel-month').value);
+  const monthName = isNaN(monthIdx) ? '—' : MONTHS[monthIdx];
+  const year = document.getElementById('sel-year').value;
+
+  tbody.innerHTML = rows.map((row,i)=>{
+    const total = Object.values(row.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+    const bg = i%2===0?'':'row-alt';
+    let nameCell;
+    if(employees.length>0){
+      const display = row.name ? escapeHtml(row.name) : 'Selecionar...';
+      const emptyClass = row.name ? '' : ' empty';
+      const opts = employees.map(e => {
+        const sel = e.name === row.name ? ' selected' : '';
+        return `<div class="name-dd-option${sel}" onclick="selectName(${i}, '${escapeJs(e.name)}', event)">${escapeHtml(e.name)}</div>`;
+      }).join('');
+      nameCell = `
+        <div class="name-dd" data-row="${i}">
+          <button type="button" class="name-dd-trigger${emptyClass}" onclick="toggleNameDropdown(${i}, event)">${display}</button>
+          <div class="name-dd-menu">
+            <div class="name-dd-option placeholder" onclick="selectName(${i}, '', event)">Selecionar...</div>
+            ${opts}
+          </div>
+        </div>`;
+    } else {
+      // Não tem funcionários cadastrados pra esta unidade — input livre + dica
+      nameCell=`<input class="cell-input" value="${escapeHtml(row.name||'')}"
+        placeholder="Sem funcionários — cadastre em 'Funcionários'"
+        onchange="rowNameChange(${i},this.value)"
+        title="Cadastre funcionários na página '👥 Funcionários' para selecioná-los aqui."/>`;
+    }
+    const slotCells = TIME_SLOTS.map(s=>{
+      const val=row.slots?.[s.key]||'';
+      const hl=val.trim()!==''?' slot-filled':'';
+      return `<td><input class="slot-input${hl}" maxlength="5" value="${val}" oninput="slotChange(${i},'${s.key}',this.value);this.className='slot-input'+(this.value.trim()!==''?' slot-filled':'')"/></td>`;
+    }).join('');
+    return `<tr class="${bg}">
+      <td>${monthName}</td>
+      <td>${year}</td>
+      <td>${dateStr}</td>
+      <td>
+        <input class="cell-input" style="font-size:10px;text-transform:uppercase"
+          value="${escapeHtml(row.leader||leader||'')}"
+          placeholder="—"
+          onchange="rowLeaderChange(${i}, this.value)"
+          title="Líder desta linha"/>
+      </td>
+      <td>${nameCell}</td>
+      ${slotCells}
+      <td class="total-cell">
+        <span class="total-badge${total>0?' total-active':''}">${total}</span>
+        <button class="del-btn" onclick="removeRow(${i})" title="Remover linha">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function rowNameChange(i, val) { rows[i].name=val; scheduleSave(); }
+function rowLeaderChange(i, val) { rows[i].leader=val.toUpperCase(); scheduleSave(); }
+
+// inp-leader agora só serve como valor padrão para NOVAS linhas
+// Linhas já criadas têm seu próprio líder — não são afetadas
+function updateLeaderCells() {
+  // Intencionalmente vazio: cada linha tem seu próprio campo de líder
+}
+
+// ── Dropdown customizado de NOME ────────────────────────────────────────────
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
+}
+function escapeJs(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function toggleNameDropdown(i, event) {
+  event.stopPropagation();
+  const dd = document.querySelector(`.name-dd[data-row="${i}"]`);
+  if(!dd) return;
+  const menu = dd.querySelector('.name-dd-menu');
+  const wasOpen = menu.classList.contains('open');
+  // Fecha qualquer outro dropdown aberto
+  closeAllNameDropdowns();
+  if(!wasOpen) {
+    const trigger = dd.querySelector('.name-dd-trigger');
+    const rect = trigger.getBoundingClientRect();
+    // Largura mínima de 180px pro menu ficar legível mesmo se a célula for estreita
+    const menuWidth = Math.max(rect.width, 180);
+    menu.style.top  = (rect.bottom + 4) + 'px';
+    menu.style.left = rect.left + 'px';
+    menu.style.width = menuWidth + 'px';
+    menu.classList.add('open');
+    trigger.classList.add('open');
+  }
+}
+
+// Fechar dropdowns ao rolar a página (senão eles ficam "presos" na tela)
+window.addEventListener('scroll', closeAllNameDropdowns, true);
+window.addEventListener('resize', closeAllNameDropdowns);
+
+function closeAllNameDropdowns() {
+  document.querySelectorAll('.name-dd-menu.open').forEach(m => m.classList.remove('open'));
+  document.querySelectorAll('.name-dd-trigger.open').forEach(t => t.classList.remove('open'));
+}
+
+function selectName(i, name, event) {
+  event.stopPropagation();
+  rows[i].name = name;
+  closeAllNameDropdowns();
+  // Atualiza só o trigger sem re-renderizar a tabela inteira
+  const dd = document.querySelector(`.name-dd[data-row="${i}"]`);
+  if(dd) {
+    const trig = dd.querySelector('.name-dd-trigger');
+    trig.textContent = name || 'Selecionar...';
+    trig.classList.toggle('empty', !name);
+    // Atualiza marcação ✓ nos itens
+    dd.querySelectorAll('.name-dd-option').forEach(opt => opt.classList.remove('selected'));
+    dd.querySelectorAll('.name-dd-option').forEach(opt => {
+      if((opt.textContent.trim() === name) && !opt.classList.contains('placeholder')) {
+        opt.classList.add('selected');
+      }
+    });
+  }
+  scheduleSave();
+}
+
+// Fechar ao clicar fora de qualquer dropdown
+document.addEventListener('click', (e) => {
+  if(!e.target.closest('.name-dd')) closeAllNameDropdowns();
+});
+
+function slotChange(i, key, val) {
+  if(!rows[i].slots) rows[i].slots={};
+  rows[i].slots[key]=val.toUpperCase();
+  updateRowTotal(i);
+  scheduleSave();
+}
+
+function updateRowTotal(i) {
+  const trs = document.getElementById('table-body').querySelectorAll('tr');
+  if(!trs[i]) return;
+  const total = Object.values(rows[i].slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+  const badge = trs[i].querySelector('.total-badge');
+  if(badge){ badge.textContent=total; badge.className='total-badge'+(total>0?' total-active':''); }
+}
+
+function addRow() {
+  if(!isDateValid()){
+    showDateWarning(true);
+    showToast('Selecione uma data válida antes de adicionar linhas.','error');
+    return;
+  }
+  const newLeader = document.getElementById('inp-leader').value;
+  rows.push({name:'',slots:{},leader:newLeader});
+  renderTable();
+  scheduleSave();
+}
+function removeRow(i) { rows.splice(i,1); renderTable(); scheduleSave(); }
+
+function scheduleSave() {
+  if(!isDateValid()) {
+    showDateWarning(true);
+    return; // não agenda salvamento com data ruim
+  }
+  clearTimeout(saveTimer);
+  document.getElementById('saving-badge').style.display='';
+  document.getElementById('saved-badge').style.display='none';
+  saveTimer = setTimeout(doSave, 1200);
+}
+
+async function doSave() {
+  if(!isDateValid()) return; // proteção dupla
+  const leader = document.getElementById('inp-leader').value;
+  const res = await fetch(`/api/appointments/${encodeURIComponent(UNIT)}/${getDateKey()}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({leader, rows})
+  });
+  document.getElementById('saving-badge').style.display='none';
+  if(res.ok) {
+    document.getElementById('saved-badge').style.display='';
+    // Atualiza o resumo do mês se o modal estiver aberto
+    const summaryModal = document.getElementById('modal-summary');
+    if(summaryModal && summaryModal.classList.contains('show')) {
+      loadMonthSummary();
+    }
+  } else {
+    const err = await res.json().catch(()=>({}));
+    showToast('Erro ao salvar: ' + (err.error || res.status), 'error');
+  }
+}
+
+function clearDay() {
+  if(!isDateValid()){ showToast('Selecione uma data válida.','error'); return; }
+  if(!confirm('Limpar todos os dados deste dia?')) return;
+  rows=[]; document.getElementById('inp-leader').value='';
+  renderTable(); scheduleSave();
+  showToast('Dia limpo com sucesso.');
+}
+
+// ── Exportação CSV (com modal de seleção de período) ────────────────────────
+
+function openExportModal() {
+  // Popula selects de mês e ano com o estado atual da tela
+  const expMonth = document.getElementById('exp-month');
+  const expYear  = document.getElementById('exp-year');
+  if (expMonth.children.length === 0) {
+    MONTHS.forEach((m, i) => {
+      const o = document.createElement('option');
+      o.value = i; o.textContent = m;
+      expMonth.appendChild(o);
+    });
+    const yNow = new Date().getFullYear();
+    for (let y = yNow - 2; y <= yNow + 4; y++) {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y;
+      expYear.appendChild(o);
+    }
+  }
+  // Pré-seleciona o que está na tela
+  expMonth.value = document.getElementById('sel-month').value;
+  expYear.value  = document.getElementById('sel-year').value;
+
+  // Intervalo: padrão = mês corrente da tela
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  if (!isNaN(mi) && !isNaN(y)) {
+    const lastDay = new Date(y, mi+1, 0).getDate();
+    document.getElementById('exp-start').value = `${y}-${String(mi+1).padStart(2,'0')}-01`;
+    document.getElementById('exp-end').value   = `${y}-${String(mi+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  }
+
+  document.getElementById('exp-period').value = 'day';
+  onExportPeriodChange();
+  openModal('modal-export');
+}
+
+function onExportPeriodChange() {
+  const p = document.getElementById('exp-period').value;
+  document.getElementById('exp-month-block').style.display = (p === 'month') ? '' : 'none';
+  document.getElementById('exp-range-block').style.display = (p === 'range') ? '' : 'none';
+}
+
+// Constrói o nome do arquivo conforme as escolhas
+function _exportFilename(scope, period, p1, p2) {
+  const tag = scope === 'all' ? 'TODAS' : UNIT;
+  if (period === 'day')   return `agendamento_${tag}_${p1}.csv`;
+  if (period === 'month') return `agendamento_${tag}_${p1}.csv`; // p1 = YYYY-MM
+  return `agendamento_${tag}_${p1}_a_${p2}.csv`;                  // intervalo
+}
+
+// Helper: escape de campo CSV (separador ;)
+function _csvEsc(v) {
+  let s = String(v == null ? '' : v);
+  if (/[;"\n\r]/.test(s) || s !== s.trim()) {
+    s = '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+// Faz uma chamada GET autenticada e retorna o JSON
+async function _fetchJson(url) {
+  const r = await fetch(url);
+  if (r.status === 401) { window.location.href = '/login'; throw new Error('unauth'); }
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+// Busca os agendamentos a serem exportados conforme as escolhas do modal
+async function _gatherAppointments(scope, period) {
+  let appts = [];
+  if (period === 'day') {
+    if (!isDateValid()) { showToast('Selecione uma data válida na tela primeiro.', 'error'); return null; }
+    appts = await _fetchJson(`/api/appointments?date=${getDateKey()}`);
+  } else if (period === 'month') {
+    const m = parseInt(document.getElementById('exp-month').value) + 1; // backend espera 1-12
+    const y = parseInt(document.getElementById('exp-year').value);
+    if (isNaN(m) || isNaN(y)) { showToast('Mês/ano inválido.', 'error'); return null; }
+    appts = await _fetchJson(`/api/appointments?year=${y}&month=${m}`);
+  } else { // range
+    const start = document.getElementById('exp-start').value;
+    const end   = document.getElementById('exp-end').value;
+    if (!start || !end) { showToast('Preencha as duas datas.', 'error'); return null; }
+    if (start > end) { showToast('A data inicial deve ser anterior à final.', 'error'); return null; }
+    // O backend não tem endpoint de intervalo arbitrário — buscamos mês a mês e filtramos.
+    const s = new Date(start), e = new Date(end);
+    let y = s.getFullYear(), m = s.getMonth();
+    while (y < e.getFullYear() || (y === e.getFullYear() && m <= e.getMonth())) {
+      const batch = await _fetchJson(`/api/appointments?year=${y}&month=${m+1}`);
+      appts = appts.concat(batch);
+      m++; if (m > 11) { m = 0; y++; }
+    }
+    appts = appts.filter(a => a.date >= start && a.date <= end);
+  }
+
+  // Filtro de unidade conforme o escopo
+  if (scope === 'current') {
+    appts = appts.filter(a => a.unit === UNIT);
+  }
+
+  // Ordena por data, depois por unidade (importante quando "todas as unidades")
+  appts.sort((a, b) => (a.date + a.unit).localeCompare(b.date + b.unit));
+  return appts;
+}
+
+async function runExport() {
+  const btn = document.getElementById('exp-btn');
+  btn.disabled = true;
+  btn.textContent = 'Exportando...';
+  try {
+    const scope  = document.getElementById('exp-scope').value;
+    const period = document.getElementById('exp-period').value;
+
+    const appts = await _gatherAppointments(scope, period);
+    if (!appts) return; // erro já reportado dentro de _gatherAppointments
+    if (appts.length === 0) {
+      showToast('Não há dados para o período selecionado.', 'error');
+      return;
+    }
+
+    // Monta as linhas. Quando exportar "todas as unidades", inclui a coluna UNIDADE.
+    const includeUnit = scope === 'all';
+    const header = ['MÊS', 'ANO', 'DATA'];
+    if (includeUnit) header.push('UNIDADE');
+    header.push('LÍDER', 'NOME', ...TIME_SLOTS.map(s => s.label), 'TOTAL');
+
+    const lines = [header.map(_csvEsc).join(';')];
+
+    appts.forEach(appt => {
+      // appt.date é "YYYY-MM-DD"
+      const [yy, mm, dd] = appt.date.split('-');
+      const monthName = MONTHS[parseInt(mm, 10) - 1] || '';
+      const dateBr = `${dd}/${mm}/${yy}`;
+      const leader = appt.leader || '';
+
+      (appt.rows || []).forEach(r => {
+        const total = Object.values(r.slots || {}).reduce((s, v) => s + (Number(v) || 0), 0);
+        const slotVals = TIME_SLOTS.map(s => r.slots?.[s.key] || '');
+        const out = [monthName, yy, dateBr];
+        if (includeUnit) out.push(appt.unit);
+        out.push(leader, r.name || '', ...slotVals, total);
+        lines.push(out.map(_csvEsc).join(';'));
+      });
+    });
+
+    // BOM + CRLF pro Excel reconhecer UTF-8 e quebrar linha corretamente
+    const csv = '\uFEFF' + lines.join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+
+    // Nome do arquivo (com tag de período)
+    let p1 = '', p2 = '';
+    if (period === 'day') {
+      p1 = getDateKey();
+    } else if (period === 'month') {
+      const m = parseInt(document.getElementById('exp-month').value) + 1;
+      const y = parseInt(document.getElementById('exp-year').value);
+      p1 = `${y}-${String(m).padStart(2,'0')}`;
+    } else {
+      p1 = document.getElementById('exp-start').value;
+      p2 = document.getElementById('exp-end').value;
+    }
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = _exportFilename(scope, period, p1, p2);
+    a.click();
+
+    closeModal('modal-export');
+    showToast(`CSV exportado: ${appts.reduce((n,a)=>n+(a.rows||[]).length,0)} registros.`);
+  } catch (err) {
+    if (err.message !== 'unauth') {
+      showToast('Erro ao exportar: ' + err.message, 'error');
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Exportar';
+  }
+}
+
+// Summary Modal
+async function openSummary() {
+  const totalPeople = rows.filter(r=>r.name?.trim()).length;
+  const totalAg = rows.reduce((s,r)=>s+Object.values(r.slots||{}).reduce((ss,v)=>ss+(Number(v)||0),0),0);
+  document.getElementById('sum-pessoas').textContent=totalPeople;
+  document.getElementById('sum-total').textContent=totalAg;
+
+  // 1ª passada: conta os agendamentos de cada faixa e descobre o pico
+  const slotCounts = TIME_SLOTS.map(s => ({
+    label: s.label,
+    cnt: rows.reduce((acc, r) => acc + (Number(r.slots?.[s.key]) || 0), 0)
+  }));
+  const maxCount = slotCounts.reduce((m, x) => Math.max(m, x.cnt), 0);
+  const peak = slotCounts.reduce((best, x) => x.cnt > best.cnt ? x : best, {label:'—', cnt:0});
+
+  // 2ª passada: barra cheia = faixa do pico; as outras proporcionais a ela
+  const slotHtml = slotCounts.map(x => {
+    const pct = maxCount > 0 ? Math.round((x.cnt / maxCount) * 100) : 0;
+    const isPeak = x.cnt > 0 && x.cnt === maxCount;
+    return `<div class="slot-bar-row"><span class="slot-label">${x.label}</span>
+      <div class="slot-bar-bg"><div class="slot-bar-fill${isPeak ? ' slot-bar-peak' : ''}" style="width:${pct}%"></div></div>
+      <span class="slot-cnt">${x.cnt}</span></div>`;
+  }).join('');
+
+  document.getElementById('sum-pico').textContent = peak.cnt > 0 ? `${peak.label}` : '—';
+  document.getElementById('sum-pico-lbl').textContent = peak.cnt > 0 ? `Pico · ${peak.cnt}` : 'Pico';
+  document.getElementById('sum-slots').innerHTML = slotHtml;
+
+  // Carrega comparecimentos do dia para enriquecer o ranking
+  let compData = {};
+  try {
+    const apptRes = await fetch(`/api/appointments/${encodeURIComponent(UNIT)}/${getDateKey()}`);
+    const apptJson = await apptRes.json();
+    compData = apptJson.comparecimento_data || {};
+  } catch(e) { compData = {}; }
+
+  const ranking=rows.filter(r=>r.name?.trim())
+    .map(r=>({
+      name:r.name.trim(),
+      ag:Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0),
+      comp:Number(compData[r.name.trim()])||0
+    }))
+    .sort((a,b)=>b.ag-a.ag);
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('sum-ranking').innerHTML = ranking.length ? (
+    `<div class="rank-header-row">
+      <span>NOME</span><span>AGEND.</span><span>COMP.</span><span>CONV.%</span>
+    </div>` +
+    ranking.map((p,i)=>{
+      const conv = p.ag>0?Math.round((p.comp/p.ag)*100):0;
+      return `<div class="rank-row"><span class="rank-pos">${i<3?medals[i]:`${i+1}º`}</span>
+        <span class="rank-name">${p.name}</span>
+        <span class="rank-ag primary">${p.ag}</span>
+        <span class="rank-comp green">${p.comp}</span>
+        <span class="rank-conv yellow">${conv}%</span></div>`;
+    }).join('')
+  ) : '<p class="no-data">Sem dados</p>';
+
+  openModal('modal-summary');
+  await loadMonthSummary();
+}
+
+async function loadMonthSummary() {
+  const monthIndex = parseInt(document.getElementById('sel-month').value);
+  const year = parseInt(document.getElementById('sel-year').value);
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+
+  document.getElementById('sum-month-loading').style.display = 'block';
+  document.getElementById('sum-month').style.display = 'none';
+
+  try {
+    const res = await fetch(`/api/appointments?year=${year}&month=${monthIndex+1}&unit=${encodeURIComponent(UNIT)}`);
+    const appts = await res.json();
+
+    const dayMap = {};
+    appts.forEach(appt => {
+      const day = parseInt(appt.date.split('-')[2]);
+      if (!dayMap[day]) dayMap[day] = {ag:0, comp:0};
+      (appt.rows||[]).forEach(r => {
+        if (r.name?.trim())
+          dayMap[day].ag += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+      });
+      if (appt.comparecimento_data)
+        Object.values(appt.comparecimento_data).forEach(v => { dayMap[day].comp += Number(v)||0; });
+    });
+
+    const WEEK_DAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sab'];
+    let totalAg = 0, totalComp = 0;
+    let bodyHtml = '';
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const data = dayMap[d] || {ag:0, comp:0};
+      const conv = data.ag > 0 ? Math.round((data.comp/data.ag)*100) : 0;
+      const weekDay = WEEK_DAYS[new Date(year, monthIndex, d).getDay()];
+      const isSunday = new Date(year, monthIndex, d).getDay() === 0;
+      const dateStr = `${String(d).padStart(2,'0')}/${String(monthIndex+1).padStart(2,'0')}`;
+      const hasData = data.ag > 0 || data.comp > 0;
+      totalAg += data.ag;
+      totalComp += data.comp;
+
+      bodyHtml += `<tr style="border-bottom:1px solid #1f1f1f;${isSunday?'opacity:0.4':''}${hasData?'background:rgba(251,191,36,0.03)':''}">
+        <td style="padding:6px 10px;color:#d4d4d8;font-size:12px">
+          <span style="color:#71717a;margin-right:6px;font-size:11px">${weekDay}</span>${dateStr}
+        </td>
+        <td style="padding:6px 10px;text-align:center;color:${data.ag>0?'#fbbf24':'#52525b'};font-weight:${data.ag>0?700:400}">${data.ag}</td>
+        <td style="padding:6px 10px;text-align:center;color:${data.comp>0?'#22c55e':'#52525b'};font-weight:${data.comp>0?700:400}">${data.comp}</td>
+        <td style="padding:6px 10px;text-align:center;color:${conv>0?'#f59e0b':'#52525b'};font-weight:${conv>0?700:400}">${conv > 0 ? conv+'%' : '0%'}</td>
+      </tr>`;
+    }
+
+    const totalConv = totalAg > 0 ? Math.round((totalComp/totalAg)*100) : 0;
+    document.getElementById('sum-month-body').innerHTML = bodyHtml;
+    document.getElementById('sum-month-foot').innerHTML = `
+      <tr style="background:#1f1f1f;border-top:2px solid #2a2a2a">
+        <td style="padding:8px 10px;color:#a1a1aa;font-weight:700;font-size:12px">TOTAL</td>
+        <td style="padding:8px 10px;text-align:center;color:#fbbf24;font-weight:800;font-size:13px">${totalAg}</td>
+        <td style="padding:8px 10px;text-align:center;color:#22c55e;font-weight:800;font-size:13px">${totalComp}</td>
+        <td style="padding:8px 10px;text-align:center;color:#f59e0b;font-weight:800;font-size:13px">${totalConv > 0 ? totalConv+'%' : '0%'}</td>
+      </tr>`;
+
+    document.getElementById('sum-month-loading').style.display = 'none';
+    document.getElementById('sum-month').style.display = 'block';
+  } catch(e) {
+    document.getElementById('sum-month-loading').textContent = 'Erro ao carregar dados do mes.';
+  }
+}
+
+// Comparecimento Modal
+const BAIRROS_PARA = ['Ananindeua','Augusto','Capanema','Castanhal','Cidade Nova',
+  'José Bonifácio','Jurunas','Marabá','Marambaia','Telegrafo'];
+let bairrosData = [];
+
+function openComparecimento() {
+  if(!isDateValid()){ showToast('Selecione uma data válida.','error'); return; }
+
+  // PARÁ usa tabela de bairros + lista de nomes dos operadores
+  if(UNIT === 'PARÁ') {
+    fetch(`/api/appointments/${encodeURIComponent(UNIT)}/${getDateKey()}`)
+      .then(r=>r.json()).then(appt=>{
+        // --- Bairros ---
+        const saved = (appt.comparecimento_data && appt.comparecimento_data.__bairros__) || {};
+        bairrosData = BAIRROS_PARA.map(b => ({
+          nome: b,
+          ag:   Number(saved[b]?.ag)   || 0,
+          comp: Number(saved[b]?.comp) || 0,
+        }));
+
+        // --- Nomes (operadores da tabela do dia) ---
+        const personMap = {};
+        rows.forEach(r => {
+          const name = r.name?.trim(); if(!name) return;
+          if(!personMap[name]) personMap[name] = {ag:0, comp:0};
+          personMap[name].ag += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+        });
+        compPeople = Object.entries(personMap)
+          .sort((a,b) => b[1].ag - a[1].ag)
+          .map(([name,d]) => ({name, ag:d.ag, comp:d.comp}));
+        if(appt.comparecimento_data) {
+          compPeople.forEach(p => { p.comp = appt.comparecimento_data[p.name] || 0; });
+        }
+
+        renderBairrosList();
+      });
+    openModal('modal-comp');
+    return;
+  }
+
+  const personMap={};
+  rows.forEach(r=>{
+    const name=r.name?.trim(); if(!name)return;
+    if(!personMap[name]) personMap[name]={ag:0,comp:0};
+    personMap[name].ag+=Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+  });
+  compPeople=Object.entries(personMap)
+    .sort((a,b)=>b[1].ag-a[1].ag)
+    .map(([name,d])=>({name,ag:d.ag,comp:d.comp}));
+
+  fetch(`/api/appointments/${encodeURIComponent(UNIT)}/${getDateKey()}`)
+    .then(r=>r.json()).then(appt=>{
+      if(appt.comparecimento_data){
+        compPeople.forEach(p=>{ p.comp=appt.comparecimento_data[p.name]||0; });
+      }
+      renderCompList();
+    });
+  openModal('modal-comp');
+}
+
+function renderBairrosList() {
+  document.getElementById('comp-header').innerHTML =
+    '<span>BAIRRO</span><span>AGENDAMENTO</span><span>COMPARECIMENTO</span><span style="text-align:center">%</span>';
+  document.getElementById('comp-header').style.gridTemplateColumns='1fr 4.5rem 4.5rem 3rem';
+  document.getElementById('comp-list').innerHTML = bairrosData.map((b,i)=>{
+    const pct = b.ag>0?Math.round((b.comp/b.ag)*100):0;
+    return `<div class="comp-row" style="grid-template-columns:1fr 4.5rem 4.5rem 3rem">
+      <div class="comp-name"><div class="comp-avatar">${b.nome[0].toUpperCase()}</div>${b.nome}</div>
+      <input class="comp-input primary-input" type="number" min="0" value="${b.ag}"
+        onchange="bairrosData[${i}].ag=Number(this.value);renderBairrosList()"/>
+      <input class="comp-input green-input" type="number" min="0" value="${b.comp}"
+        onchange="bairrosData[${i}].comp=Number(this.value);renderBairrosList()"/>
+      <span style="display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#f59e0b">${pct}%</span>
+    </div>`;
+  }).join('');
+  const totAg=bairrosData.reduce((s,b)=>s+(b.ag||0),0);
+  const totComp=bairrosData.reduce((s,b)=>s+(b.comp||0),0);
+  const totPct=totAg>0?Math.round((totComp/totAg)*100):0;
+  document.getElementById('comp-totals').innerHTML=
+    `<span>Total</span><span class="primary">${totAg}</span><span class="green">${totComp}</span><span style="color:#f59e0b;font-weight:700">${totPct}%</span>`;
+  document.getElementById('comp-totals').style.gridTemplateColumns='1fr 4.5rem 4.5rem 3rem';
+
+  // Seção de nomes dos operadores (abaixo dos bairros)
+  const namesSection = document.getElementById('comp-names-section');
+  if(compPeople.length > 0) {
+    namesSection.style.display = '';
+    document.getElementById('comp-names-list').innerHTML = compPeople.map((p,i) =>
+      `<div class="comp-row">
+        <div class="comp-name"><div class="comp-avatar">${p.name[0].toUpperCase()}</div>${p.name}</div>
+        <input class="comp-input primary-input" type="number" min="0" value="${p.ag}"
+          onchange="compPeople[${i}].ag=Number(this.value);updateParaNamesTotals()"/>
+        <input class="comp-input green-input" type="number" min="0" value="${p.comp}"
+          onchange="compPeople[${i}].comp=Number(this.value);updateParaNamesTotals()"/>
+      </div>`
+    ).join('');
+    updateParaNamesTotals();
+  } else {
+    namesSection.style.display = 'none';
+  }
+}
+
+function updateParaNamesTotals() {
+  const totAg  = compPeople.reduce((s,p)=>s+(p.ag||0),0);
+  const totComp= compPeople.reduce((s,p)=>s+(p.comp||0),0);
+  document.getElementById('comp-names-totals').innerHTML=
+    `<span>Total</span><span class="primary">${totAg}</span><span class="green">${totComp}</span>`;
+}
+
+function renderCompList() {
+  document.getElementById('comp-header').innerHTML =
+    '<span>NOME</span><span>AGENDAMENTO</span><span>COMPARECIMENTO</span>';
+  document.getElementById('comp-header').style.gridTemplateColumns='';
+  document.getElementById('comp-totals').style.gridTemplateColumns='';
+  document.getElementById('comp-list').innerHTML=compPeople.map((p,i)=>
+    `<div class="comp-row">
+      <div class="comp-name"><div class="comp-avatar">${p.name[0].toUpperCase()}</div>${p.name}</div>
+      <input class="comp-input primary-input" type="number" min="0" value="${p.ag}"
+        onchange="compPeople[${i}].ag=Number(this.value);updateCompTotals()"/>
+      <input class="comp-input green-input" type="number" min="0" value="${p.comp}"
+        onchange="compPeople[${i}].comp=Number(this.value);updateCompTotals()"/>
+    </div>`
+  ).join('') || '<p class="no-data">Nenhum dado.</p>';
+  updateCompTotals();
+}
+
+function updateCompTotals() {
+  const totAg=compPeople.reduce((s,p)=>s+(p.ag||0),0);
+  const totComp=compPeople.reduce((s,p)=>s+(p.comp||0),0);
+  document.getElementById('comp-totals').innerHTML=
+    `<span>Total</span><span class="primary">${totAg}</span><span class="green">${totComp}</span>`;
+}
+
+async function saveComparecimento() {
+  if(!isDateValid()){ showToast('Data inválida.','error'); return; }
+
+  // PARÁ: salva bairros (__bairros__) + comparecimento por nome de operador
+  if(UNIT === 'PARÁ') {
+    const bairros = {};
+    bairrosData.forEach(b => { bairros[b.nome] = { ag: b.ag||0, comp: b.comp||0 }; });
+    const namesData = {};
+    compPeople.forEach(p => { namesData[p.name] = p.comp||0; });
+    await fetch(`/api/appointments/${encodeURIComponent(UNIT)}/${getDateKey()}/comparecimento`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({comparecimento_data:{ __bairros__: bairros, ...namesData }})
+    });
+    closeModal('modal-comp');
+    showToast('Comparecimento salvo!');
+    return;
+  }
+
+  const data={};
+  compPeople.forEach(p=>{ data[p.name]=p.comp||0; });
+  await fetch(`/api/appointments/${encodeURIComponent(UNIT)}/${getDateKey()}/comparecimento`,{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({comparecimento_data:data})
+  });
+  closeModal('modal-comp');
+  showToast('Comparecimento salvo!');
+}
+
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+</script>
+{% endblock %}

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Connecting — Data Visualization</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#03060f;
+  --cyan:#3dd6f5;
+  --cyan-dim:rgba(61,214,245,0.6);
+  --blue:#1e6fd8;
+  --teal:#22d3aa;
+  --gold:#f5a623;
+  --panel:rgba(10,22,44,0.55);
+  --panel-border:rgba(61,214,245,0.18);
+  --text:#e8f1faff;
+  --text-dim:rgba(190,214,240,0.55);
+}
+html,body{min-height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;}
+
+/* ── Fundo: estrelas + terra ── */
+#stars{position:fixed;inset:0;z-index:0;background:radial-gradient(circle at 75% 30%,rgba(30,111,216,0.08) 0%,transparent 45%),radial-gradient(circle at 15% 70%,rgba(34,211,170,0.04) 0%,transparent 40%),#03060f;}
+.earth-wrap{position:fixed;top:50%;right:-340px;transform:translateY(-50%);z-index:1;pointer-events:none;width:880px;height:880px;opacity:0.92;}
+#earth-canvas{width:100%;height:100%;display:block;}
+.earth-fallback{display:none;}
+.earth-wrap.fallback #earth-canvas{display:none;}
+.earth-wrap.fallback .earth-fallback{display:block;position:absolute;inset:8%;border-radius:50%;
+  background:radial-gradient(circle at 38% 30%,#2f74b8 0%,#123a5e 45%,#07223c 72%,#03060f 100%);
+  box-shadow:inset -50px -36px 130px rgba(0,0,0,0.72),0 0 120px rgba(30,160,255,0.25);}
+
+/* ── Layout ── */
+.shell{position:relative;z-index:5;padding:20px 28px 40px;max-width:1500px;margin:0 auto;}
+
+/* Topbar */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap;
+  background:var(--panel);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--panel-border);border-radius:16px;padding:16px 22px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);}
+.brand{display:flex;align-items:center;gap:14px;}
+.brand img{height:38px;width:auto;}
+.brand-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;letter-spacing:0.08em;
+  background:linear-gradient(90deg,var(--cyan),#fff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.topbar-right{display:flex;align-items:center;gap:18px;}
+.live-clock{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--cyan);letter-spacing:0.05em;}
+.back-btn{display:inline-flex;align-items:center;gap:7px;text-decoration:none;font-family:'Syne',sans-serif;
+  font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);
+  background:rgba(61,214,245,0.08);border:1px solid var(--panel-border);padding:9px 16px;border-radius:50px;transition:all .2s;}
+.back-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+
+/* Filtros */
+.filters{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:22px;
+  background:var(--panel);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--panel-border);border-radius:14px;padding:16px 20px;}
+.fgroup{display:flex;flex-direction:column;gap:5px;}
+.flabel{font-family:'Syne',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.18em;color:var(--text-dim);text-transform:uppercase;}
+.select{background:rgba(3,10,24,0.7);border:1px solid var(--panel-border);color:var(--text);border-radius:9px;
+  padding:0 12px;height:38px;font-size:13px;font-family:'DM Sans';cursor:pointer;outline:none;min-width:110px;transition:all .2s;}
+.select:focus{border-color:var(--cyan);}
+.filter-divider{width:1px;height:38px;background:var(--panel-border);margin:0 4px;}
+.cmp-toggle{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:9px;cursor:pointer;
+  background:rgba(61,214,245,0.06);border:1px solid var(--panel-border);font-size:12px;font-weight:600;color:var(--text);transition:all .2s;}
+.cmp-toggle:hover{border-color:var(--cyan);}
+.cmp-toggle.active{background:rgba(61,214,245,0.16);border-color:var(--cyan);color:var(--cyan);}
+
+/* Grid principal */
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;}
+.panel{background:var(--panel);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--panel-border);border-radius:16px;padding:20px;box-shadow:0 8px 32px rgba(0,0,0,0.35);
+  position:relative;overflow:hidden;}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan-dim),transparent);}
+.panel-title{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;
+  text-transform:uppercase;color:var(--cyan);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+
+.col-3{grid-column:span 3;}
+.col-4{grid-column:span 4;}
+.col-5{grid-column:span 5;}
+.col-6{grid-column:span 6;}
+.col-7{grid-column:span 7;}
+.col-8{grid-column:span 8;}
+.col-12{grid-column:span 12;}
+
+/* KPI cards (topo) */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px;}
+.kpi{background:var(--panel);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--panel-border);border-radius:16px;padding:18px 20px;position:relative;overflow:hidden;}
+.kpi::after{content:'';position:absolute;right:-20px;bottom:-20px;width:90px;height:90px;border-radius:50%;
+  background:radial-gradient(circle,var(--kpi-glow,rgba(61,214,245,0.18)),transparent 70%);}
+.kpi-label{font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;}
+.kpi-value{font-family:'Syne',sans-serif;font-size:36px;font-weight:800;line-height:1;color:var(--kpi-color,var(--cyan));font-variant-numeric:tabular-nums;}
+.kpi-sub{font-size:11px;color:var(--text-dim);margin-top:8px;}
+
+/* Barras */
+.bar-row{display:flex;align-items:center;gap:12px;margin-bottom:13px;}
+.bar-name{width:90px;font-size:12px;font-weight:600;color:var(--text);flex-shrink:0;}
+.bar-track{flex:1;height:22px;background:rgba(3,10,24,0.6);border-radius:6px;overflow:hidden;position:relative;}
+.bar-fill{height:100%;border-radius:6px;transition:width 1s cubic-bezier(.4,0,.2,1);position:relative;
+  background:linear-gradient(90deg,var(--blue),var(--cyan));box-shadow:0 0 12px var(--cyan-dim);}
+.bar-fill.green{background:linear-gradient(90deg,#13855f,var(--teal));box-shadow:0 0 12px rgba(34,211,170,0.5);}
+.bar-val{width:48px;text-align:right;font-size:13px;font-weight:700;color:var(--cyan);font-variant-numeric:tabular-nums;flex-shrink:0;}
+.bar-val.green{color:var(--teal);}
+
+/* Donut de conversão */
+.donut-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.donut-cell{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.donut-wrap{position:relative;width:96px;height:96px;}
+.donut-label{font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--text-dim);text-align:center;text-transform:uppercase;}
+.donut-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--cyan);}
+
+/* Comparativo */
+.cmp-table{width:100%;border-collapse:collapse;}
+.cmp-table th{font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);
+  padding:8px 10px;text-align:center;border-bottom:1px solid var(--panel-border);}
+.cmp-table th:first-child{text-align:left;}
+.cmp-table td{padding:13px 10px;text-align:center;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;border-bottom:1px solid rgba(61,214,245,0.06);}
+.cmp-table td:first-child{text-align:left;font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;}
+.cmp-m1{color:var(--cyan);}
+.cmp-m2{color:#a9bdd4;}
+.cmp-delta{font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;display:inline-block;}
+.cmp-delta.up{background:rgba(34,211,170,0.12);color:var(--teal);}
+.cmp-delta.down{background:rgba(239,107,107,0.12);color:#ef6b6b;}
+.cmp-delta.flat{background:rgba(190,214,240,0.08);color:var(--text-dim);}
+
+/* Tabela TMK */
+.tmk-scroll{max-height:380px;overflow-y:auto;margin:-4px;padding:4px;}
+.tmk-scroll::-webkit-scrollbar{width:6px;}
+.tmk-scroll::-webkit-scrollbar-thumb{background:var(--panel-border);border-radius:3px;}
+.tmk-table{width:100%;border-collapse:collapse;}
+.tmk-table thead th{position:sticky;top:0;background:rgba(7,16,34,0.95);backdrop-filter:blur(8px);
+  font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);
+  padding:10px 12px;text-align:center;z-index:2;border-bottom:1px solid var(--panel-border);}
+.tmk-table thead th:first-child{text-align:left;}
+.tmk-table tbody td{padding:11px 12px;text-align:center;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;
+  border-bottom:1px solid rgba(61,214,245,0.05);}
+.tmk-table tbody td:first-child{text-align:left;}
+.tmk-table tbody tr:hover{background:rgba(61,214,245,0.04);}
+.tmk-rank{display:inline-flex;align-items:center;gap:8px;}
+.tmk-medal{font-size:14px;}
+.tmk-name{font-weight:700;color:var(--text);}
+.tmk-leads{color:#a9bdd4;}
+.tmk-ags{color:var(--cyan);}
+.tmk-comp{color:var(--teal);}
+.tmk-conv{font-weight:800;}
+.conv-pill{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:800;}
+
+.loading{text-align:center;padding:50px 20px;color:var(--text-dim);font-size:14px;}
+.empty{text-align:center;padding:30px;color:var(--text-dim);font-size:13px;}
+
+/* Mobile */
+@media(max-width:1100px){
+  .col-3,.col-4,.col-5,.col-6,.col-7,.col-8{grid-column:span 12;}
+  .kpi-row{grid-template-columns:repeat(2,1fr);}
+  .earth-wrap{display:none;}
+}
+@media(max-width:600px){
+  .shell{padding:14px;}
+  .kpi-row{grid-template-columns:1fr;}
+  .donut-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+<div class="earth-wrap" id="earth-wrap">
+  <canvas id="earth-canvas"></canvas>
+  <div class="earth-fallback"></div>
+</div>
+
+<div class="shell">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="brand">
+      <img src="/static/logo.png" alt="Connecting"/>
+      <span class="brand-title">DATA VISUALIZATION</span>
+    </div>
+    <div class="topbar-right">
+      <span class="live-clock" id="clock">--:--</span>
+      <a class="back-btn" href="/">← Voltar</a>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filters">
+    <div class="fgroup">
+      <label class="flabel">Mês</label>
+      <select class="select" id="sel-month" onchange="loadAnalytics()"></select>
+    </div>
+    <div class="fgroup">
+      <label class="flabel">Ano</label>
+      <select class="select" id="sel-year" onchange="loadAnalytics()"></select>
+    </div>
+    <div class="filter-divider"></div>
+    <div class="cmp-toggle" id="cmp-toggle" onclick="toggleCompare()">
+      <span>⇄</span> <span>Comparar com outro mês</span>
+    </div>
+    <div class="fgroup" id="cmp-month-group" style="display:none">
+      <label class="flabel">Comparar Mês</label>
+      <select class="select" id="sel-cmp-month" onchange="loadAnalytics()"></select>
+    </div>
+    <div class="fgroup" id="cmp-year-group" style="display:none">
+      <label class="flabel">Comparar Ano</label>
+      <select class="select" id="sel-cmp-year" onchange="loadAnalytics()"></select>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row" id="kpi-row">
+    <div class="kpi" style="--kpi-color:#a9bdd4;--kpi-glow:rgba(169,189,212,0.18)">
+      <div class="kpi-label">Leads que entraram</div>
+      <div class="kpi-value" id="kpi-leads">—</div>
+      <div class="kpi-sub">Todas as unidades</div>
+    </div>
+    <div class="kpi" style="--kpi-color:#3dd6f5;--kpi-glow:rgba(61,214,245,0.2)">
+      <div class="kpi-label">Agendamentos</div>
+      <div class="kpi-value" id="kpi-ags">—</div>
+      <div class="kpi-sub">Total do período</div>
+    </div>
+    <div class="kpi" style="--kpi-color:#22d3aa;--kpi-glow:rgba(34,211,170,0.2)">
+      <div class="kpi-label">Comparecimentos</div>
+      <div class="kpi-value" id="kpi-comp">—</div>
+      <div class="kpi-sub">Leads que "saíram"</div>
+    </div>
+    <div class="kpi" style="--kpi-color:#f5a623;--kpi-glow:rgba(245,166,35,0.2)">
+      <div class="kpi-label">Conversão Geral</div>
+      <div class="kpi-value" id="kpi-conv">—</div>
+      <div class="kpi-sub">Comparecim. / Agendam.</div>
+    </div>
+  </div>
+
+  <!-- Grid -->
+  <div class="grid">
+    <!-- Agendamentos por unidade -->
+    <div class="panel col-4">
+      <div class="panel-title">🏢 Agendamentos por Unidade</div>
+      <div id="bars-ags"><div class="loading">Carregando...</div></div>
+    </div>
+
+    <!-- Comparecimentos por unidade -->
+    <div class="panel col-4">
+      <div class="panel-title">✅ Comparecimentos por Unidade</div>
+      <div id="bars-comp"><div class="loading">Carregando...</div></div>
+    </div>
+
+    <!-- Conversão por unidade (donuts) -->
+    <div class="panel col-4">
+      <div class="panel-title">📊 Conversão por Unidade</div>
+      <div class="donut-grid" id="donuts"><div class="loading">Carregando...</div></div>
+    </div>
+
+    <!-- Comparativo de meses -->
+    <div class="panel col-5" id="cmp-panel" style="display:none">
+      <div class="panel-title">⇄ Comparativo de Meses</div>
+      <table class="cmp-table" id="cmp-table"></table>
+    </div>
+
+    <!-- Tabela TMK -->
+    <div class="panel" id="tmk-panel" style="grid-column:span 12">
+      <div class="panel-title">👤 Performance por TMK <span style="color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px">— Leads · Agendamentos · Comparecimentos · Conversão</span></div>
+      <div class="tmk-scroll">
+        <table class="tmk-table">
+          <thead>
+            <tr>
+              <th>TMK</th>
+              <th>Leads Recebidos</th>
+              <th>Agendamentos</th>
+              <th>Comparecimentos</th>
+              <th>% Conversão</th>
+            </tr>
+          </thead>
+          <tbody id="tmk-body"><tr><td colspan="5" class="loading">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MONTHS = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+let compareMode = false;
+
+// ── Relógio ──
+function tickClock(){
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleDateString('pt-BR') + '  ' + now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+setInterval(tickClock,1000); tickClock();
+
+// ── Popula selects ──
+function initSelects(){
+  const now = new Date();
+  ['sel-month','sel-cmp-month'].forEach(id=>{
+    const sel = document.getElementById(id);
+    MONTHS.forEach((m,i)=>{
+      const o = document.createElement('option'); o.value=i; o.textContent=m;
+      sel.appendChild(o);
+    });
+    sel.value = now.getMonth();
+  });
+  ['sel-year','sel-cmp-year'].forEach(id=>{
+    const sel = document.getElementById(id);
+    for(let y=2024;y<=2030;y++){
+      const o=document.createElement('option'); o.value=y; o.textContent=y;
+      sel.appendChild(o);
+    }
+    sel.value = now.getFullYear();
+  });
+  // Comparativo default: mês anterior
+  document.getElementById('sel-cmp-month').value = now.getMonth()===0?11:now.getMonth()-1;
+}
+
+function toggleCompare(){
+  compareMode = !compareMode;
+  document.getElementById('cmp-toggle').classList.toggle('active', compareMode);
+  document.getElementById('cmp-month-group').style.display = compareMode?'':'none';
+  document.getElementById('cmp-year-group').style.display = compareMode?'':'none';
+  document.getElementById('cmp-panel').style.display = compareMode?'':'none';
+  document.getElementById('tmk-panel').style.gridColumn = compareMode?'span 7':'span 12';
+  loadAnalytics();
+}
+
+// ── Carrega dados ──
+async function loadAnalytics(){
+  const month = parseInt(document.getElementById('sel-month').value)+1;
+  const year  = document.getElementById('sel-year').value;
+  let url = `/api/analytics?year=${year}&month=${month}`;
+  if(compareMode){
+    const cm = parseInt(document.getElementById('sel-cmp-month').value)+1;
+    const cy = document.getElementById('sel-cmp-year').value;
+    url += `&cmp_year=${cy}&cmp_month=${cm}`;
+  }
+  const res = await fetch(url);
+  if(res.status===401){ window.location.href='/login'; return; }
+  const data = await res.json();
+  render(data);
+}
+
+function render(data){
+  const a = data.atual;
+  // KPIs
+  document.getElementById('kpi-leads').textContent = a.total_leads;
+  document.getElementById('kpi-ags').textContent   = a.total_agendamentos;
+  document.getElementById('kpi-comp').textContent  = a.total_comparecimentos;
+  document.getElementById('kpi-conv').textContent  = a.conversao_geral + '%';
+
+  renderBars(a.por_unidade);
+  renderDonuts(a.por_unidade);
+  renderTMK(a.tmk);
+  if(compareMode && data.comparativo) renderCompare(a, data.comparativo);
+}
+
+function renderBars(porUnidade){
+  const units = Object.keys(porUnidade);
+  const maxAgs  = Math.max(1, ...units.map(u=>porUnidade[u].agendamentos));
+  const maxComp = Math.max(1, ...units.map(u=>porUnidade[u].comparecimentos));
+
+  document.getElementById('bars-ags').innerHTML = units.map(u=>{
+    const v = porUnidade[u].agendamentos;
+    const w = Math.round(v/maxAgs*100);
+    return `<div class="bar-row"><span class="bar-name">${u}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${w}%"></div></div>
+      <span class="bar-val">${v}</span></div>`;
+  }).join('');
+
+  document.getElementById('bars-comp').innerHTML = units.map(u=>{
+    const v = porUnidade[u].comparecimentos;
+    const w = Math.round(v/maxComp*100);
+    return `<div class="bar-row"><span class="bar-name">${u}</span>
+      <div class="bar-track"><div class="bar-fill green" style="width:${w}%"></div></div>
+      <span class="bar-val green">${v}</span></div>`;
+  }).join('');
+}
+
+function donutColor(pct){
+  if(pct>=70) return '#22d3aa';
+  if(pct>=40) return '#f5a623';
+  return '#ef6b6b';
+}
+
+function renderDonuts(porUnidade){
+  const units = Object.keys(porUnidade);
+  document.getElementById('donuts').innerHTML = units.map(u=>{
+    const pct = porUnidade[u].conversao;
+    const col = donutColor(pct);
+    const circ = 2*Math.PI*40;
+    const off = circ - (pct/100)*circ;
+    return `<div class="donut-cell">
+      <div class="donut-wrap">
+        <svg width="96" height="96" viewBox="0 0 96 96">
+          <circle cx="48" cy="48" r="40" fill="none" stroke="rgba(61,214,245,0.08)" stroke-width="7"/>
+          <circle cx="48" cy="48" r="40" fill="none" stroke="${col}" stroke-width="7"
+            stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${off}"
+            transform="rotate(-90 48 48)" style="transition:stroke-dashoffset 1s ease;filter:drop-shadow(0 0 6px ${col}80)"/>
+        </svg>
+        <div class="donut-pct" style="color:${col}">${pct}%</div>
+      </div>
+      <div class="donut-label">${u}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderTMK(tmk){
+  const body = document.getElementById('tmk-body');
+  if(!tmk || tmk.length===0){
+    body.innerHTML = '<tr><td colspan="5" class="empty">Sem dados de TMK no período.</td></tr>';
+    return;
+  }
+  const medals = ['🥇','🥈','🥉'];
+  body.innerHTML = tmk.map((t,i)=>{
+    const col = donutColor(t.conversao);
+    return `<tr>
+      <td><span class="tmk-rank"><span class="tmk-medal">${i<3?medals[i]:(i+1)+'º'}</span>
+        <span class="tmk-name">${esc(t.nome)}</span></span></td>
+      <td class="tmk-leads">${t.leads}</td>
+      <td class="tmk-ags">${t.agendamentos}</td>
+      <td class="tmk-comp">${t.comparecimentos}</td>
+      <td><span class="conv-pill" style="background:${col}1f;color:${col}">${t.conversao}%</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCompare(m1, m2){
+  const mName = MONTHS[parseInt(document.getElementById('sel-month').value)];
+  const cName = MONTHS[parseInt(document.getElementById('sel-cmp-month').value)];
+  const rows = [
+    {label:'Leads',          v1:m1.total_leads,          v2:m2.total_leads},
+    {label:'Agendamentos',   v1:m1.total_agendamentos,   v2:m2.total_agendamentos},
+    {label:'Comparecimentos',v1:m1.total_comparecimentos,v2:m2.total_comparecimentos},
+    {label:'Conversão',      v1:m1.conversao_geral,      v2:m2.conversao_geral, pct:true},
+  ];
+  let html = `<thead><tr><th>Métrica</th><th class="cmp-m1">${mName}</th><th class="cmp-m2">${cName}</th><th>Variação</th></tr></thead><tbody>`;
+  html += rows.map(r=>{
+    const suffix = r.pct?'%':'';
+    let delta='', cls='flat';
+    if(r.pct){
+      const d = r.v1 - r.v2;
+      if(d>0){cls='up';delta='+'+d+'pp ↑';}
+      else if(d<0){cls='down';delta=d+'pp ↓';}
+      else delta='=';
+    } else {
+      if(r.v2>0){
+        const d = Math.round((r.v1-r.v2)/r.v2*100);
+        if(d>0){cls='up';delta='+'+d+'% ↑';}
+        else if(d<0){cls='down';delta=d+'% ↓';}
+        else delta='=';
+      } else if(r.v1>0){ cls='up'; delta='novo'; }
+      else delta='=';
+    }
+    return `<tr><td>${r.label}</td>
+      <td class="cmp-m1">${r.v1}${suffix}</td>
+      <td class="cmp-m2">${r.v2}${suffix}</td>
+      <td><span class="cmp-delta ${cls}">${delta}</span></td></tr>`;
+  }).join('');
+  html += '</tbody>';
+  document.getElementById('cmp-table').innerHTML = html;
+}
+
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+// ── Init ──
+initSelects();
+loadAnalytics();
+</script>
+
+<!-- Terra 3D -->
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const wrap=document.getElementById('earth-wrap');
+const canvas=document.getElementById('earth-canvas');
+let renderer=null;
+try{ renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true}); }catch(e){ renderer=null; }
+if(!renderer){ wrap.classList.add('fallback'); }
+else{
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(35,1,0.1,100);
+  camera.position.set(0,0,3.3);
+  scene.add(new THREE.AmbientLight(0x2a3b52,0.7));
+  const sun=new THREE.DirectionalLight(0xbfe3ff,1.5);
+  sun.position.set(-1.2,0.5,1.2); scene.add(sun);
+  const tilt=new THREE.Group(); tilt.rotation.z=0.41; scene.add(tilt);
+  const tex=new THREE.TextureLoader().load('/static/earth_atmos_2048.jpg',()=>{tex.colorSpace=THREE.SRGBColorSpace;});
+  tex.colorSpace=THREE.SRGBColorSpace;
+  const earth=new THREE.Mesh(new THREE.SphereGeometry(1,64,64),
+    new THREE.MeshPhongMaterial({map:tex,shininess:8,specular:0x223344}));
+  tilt.add(earth);
+  const atmo=new THREE.Mesh(new THREE.SphereGeometry(1.08,64,64),
+    new THREE.ShaderMaterial({transparent:true,side:THREE.BackSide,blending:THREE.AdditiveBlending,depthWrite:false,
+      vertexShader:`varying vec3 vN;void main(){vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+      fragmentShader:`varying vec3 vN;void main(){float i=pow(0.72-dot(vN,vec3(0.0,0.0,1.0)),2.2);gl_FragColor=vec4(0.24,0.7,1.0,1.0)*i;}`}));
+  scene.add(atmo);
+  function size(){const w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+  size(); window.addEventListener('resize',size);
+  (function loop(){earth.rotation.y+=0.0014;renderer.render(scene,camera);requestAnimationFrame(loop);})();
+}
+</script>
+
+</body>
+</html>

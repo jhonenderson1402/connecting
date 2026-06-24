@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Connecting — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;background:#03060f;color:#e8eaf0;}
+
+/* ── ESTRELAS E VIA LÁCTEA REALISTA ── */
+#stars {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: 
+    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.03) 0%, transparent 50%),
+    radial-gradient(circle at 20% 60%, rgba(138,180,248,0.02) 0%, transparent 40%),
+    #040814;
+}
+
+/* ── TERRA 3D CANVAS ── */
+.earth-wrap {
+  position: fixed;
+  bottom: -520px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  pointer-events: none;
+  width: 920px; height: 920px;
+}
+#earth-canvas-3d { width:100%; height:100%; display:block; }
+
+/* Fallback em CSS caso o WebGL não esteja disponível (raro, mas garante o visual) */
+.earth-fallback{display:none;}
+.earth-wrap.fallback #earth-canvas-3d{display:none;}
+.earth-wrap.fallback .earth-fallback{
+  display:block;position:absolute;inset:6%;border-radius:50%;
+  background:radial-gradient(circle at 38% 30%, #2f74b8 0%, #123a5e 45%, #07223c 72%, #03060f 100%);
+  box-shadow: inset -50px -36px 130px rgba(0,0,0,0.72), 0 0 90px rgba(0,160,255,0.22);
+}
+
+/* Névoa na base para fundir o planeta com o fundo escuro */
+.fog{position:fixed;bottom:0;left:0;right:0;height:280px;z-index:2;
+  background:linear-gradient(to top,#03060f 0%,transparent 100%);pointer-events:none;}
+
+/* ── ESTRUTURA DA PÁGINA DE LOGIN ── */
+.page{position:relative;z-index:5;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;
+  padding:0 20px;}
+
+.logo-wrap{padding-top:36px;margin-bottom:24px;text-align:center;}
+.logo-wrap img{height:100px;width:auto;display:block;margin:0 auto;}
+
+.tabs{
+  display:flex;gap:0;
+  border-bottom:1px solid rgba(255,255,255,0.12);
+  margin-bottom:28px;
+  width:100%;max-width:380px;
+}
+.tab-btn{
+  flex:1;padding:10px 8px;
+  background:transparent;border:none;
+  font-family:'Syne',sans-serif;
+  font-size:11px;font-weight:700;
+  letter-spacing:0.12em;text-transform:uppercase;
+  cursor:pointer;color:rgba(255,255,255,0.3);
+  transition:all 0.2s;
+  border-bottom:2px solid transparent;margin-bottom:-1px;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.tab-btn:hover{color:rgba(255,255,255,0.6);}
+.tab-btn.act-a{color:#f5a623;border-bottom-color:#f5a623;}
+.tab-btn.act-c{color:#22c55e;border-bottom-color:#22c55e;}
+
+.card{
+  background:rgba(10, 20, 42, 0.55);
+  backdrop-filter:blur(25px);
+  -webkit-backdrop-filter:blur(25px);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:20px;
+  padding:28px 28px 20px;
+  width:100%;max-width:380px;
+  box-shadow: 0 24px 50px rgba(0,0,0,0.6);
+}
+.form-group{margin-bottom:14px;}
+label{
+  display:block;
+  font-family:'Syne',sans-serif;
+  font-size:9px;font-weight:700;
+  letter-spacing:0.22em;text-transform:uppercase;
+  color:rgba(255,255,255,0.35);
+  margin-bottom:7px;text-align:center;
+}
+input[type=text],input[type=password]{
+  width:100%;
+  background:#edf2f7;
+  border:none;
+  color:#111;padding:13px 16px;
+  border-radius:12px;font-size:14px;
+  font-family:'DM Sans',sans-serif;
+  transition:all 0.2s;outline:none;
+}
+input:focus{box-shadow:0 0 0 3px rgba(245,166,35,0.4);}
+.conf-form input:focus{box-shadow:0 0 0 3px rgba(34,197,94,0.4);}
+
+.btn{
+  width:100%;border:none;
+  padding:14px;border-radius:50px;
+  font-family:'Syne',sans-serif;
+  font-size:11px;font-weight:700;
+  letter-spacing:0.18em;text-transform:uppercase;
+  cursor:pointer;margin-top:8px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all 0.25s;
+}
+.btn:active{transform:scale(0.98);}
+.btn-a{background:linear-gradient(135deg,#f5a623,#e07000);color:#0a0a0a;box-shadow:0 4px 24px rgba(230,112,0,0.25);}
+.btn-a:hover{box-shadow:0 6px 36px rgba(230,112,0,0.45);}
+.btn-c{background:linear-gradient(135deg,#22c55e,#15803d);color:#0a0a0a;box-shadow:0 4px 24px rgba(34,197,94,0.25);}
+.btn-c:hover{box-shadow:0 6px 36px rgba(34,197,94,0.45);}
+
+.conf-badge{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(34,197,94,0.08);
+  border:1px solid rgba(34,197,94,0.15);
+  border-radius:8px;padding:9px 13px;
+  font-size:12px;color:#86efac;
+  margin-bottom:16px;
+}
+.error-msg{
+  background:rgba(239,68,68,0.08);
+  border:1px solid rgba(239,68,68,0.2);
+  color:#fca5a5;padding:10px 14px;
+  border-radius:8px;font-size:12px;margin-bottom:14px;
+}
+.footer-note{
+  text-align:center;margin-top:14px;
+  font-size:11px;color:rgba(255,255,255,0.2);line-height:1.6;
+}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+.home-btn{
+  position:fixed;top:22px;left:22px;z-index:20;
+  display:inline-flex;align-items:center;gap:8px;text-decoration:none;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:#e8eaf0;background:rgba(10,20,42,0.55);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,0.12);padding:10px 16px;border-radius:50px;transition:all .2s;
+}
+.home-btn:hover{border-color:#f5a623;color:#f5a623;}
+
+@media(max-width:480px){
+  .logo-wrap img{height:80px;}
+  .card{padding:22px 20px 16px;}
+  .earth-wrap { width:500px; height:500px; bottom:-60px; }
+}
+</style>
+</head>
+<body>
+
+<a class="home-btn" href="/">🏠 Home</a>
+
+<canvas id="stars"></canvas>
+
+<div class="earth-wrap">
+  <canvas id="earth-canvas-3d"></canvas>
+  <div class="earth-fallback"></div>
+</div>
+<div class="fog"></div>
+
+<div class="page">
+  <div class="logo-wrap">
+    <img src="/static/logo.png" alt="Connecting"/>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn act-a" id="tab-a" onclick="switchTab('a')">📅 Agendamento</button>
+    <button class="tab-btn" id="tab-c" onclick="switchTab('c')">✅ Confirmação</button>
+  </div>
+
+  <div class="card">
+    <div class="tab-content active" id="content-a">
+      {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
+      <form method="POST" autocomplete="on">
+        <input type="hidden" name="team" value="agendamento"/>
+        <div class="form-group">
+          <label>Usuário</label>
+          <input type="text" name="username" autofocus required autocomplete="username" placeholder="seu usuário"/>
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input type="password" name="password" required autocomplete="current-password" placeholder="••••••••"/>
+        </div>
+        <button type="submit" class="btn btn-a">Entrar →</button>
+      </form>
+    </div>
+
+    <div class="tab-content" id="content-c">
+      {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
+      <div class="conf-badge">✅ Equipe de Confirmação</div>
+      <form method="POST" autocomplete="on" class="conf-form">
+        <input type="hidden" name="team" value="confirmacao"/>
+        <div class="form-group">
+          <label>Usuário</label>
+          <input type="text" name="username" required autocomplete="username" placeholder="seu usuário"/>
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input type="password" name="password" required autocomplete="current-password" placeholder="••••••••"/>
+        </div>
+        <button type="submit" class="btn btn-c">Entrar →</button>
+      </form>
+    </div>
+
+    <p class="footer-note">Acesso restrito. Contate o administrador se não tiver conta.</p>
+  </div>
+</div>
+
+<!-- Estrelas + troca de abas (script clássico para manter switchTab global) -->
+<script>
+// Animação das estrelas cintilantes (leve — 240 pontos)
+const c=document.getElementById('stars'),ctx=c.getContext('2d');
+let st=[];
+function resize(){
+  c.width=innerWidth;c.height=innerHeight;
+  st=Array.from({length:240},()=>({
+    x:Math.random()*c.width,y:Math.random()*c.height,
+    r:Math.random()*1.4+0.3,o:Math.random()*0.7+0.1,
+    t:Math.random()*Math.PI*2
+  }));
+}
+window.addEventListener('resize',resize);resize();
+(function draw(){
+  ctx.clearRect(0,0,c.width,c.height);
+  st.forEach(s=>{
+    s.t+=0.006;
+    const o=s.o+Math.sin(s.t)*0.3;
+    ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${Math.max(0,o)})`;
+    ctx.fill();
+  });
+  requestAnimationFrame(draw);
+})();
+
+function switchTab(t){
+  document.getElementById('tab-a').className='tab-btn'+(t==='a'?' act-a':'');
+  document.getElementById('tab-c').className='tab-btn'+(t==='c'?' act-c':'');
+  document.getElementById('content-a').classList.toggle('active',t==='a');
+  document.getElementById('content-c').classList.toggle('active',t==='c');
+  setTimeout(()=>document.querySelector(`#content-${t} input[type=text]`)?.focus(),50);
+}
+{% if error %}switchTab('a');{% endif %}
+</script>
+
+<!-- ── TERRA 3D NA GPU (WebGL via Three.js) ── -->
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const wrap   = document.querySelector('.earth-wrap');
+const canvas = document.getElementById('earth-canvas-3d');
+
+let renderer = null;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+} catch (e) {
+  renderer = null;
+}
+
+if (!renderer) {
+  // Sem WebGL: cai pro globo em CSS (definido no <style>)
+  wrap.classList.add('fallback');
+} else {
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+  const scene  = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+  camera.position.set(0, 0, 3.4);
+
+  // Luz: a direcional cria o terminador dia/noite automaticamente
+  scene.add(new THREE.AmbientLight(0x2a3b52, 0.6));
+  const sun = new THREE.DirectionalLight(0xfff2dd, 1.6);
+  sun.position.set(-1.3, 0.55, 1.1);
+  scene.add(sun);
+
+  // Grupo dá a inclinação do eixo (a mesma 0.41 que você usava)
+  const tiltGroup = new THREE.Group();
+  tiltGroup.rotation.z = 0.41;
+  scene.add(tiltGroup);
+
+  // Esfera da Terra com a sua textura
+  const tex = new THREE.TextureLoader().load(
+    '/static/earth_atmos_2048.jpg',
+    () => { tex.colorSpace = THREE.SRGBColorSpace; }
+  );
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy
+    ? Math.min(4, renderer.capabilities.getMaxAnisotropy()) : 1;
+
+  const earth = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 64, 64),
+    new THREE.MeshPhongMaterial({ map: tex, shininess: 6, specular: 0x1d2733 })
+  );
+  tiltGroup.add(earth);
+
+  // Brilho atmosférico azul na borda (esfera externa, lado de dentro, aditivo)
+  const atmo = new THREE.Mesh(
+    new THREE.SphereGeometry(1.07, 64, 64),
+    new THREE.ShaderMaterial({
+      transparent: true, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false,
+      vertexShader: `
+        varying vec3 vN;
+        void main(){
+          vN = normalize(normalMatrix * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: `
+        varying vec3 vN;
+        void main(){
+          float i = pow(0.72 - dot(vN, vec3(0.0, 0.0, 1.0)), 2.2);
+          gl_FragColor = vec4(0.18, 0.6, 1.0, 1.0) * i;
+        }`
+    })
+  );
+  scene.add(atmo);
+
+  function size(){
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  size();
+  window.addEventListener('resize', size);
+
+  // Loop na GPU: rotação suave e constante
+  function loop(){
+    earth.rotation.y += 0.0018;   // ajuste aqui se quiser mais rápido/lento
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+  loop();
+}
+</script>
+
+</body>
+</html>

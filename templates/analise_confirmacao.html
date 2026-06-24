@@ -1,0 +1,315 @@
+{% extends "base_confirmacao.html" %}
+{% block content %}
+<style>
+.analise-card {
+  background:#141414; border:1px solid #1f1f1f;
+  border-radius:12px; padding:20px;
+}
+.rank-tmk-row {
+  display:flex; align-items:center; gap:12px;
+  padding:10px 12px; border-radius:8px;
+  background:rgba(255,255,255,0.03); margin-bottom:6px;
+}
+.rank-tmk-pos { font-size:16px; min-width:28px; }
+.rank-tmk-name { flex:1; font-size:13px; font-weight:600; color:#e4e4e7; }
+.rank-tmk-bar-wrap { width:140px; height:8px; background:#1a1a1a; border-radius:4px; overflow:hidden; }
+.rank-tmk-bar { height:100%; background:#22c55e; border-radius:4px; transition:width .5s; }
+.rank-tmk-stats { display:flex; gap:12px; font-size:12px; font-weight:700; min-width:120px; justify-content:flex-end; }
+
+.unit-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.unit-box {
+  background:rgba(255,255,255,0.02); border:1px solid #1f1f1f;
+  border-radius:10px; padding:14px;
+}
+.unit-box-title {
+  font-size:12px; font-weight:700; color:#fbbf24;
+  border-bottom:1px solid #1f1f1f; padding-bottom:8px; margin-bottom:10px;
+  text-transform:uppercase; letter-spacing:0.05em;
+}
+.unit-sub-row {
+  display:flex; align-items:center; gap:8px;
+  padding:5px 4px; font-size:11px;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+}
+.unit-sub-name { flex:1; color:#a1a1aa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.unit-sub-total { color:#fbbf24; font-weight:700; min-width:28px; text-align:center; }
+.unit-sub-conf  { color:#22c55e; font-weight:700; min-width:28px; text-align:center; }
+.unit-sub-pct   { color:#f59e0b; font-weight:700; min-width:36px; text-align:right; }
+
+.stat-chip {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 14px; border-radius:20px;
+  font-size:12px; font-weight:700;
+}
+@media(max-width:900px) { .unit-grid { grid-template-columns:repeat(2,1fr); } }
+@media(max-width:600px) { .unit-grid { grid-template-columns:1fr; } }
+</style>
+
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <div class="title-bar">
+        <div class="title-accent"></div>
+        <h1 class="page-title">📊 Análise Geral</h1>
+      </div>
+      <p class="page-subtitle">Ranking de TMK e performance por unidade</p>
+    </div>
+  </div>
+
+  <!-- Seletor de data -->
+  <div class="analise-card" style="padding:14px">
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label class="filter-label">MÊS</label>
+        <select class="select" id="sel-month" onchange="loadAnalise()">
+          {% set months_list = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"] %}
+          {% for m in months_list %}
+          <option value="{{ loop.index0 }}">{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">ANO</label>
+        <select class="select" id="sel-year" onchange="loadAnalise()">
+          {% for y in range(2024, 2031) %}
+          <option value="{{ y }}">{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">DIA</label>
+        <select class="select" id="sel-day" onchange="loadAnalise()">
+          {% for d in range(1, 32) %}
+          <option value="{{ d }}">{{ '%02d' % d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">PERÍODO</label>
+        <select class="select" id="sel-periodo" onchange="onPeriodoChange()">
+          <option value="day">Dia</option>
+          <option value="month">Mês inteiro</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats gerais -->
+  <div style="display:flex;gap:10px;flex-wrap:wrap" id="analise-stats"></div>
+
+  <!-- Ranking TMK -->
+  <div class="analise-card">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <span style="font-size:18px">🏆</span>
+      <h2 style="font-size:14px;font-weight:700">Ranking de TMK</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:2.5rem 2.5rem 2.5rem 2.5rem;gap:4px;padding:0 12px 8px;font-size:9px;font-weight:700;color:#52525b;letter-spacing:.1em;margin-bottom:4px">
+      <span style="grid-column:1">POS</span>
+      <span style="grid-column:2/4">TMK</span>
+    </div>
+    <div id="rank-tmk-list"><div class="loading">Carregando...</div></div>
+  </div>
+
+  <!-- Por Unidade -->
+  <div class="analise-card">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <span style="font-size:18px">🏢</span>
+      <h2 style="font-size:14px;font-weight:700">Performance por Unidade</h2>
+    </div>
+    <div class="unit-grid" id="unit-grid"><div class="loading">Carregando...</div></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const UNIDADES_CONF = {
+  'MANAUS':    ['MANAUS'],
+  'MANOA':     ['MANOA'],
+  'PARÁ':      ['ANANINDEUA','AUGUSTO MONTENEGRO','BRAGANÇA','CAPANEMA',
+                 'CAPITAO POÇO','CASTANHAL','CIDADE NOVA','JOSÉ BONIFÁCIO',
+                 'JURUNAS','MARABÁ','MARAMBAIA','SANTAREM','TELEGRAFO'],
+  'FORTALEZA': ['FORTALEZA'],
+  'SÃO LUIZ':  ['SÃO LUIZ'],
+};
+
+let analiseData = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  document.getElementById('sel-month').value = now.getMonth();
+  document.getElementById('sel-year').value  = now.getFullYear();
+  document.getElementById('sel-day').value   = now.getDate();
+  loadAnalise();
+});
+
+function onPeriodoChange() {
+  const p = document.getElementById('sel-periodo').value;
+  document.getElementById('sel-day').closest('.filter-group').style.display = p === 'day' ? '' : 'none';
+  loadAnalise();
+}
+
+function getDateStr() {
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = document.getElementById('sel-year').value;
+  const d  = String(document.getElementById('sel-day').value).padStart(2,'0');
+  return `${d}/${String(mi+1).padStart(2,'0')}/${y}`;
+}
+
+async function loadAnalise() {
+  const periodo = document.getElementById('sel-periodo').value;
+  let url;
+  if(periodo === 'day') {
+    url = `/api/confirmacoes?data_str=${encodeURIComponent(getDateStr())}`;
+  } else {
+    const mi = parseInt(document.getElementById('sel-month').value)+1;
+    const y  = document.getElementById('sel-year').value;
+    // Busca todos do mês filtrando client-side
+    url = `/api/confirmacoes?mes=${encodeURIComponent(document.getElementById('sel-month').options[document.getElementById('sel-month').value].text)}`;
+  }
+  const res = await fetch(url);
+  if(res.status === 401) { window.location.href='/login'; return; }
+  analiseData = await res.json();
+  renderAnalise();
+}
+
+function renderAnalise() {
+  const data = analiseData;
+  const total = data.length;
+  const conf  = data.filter(r => r.flag === 'CONFIRMADO').length;
+  const pend  = data.filter(r => !r.flag).length;
+  const pct   = total > 0 ? Math.round((conf/total)*100) : 0;
+
+  // Stats gerais
+  document.getElementById('analise-stats').innerHTML = `
+    <div class="stat-chip" style="background:rgba(251,191,36,0.1);color:#fbbf24">📋 Total: ${total}</div>
+    <div class="stat-chip" style="background:rgba(34,197,94,0.1);color:#22c55e">✅ Confirmados: ${conf} (${pct}%)</div>
+    <div class="stat-chip" style="background:#1f1f1f;color:#71717a">⏳ Pendentes: ${pend}</div>`;
+
+  renderRankTMK(data);
+  renderUnidades(data);
+}
+
+const FLAGS_RANK = [
+  { key: 'CANCELADO',       label: 'CANCELADO',        short: 'CANCEL.',   color: '#ef4444' },
+  { key: 'DUPLICADO',       label: 'DUPLICADO',        short: 'DUPLIC.',   color: '#ec4899' },
+  { key: 'HORÁRIO ERRADO',  label: 'HOR./DATA ERRADO', short: 'HOR.ERR.',  color: '#60a5fa' },
+  { key: 'NÃO AGENDADO',    label: 'NÃO AGENDADO',     short: 'N.AGEND.',  color: '#a855f7' },
+  { key: 'UNIDADE ERRADA',  label: 'UNIDADE ERRADA',   short: 'UNID.ERR.', color: '#3b82f6' },
+];
+
+function renderRankTMK(data) {
+  const tmkMap = {};
+  data.forEach(r => {
+    const tmk = (r.tmk||'').trim() || 'Sem TMK';
+    if(!tmkMap[tmk]) {
+      tmkMap[tmk] = { total: 0 };
+      FLAGS_RANK.forEach(f => tmkMap[tmk][f.key] = 0);
+    }
+    tmkMap[tmk].total++;
+    const fRank = FLAGS_RANK.find(f => f.key === r.flag);
+    if(fRank) tmkMap[tmk][r.flag]++;
+  });
+
+  const ranked = Object.entries(tmkMap)
+    .map(([name, d]) => ({ name, ...d }))
+    .sort((a,b) => b.total - a.total);
+
+  const el = document.getElementById('rank-tmk-list');
+  if(ranked.length === 0) {
+    el.innerHTML = '<p style="color:#71717a;text-align:center;padding:20px;font-size:12px">Sem dados no período.</p>';
+    return;
+  }
+
+  const medals = ['🥇','🥈','🥉'];
+
+  // Header
+  const header = `<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;margin-bottom:4px;font-size:9px;font-weight:700;color:#52525b;letter-spacing:.1em;border-bottom:1px solid #1f1f1f">
+    <span style="min-width:28px"></span>
+    <span style="flex:1">TMK</span>
+    <span style="min-width:48px;text-align:center">TOTAL</span>
+    ${FLAGS_RANK.map(f=>`<span style="min-width:56px;text-align:center;color:${f.color}">${f.short}</span>`).join('')}
+  </div>`;
+
+  const rows = ranked.map((r,i) => `
+    <div class="rank-tmk-row">
+      <span class="rank-tmk-pos">${i<3?medals[i]:`${i+1}º`}</span>
+      <span class="rank-tmk-name">${esc(r.name)}</span>
+      <span style="min-width:48px;text-align:center;font-size:12px;font-weight:700;color:#fbbf24">${r.total}</span>
+      ${FLAGS_RANK.map(f => {
+        const cnt = r[f.key] || 0;
+        return `<span style="min-width:56px;text-align:center;font-size:12px;font-weight:700;color:${cnt>0?f.color:'#3f3f46'}">${cnt}</span>`;
+      }).join('')}
+    </div>`).join('');
+
+  el.innerHTML = header + rows;
+}
+
+function renderUnidades(data) {
+  const grid = document.getElementById('unit-grid');
+
+  const boxes = Object.entries(UNIDADES_CONF).map(([grupo, subs]) => {
+    // Para grupos com 1 sub (MANAUS, MANOA etc), mostra resumo simples
+    // Para PARÁ com múltiplos bairros, mostra lista
+    const isSingle = subs.length === 1;
+
+    if(isSingle) {
+      const sub  = subs[0];
+      const rows = data.filter(r => (r.unidade||'').toUpperCase().includes(sub.toUpperCase()));
+      const total = rows.length;
+      const conf  = rows.filter(r=>r.flag==='CONFIRMADO').length;
+      const pct   = total>0?Math.round((conf/total)*100):0;
+      return `<div class="unit-box">
+        <div class="unit-box-title">${grupo}</div>
+        <div style="display:flex;justify-content:space-around;padding:8px 0">
+          <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:#fbbf24">${total}</div><div style="font-size:10px;color:#71717a">TOTAL</div></div>
+          <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:#22c55e">${conf}</div><div style="font-size:10px;color:#71717a">CONF.</div></div>
+          <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:#f59e0b">${pct}%</div><div style="font-size:10px;color:#71717a">CONV.</div></div>
+        </div>
+      </div>`;
+    } else {
+      // PARÁ — lista de bairros
+      const subRows = subs.map(sub => {
+        const rows  = data.filter(r => (r.unidade||'').toUpperCase().includes(sub.toUpperCase()));
+        const total = rows.length;
+        const conf  = rows.filter(r=>r.flag==='CONFIRMADO').length;
+        const pct   = total>0?Math.round((conf/total)*100):0;
+        return {sub, total, conf, pct};
+      }).filter(r => r.total > 0).sort((a,b)=>b.total-a.total);
+
+      const totalGrupo = subRows.reduce((s,r)=>s+r.total,0);
+      const confGrupo  = subRows.reduce((s,r)=>s+r.conf,0);
+      const pctGrupo   = totalGrupo>0?Math.round((confGrupo/totalGrupo)*100):0;
+
+      return `<div class="unit-box" style="grid-column:span 1">
+        <div class="unit-box-title">${grupo} <span style="font-size:10px;font-weight:400;color:#71717a">${totalGrupo} total · ${confGrupo} conf · ${pctGrupo}%</span></div>
+        ${subRows.length===0
+          ? '<p style="color:#52525b;font-size:11px;text-align:center;padding:10px">Sem dados</p>'
+          : `<div style="display:grid;grid-template-columns:2.5rem 2.5rem 2.5rem 2.5rem;gap:2px;padding:0 4px 6px;font-size:9px;font-weight:700;color:#52525b;letter-spacing:.08em">
+              <span style="grid-column:1/3">BAIRRO</span><span style="text-align:center">TOT.</span><span style="text-align:center">CONF</span><span style="text-align:right">%</span>
+            </div>` +
+            subRows.map(r=>`<div class="unit-sub-row">
+              <span class="unit-sub-name" title="${r.sub}">${r.sub}</span>
+              <span class="unit-sub-total">${r.total}</span>
+              <span class="unit-sub-conf">${r.conf}</span>
+              <span class="unit-sub-pct">${r.pct}%</span>
+            </div>`).join('')
+        }
+      </div>`;
+    }
+  });
+
+  // PARÁ vai ocupar mais espaço — ajusta grid
+  grid.style.gridTemplateColumns = 'repeat(2,1fr) repeat(3,1fr)';
+  grid.innerHTML = boxes.map((box,i) => {
+    // PARÁ (índice 2) ocupa 3 colunas
+    if(i===2) return `<div style="grid-column:span 3">${box.replace('class="unit-box"','class="unit-box"')}</div>`;
+    return box;
+  }).join('');
+}
+
+function esc(s) {
+  return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+{% endblock %}

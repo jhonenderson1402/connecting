@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+/* LEADS RECEBIDOS — espelha as linhas dos agendamentos da unidade/dia.
+   Nome e líder vêm dos agendamentos (só leitura); só os números são editáveis. */
+.leads-scroll { width:100%; overflow-x:auto; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,0.4); }
+.leads-scroll::-webkit-scrollbar { height:9px; }
+.leads-scroll::-webkit-scrollbar-track { background:#1a1a1a; border-radius:5px; }
+.leads-scroll::-webkit-scrollbar-thumb { background:#3a3a3a; border-radius:5px; }
+.leads-scroll::-webkit-scrollbar-thumb:hover { background:#fbbf24; }
+
+.leads-table { border-collapse:separate; border-spacing:0; font-size:10px; color:#d4d4d8; background:#0c0c0c; min-width:1500px; width:max-content; }
+.leads-table thead th {
+  background:#fbbf24; color:#18181b; font-weight:800; text-transform:uppercase; font-size:8.5px; letter-spacing:.2px;
+  padding:8px 6px; text-align:center; white-space:nowrap; border-right:1px solid rgba(0,0,0,0.08); position:sticky; top:0; z-index:2;
+}
+.leads-table thead th.col-conv { background:#f0a500; }
+.leads-table thead th:last-child { border-right:none; }
+.leads-table tbody td { padding:5px 4px; text-align:center; background:#141414; border-bottom:1px solid #1f1f1f; vertical-align:middle; color:#d4d4d8; white-space:nowrap; }
+.leads-table tbody tr.row-alt td { background:#1a1a1a; }
+.leads-table tbody tr:hover td { background:#222; transition:background .15s; }
+.leads-table tbody td.fix { color:#a1a1aa; font-weight:500; text-transform:uppercase; font-size:9.5px; }
+.leads-table tbody td.name-cell { text-align:left; color:#e4e4e7; font-weight:600; text-transform:none; font-size:11px; padding-left:8px; min-width:150px; }
+.leads-table tbody td.name-cell.empty { color:#52525b; font-style:italic; }
+
+.lead-input { width:54px; background:transparent; border:1px solid #2a2a2a; color:#52525b; text-align:center; padding:4px 0; border-radius:5px; font-size:10.5px; font-weight:700; font-family:inherit; transition:all .15s; }
+.lead-input:focus { outline:none; border-color:#fbbf24; }
+.lead-input.slot-filled { background:rgba(251,191,36,0.15); border-color:rgba(251,191,36,0.45); color:#fbbf24; }
+
+.conv-cell { display:inline-block; min-width:46px; padding:3px 7px; border-radius:999px; background:rgba(34,197,94,0.14); color:#22c55e; font-weight:800; font-size:10.5px; }
+.conv-cell.conv-zero { background:#222; color:#52525b; }
+
+.total-badge { display:inline-block; min-width:22px; padding:3px 8px; border-radius:999px; background:#2a2a2a; color:#71717a; font-weight:700; font-size:11px; white-space:nowrap; }
+.total-badge.total-active { background:#fbbf24; color:#18181b; }
+
+.empty-row { text-align:center; color:#52525b; font-style:italic; padding:28px 10px !important; }
+.date-invalid-warning { display:none; margin:10px 0; padding:10px 14px; border-radius:8px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); color:#fca5a5; font-size:13px; }
+.date-invalid-warning.show { display:block; }
+
+/* Modal Resumo de Leads */
+.lmodal{position:fixed;inset:0;z-index:300;display:none;align-items:flex-start;justify-content:center;
+  background:rgba(0,0,0,.62);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);padding:46px 16px;overflow:auto;}
+.lmodal.show{display:flex;}
+.lmodal-box{background:#111317;border:1px solid #262626;border-radius:16px;max-width:580px;width:100%;padding:24px;box-shadow:0 30px 70px rgba(0,0,0,.6);}
+.lmodal-head{display:flex;align-items:center;justify-content:space-between;}
+.lmodal-head h3{font-size:18px;font-weight:800;display:flex;gap:8px;align-items:center;color:#fff;}
+.lmodal-close{background:none;border:none;color:#a1a1aa;font-size:20px;cursor:pointer;line-height:1;}
+.lmodal-close:hover{color:#fff;}
+.lcards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+.lcard{border:1px solid #262626;border-radius:12px;padding:16px 12px;text-align:center;background:#161922;}
+.lcard .v{font-size:30px;font-weight:800;line-height:1;color:#fff;font-family:'Syne',sans-serif;}
+.lcard .l{font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.1em;margin-top:6px;}
+.lcard.gold .v{color:#fbbf24;}
+.lcard.green .v{color:#22c55e;}
+.lrow{display:grid;grid-template-columns:96px 1fr 52px;gap:12px;align-items:center;margin-bottom:11px;}
+.lrow .ch{font-weight:700;color:#d4d4d8;font-size:13px;line-height:1.2;}
+.lrow .ch .sub{display:block;font-size:11px;font-weight:600;color:#71717a;margin-top:2px;}
+.ltrack{height:18px;background:#1f1f1f;border-radius:10px;overflow:hidden;}
+.lfill{height:100%;background:linear-gradient(90deg,#f0a500,#fbbf24);border-radius:10px;transition:width .4s;}
+.lrow .pc{text-align:right;font-weight:800;color:#fbbf24;font-size:13px;}
+.lprow{display:grid;grid-template-columns:1fr auto 54px;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid #1f1f1f;}
+.lprow:last-child{border-bottom:none;}
+.lprow .nm{font-weight:700;color:#e4e4e7;font-size:14px;}
+.lprow .vals{font-size:12px;color:#a1a1aa;white-space:nowrap;}
+.lprow .vals b{color:#fbbf24;font-weight:800;}
+.lprow .pc{text-align:right;font-weight:800;color:#22c55e;font-size:13px;}
+</style>
+
+<div class="page-header">
+  <div>
+    <div class="title-bar">
+      <div class="title-accent"></div>
+      <h1 class="page-title">📥 Leads Recebidos — {{ unit }}</h1>
+      <span class="saving-badge" id="saving-badge" style="display:none">💾 Salvando...</span>
+      <span class="saved-badge" id="saved-badge" style="display:none">✓ Salvo</span>
+    </div>
+    <p class="page-subtitle" style="margin-left:20px">Espelha os agendamentos da unidade · conversão automática</p>
+  </div>
+  <div class="action-bar">
+    <a class="btn btn-outline" href="/unit/{{ unit | urlencode }}">← Agendamentos</a>
+    <button class="btn btn-outline" onclick="openResumoLeads()">📊 Resumo</button>
+    <button class="btn btn-outline" onclick="exportCsv()">⬇ Exportar CSV</button>
+    <button class="btn btn-danger" onclick="clearDay()">🗑 Limpar Leads do Dia</button>
+  </div>
+</div>
+
+<div class="card" style="padding:16px">
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label class="filter-label">MÊS</label>
+      <select class="select" id="sel-month" onchange="onDateChange()">
+        {% set months_list = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"] %}
+        {% for m in months_list %}<option value="{{ loop.index0 }}">{{ m }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">ANO</label>
+      <select class="select" id="sel-year" onchange="onDateChange()">
+        {% for y in range(2024, 2031) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">DIA</label>
+      <select class="select" id="sel-day" onchange="onDateChange()">
+        {% for d in range(1, 32) %}<option value="{{ d }}">{{ '%02d' % d }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="date-invalid-warning" id="date-warning">
+  ⚠ Selecione um <b>mês</b>, <b>ano</b> e <b>dia</b> válidos.
+</div>
+
+<div class="leads-scroll" style="margin-top:14px">
+  <table class="leads-table" id="leads-table">
+    <thead id="table-head"></thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+<!-- Modal Resumo de Leads -->
+<div class="lmodal" id="modal-leads-resumo" onclick="if(event.target===this)closeResumoLeads()">
+  <div class="lmodal-box">
+    <div class="lmodal-head">
+      <h3>📊 Resumo de Leads — {{ unit }}</h3>
+      <button class="lmodal-close" onclick="closeResumoLeads()">✕</button>
+    </div>
+    <p id="lr-date" style="color:#71717a;font-size:13px;margin-bottom:16px"></p>
+    <div class="lcards">
+      <div class="lcard"><div class="v" id="lr-leads">0</div><div class="l">Leads</div></div>
+      <div class="lcard gold"><div class="v" id="lr-ags">0</div><div class="l">Agendamentos</div></div>
+      <div class="lcard green"><div class="v" id="lr-conv">—</div><div class="l">Conversão</div></div>
+    </div>
+    <p style="font-size:10px;font-weight:700;color:#71717a;letter-spacing:.15em;margin:6px 0 12px">CONVERSÃO POR CANAL</p>
+    <div id="lr-channels"></div>
+    <p style="font-size:10px;font-weight:700;color:#71717a;letter-spacing:.15em;margin:20px 0 10px">POR PESSOA — AGENDAMENTOS / LEADS</p>
+    <div id="lr-people-list"></div>
+    <p style="font-size:13px;color:#a1a1aa;margin-top:16px">Agendamentos individuais (sem lead): <b style="color:#fbbf24" id="lr-ind">0</b></p>
+    <p style="font-size:13px;color:#a1a1aa;margin-top:4px">Pessoas na lista: <b style="color:#e4e4e7" id="lr-people">0</b></p>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MES_NOMES = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO",
+                   "JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+const UNIT = decodeURIComponent("{{ unit | urlencode }}");
+
+const LEAD_COLS = [
+  {t:'in', k:'wbp_lead',     l:'LEAD WBP'},
+  {t:'in', k:'wbp_ags',      l:'AGS WBP'},
+  {t:'cv', num:'wbp_ags',     den:'wbp_lead',     l:'CONV. WBP'},
+  {t:'in', k:'vbot_lead',    l:'LEAD VBOT'},
+  {t:'in', k:'vbot_ags',     l:'AGS VBOT'},
+  {t:'cv', num:'vbot_ags',    den:'vbot_lead',    l:'CONV. VBOT'},
+  {t:'in', k:'antigos_lead', l:'LEADS ANTIGOS'},
+  {t:'in', k:'antigos_ags',  l:'AGS. ANTIGOS'},
+  {t:'cv', num:'antigos_ags', den:'antigos_lead', l:'CONV. ANTIGOS'},
+  {t:'in', k:'mkt_lead',     l:'LEADS MKT'},
+  {t:'in', k:'mkt_ags',      l:'AGS. MKT'},
+  {t:'cv', num:'mkt_ags',     den:'mkt_lead',     l:'CONV. MKT'},
+  {t:'in', k:'whats_lead',   l:'LEADS WHATS'},
+  {t:'in', k:'whats_ags',    l:'AGS WHATS'},
+  {t:'cv', num:'whats_ags',   den:'whats_lead',   l:'CONV WHATS'},
+  {t:'in', k:'ind_ags',      l:'AGS. IND.'},
+  {t:'in', k:'mabe_lead',    l:'LEADS MABE'},
+  {t:'in', k:'mabe_ags',     l:'AGS. MABE'},
+  {t:'cv', num:'mabe_ags',    den:'mabe_lead',    l:'CONV. MABE'},
+];
+const AGS_KEYS = ['wbp_ags','vbot_ags','antigos_ags','mkt_ags','whats_ags','ind_ags','mabe_ags'];
+
+let rows = [];          // [{name, leader, lead:{}}]  espelhadas dos agendamentos
+let apptLeader = '';    // líder do agendamento (nível do dia)
+let saveTimer = null;
+
+// ── Datas ───────────────────────────────────────────────────────────────────
+function initDateSelectors() {
+  const now = new Date();
+  document.getElementById('sel-month').value = String(now.getMonth());
+  document.getElementById('sel-year').value  = String(now.getFullYear());
+  updateDayOptions(now.getDate());
+}
+function updateDayOptions(preferDay) {
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  const selDay = document.getElementById('sel-day');
+  if(isNaN(mi) || isNaN(y)) return;
+  const daysInMonth = new Date(y, mi+1, 0).getDate();
+  const target = Math.min(parseInt(preferDay) || parseInt(selDay.value) || 1, daysInMonth) || 1;
+  selDay.innerHTML = '';
+  for(let d=1; d<=daysInMonth; d++) {
+    const opt = document.createElement('option');
+    opt.value = d; opt.textContent = String(d).padStart(2,'0');
+    if(d === target) opt.selected = true;
+    selDay.appendChild(opt);
+  }
+}
+initDateSelectors();
+
+function isDateValid() {
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  const d  = parseInt(document.getElementById('sel-day').value);
+  return !isNaN(mi) && !isNaN(y) && !isNaN(d) && mi>=0 && mi<=11 && y>=1900 && d>=1 && d<=31;
+}
+function showDateWarning(show){ document.getElementById('date-warning').classList.toggle('show', show); }
+function getDateKey(){
+  if(!isDateValid()) return null;
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  const d  = parseInt(document.getElementById('sel-day').value);
+  return formatDateKey(y, mi, d); // base.html
+}
+function getDateStr(){
+  if(!isDateValid()) return '—';
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  const d  = parseInt(document.getElementById('sel-day').value);
+  return `${String(d).padStart(2,'0')}/${String(mi+1).padStart(2,'0')}/${y}`;
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function convPct(row, num, den){
+  const a = Number(row.lead?.[num]) || 0;
+  const d = Number(row.lead?.[den]) || 0;
+  if(d <= 0) return '—';
+  return Math.round((a/d)*100) + '%';
+}
+
+// ── Carregamento ──────────────────────────────────────────────────────────────
+async function onConstantsLoaded(){
+  buildTableHead();
+  await loadData();
+}
+function buildTableHead(){
+  let html = '<tr><th>MÊS</th><th>ANO</th><th>DATA</th><th>LÍDER</th><th>NOME</th>';
+  LEAD_COLS.forEach(c => { html += `<th class="${c.t==='cv'?'col-conv':''}">${c.l}</th>`; });
+  html += '<th>TOTAL</th></tr>';
+  document.getElementById('table-head').innerHTML = html;
+}
+
+// Lê os AGENDAMENTOS do dia (fonte das linhas/nomes) + os LEADS salvos (valores)
+async function loadData(){
+  const dateKey = getDateKey();
+  if(!dateKey){ showDateWarning(true); rows=[]; renderTable(); return; }
+  showDateWarning(false);
+
+  // 1) Agendamentos: define quais linhas/nomes aparecem
+  const apptRes = await fetch(`/api/appointments/${encodeURIComponent(UNIT)}/${dateKey}`);
+  if(apptRes.status === 401){ window.location.href='/login'; return; }
+  const appt = await apptRes.json();
+  const apptRows = appt.rows || [];
+  apptLeader = appt.leader || '';
+
+  // 2) Leads salvos: valores por pessoa (casados pelo nome)
+  const leadRes = await fetch(`/api/leads/${encodeURIComponent(UNIT)}/${dateKey}`);
+  const leadData = await leadRes.json();
+  const leadMap = {};
+  (leadData.rows || []).forEach(r => { leadMap[(r.name||'').trim()] = r.lead || {}; });
+
+  // 3) Espelha uma linha por agendamento, puxando os leads pelo nome
+  rows = apptRows.map(r => {
+    const nome = r.name || '';
+    const saved = leadMap[nome.trim()];
+    return { name: nome, leader: (r.leader || apptLeader || ''), lead: saved ? {...saved} : {} };
+  });
+  renderTable();
+}
+function onDateChange(){ updateDayOptions(); loadData(); }
+
+// ── Render ──────────────────────────────────────────────────────────────────
+function renderTable(){
+  const tbody = document.getElementById('table-body');
+  const colspan = 5 + LEAD_COLS.length + 1;
+  if(rows.length === 0){
+    tbody.innerHTML = `<tr><td colspan="${colspan}" class="empty-row">Nenhuma linha nos agendamentos deste dia. Cadastre os agendamentos primeiro na aba da unidade.</td></tr>`;
+    return;
+  }
+  const dateStr = getDateStr();
+  const monthIdx = parseInt(document.getElementById('sel-month').value);
+  const monthName = isNaN(monthIdx) ? '—' : MES_NOMES[monthIdx];
+  const year = document.getElementById('sel-year').value;
+
+  tbody.innerHTML = rows.map((row,i)=>{
+    const bg = i%2===0 ? '' : 'row-alt';
+    const nameDisplay = row.name ? escapeHtml(row.name) : '(sem nome)';
+    const nameCls = row.name ? '' : ' empty';
+
+    const metricCells = LEAD_COLS.map(c=>{
+      if(c.t === 'in'){
+        const val = (row.lead && row.lead[c.k] != null) ? row.lead[c.k] : '';
+        const hl  = String(val).trim() !== '' ? ' slot-filled' : '';
+        return `<td><input class="lead-input${hl}" inputmode="numeric" maxlength="6" value="${escapeHtml(String(val))}"
+          oninput="leadChange(${i},'${c.k}',this.value); this.className='lead-input'+(this.value.trim()!==''?' slot-filled':'')"/></td>`;
+      } else {
+        const v = convPct(row, c.num, c.den);
+        return `<td><span id="conv-${i}-${c.num}" class="conv-cell${v==='—'?' conv-zero':''}">${v}</span></td>`;
+      }
+    }).join('');
+
+    const total = AGS_KEYS.reduce((s,k)=>s+(Number(row.lead?.[k])||0),0);
+
+    return `<tr class="${bg}">
+      <td class="fix">${monthName}</td>
+      <td class="fix">${year}</td>
+      <td class="fix">${dateStr}</td>
+      <td class="fix">${escapeHtml(row.leader||'—')}</td>
+      <td class="name-cell${nameCls}">${nameDisplay}</td>
+      ${metricCells}
+      <td><span class="total-badge${total>0?' total-active':''}" id="total-${i}">${total}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function recalcRow(i){
+  const row = rows[i];
+  LEAD_COLS.forEach(c=>{
+    if(c.t === 'cv'){
+      const el = document.getElementById(`conv-${i}-${c.num}`);
+      if(el){ const v = convPct(row, c.num, c.den); el.textContent = v; el.classList.toggle('conv-zero', v==='—'); }
+    }
+  });
+  const total = AGS_KEYS.reduce((s,k)=>s+(Number(row.lead?.[k])||0),0);
+  const badge = document.getElementById(`total-${i}`);
+  if(badge){ badge.textContent = total; badge.className = 'total-badge'+(total>0?' total-active':''); }
+}
+
+function leadChange(i, key, val){
+  if(!rows[i].lead) rows[i].lead = {};
+  rows[i].lead[key] = val;
+  recalcRow(i);
+  scheduleSave();
+}
+
+// ── Salvamento (autosave debounced) ────────────────────────────────────────
+function scheduleSave(){
+  if(!isDateValid()){ showDateWarning(true); return; }
+  clearTimeout(saveTimer);
+  document.getElementById('saving-badge').style.display='';
+  document.getElementById('saved-badge').style.display='none';
+  saveTimer = setTimeout(doSave, 1200);
+}
+async function doSave(){
+  if(!isDateValid()) return;
+  const payloadRows = rows.map(r => ({ name:r.name, leader:r.leader, lead:r.lead }));
+  const res = await fetch(`/api/leads/${encodeURIComponent(UNIT)}/${getDateKey()}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({leader: apptLeader, rows: payloadRows})
+  });
+  document.getElementById('saving-badge').style.display='none';
+  if(res.ok){
+    document.getElementById('saved-badge').style.display='';
+  } else {
+    const err = await res.json().catch(()=>({}));
+    showToast('Erro ao salvar: ' + (err.error || res.status), 'error');
+  }
+}
+
+function clearDay(){
+  if(!isDateValid()){ showToast('Selecione uma data válida.','error'); return; }
+  if(rows.length === 0){ showToast('Não há leads para limpar.','error'); return; }
+  if(!confirm('Zerar os números de leads deste dia? (as linhas continuam, pois vêm dos agendamentos)')) return;
+  rows.forEach(r => r.lead = {});
+  renderTable(); scheduleSave();
+  showToast('Leads do dia zerados.');
+}
+
+// ── Exportar CSV ─────────────────────────────────────────────────────────────
+function exportCsv(){
+  if(rows.length === 0){ showToast('Não há linhas para exportar.','error'); return; }
+  const monthName = MES_NOMES[parseInt(document.getElementById('sel-month').value)] || '';
+  const year = document.getElementById('sel-year').value;
+  const dateStr = getDateStr();
+  const headers = ['MÊS','ANO','DATA','LÍDER','NOME', ...LEAD_COLS.map(c=>c.l), 'TOTAL'];
+  const esc = v => `"${String(v==null?'':v).replace(/"/g,'""')}"`;
+  const lines = [headers.map(esc).join(';')];
+  rows.forEach(row=>{
+    const cells = [monthName, year, dateStr, row.leader||'', row.name||''];
+    LEAD_COLS.forEach(c=>{
+      if(c.t==='in') cells.push(row.lead?.[c.k] ?? '');
+      else cells.push(convPct(row, c.num, c.den));
+    });
+    cells.push(AGS_KEYS.reduce((s,k)=>s+(Number(row.lead?.[k])||0),0));
+    lines.push(cells.map(esc).join(';'));
+  });
+  const blob = new Blob(["\uFEFF"+lines.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `leads_${UNIT}_${getDateKey()}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── Resumo de Leads (consolidado do dia) ──
+const CANAIS = [
+  {k:'WBP',      lead:'wbp_lead',     ags:'wbp_ags'},
+  {k:'VBOT',     lead:'vbot_lead',    ags:'vbot_ags'},
+  {k:'Antigos',  lead:'antigos_lead', ags:'antigos_ags'},
+  {k:'MKT',      lead:'mkt_lead',     ags:'mkt_ags'},
+  {k:'WhatsApp', lead:'whats_lead',   ags:'whats_ags'},
+  {k:'MABE',     lead:'mabe_lead',    ags:'mabe_ags'},
+];
+function sumKey(key){ return rows.reduce((s,r)=>s+(Number(r.lead?.[key])||0),0); }
+const LEAD_KEYS = ['wbp_lead','vbot_lead','antigos_lead','mkt_lead','whats_lead','mabe_lead'];
+
+function openResumoLeads(){
+  let totLeads = 0, totAgsCanal = 0;
+  const html = CANAIS.map(c=>{
+    const lead = sumKey(c.lead), ags = sumKey(c.ags);
+    totLeads += lead; totAgsCanal += ags;
+    const pct = lead>0 ? Math.round(ags/lead*100) : 0;
+    return `<div class="lrow">
+      <span class="ch">${c.k}<span class="sub">${ags} ags / ${lead} leads</span></span>
+      <div class="ltrack"><div class="lfill" style="width:${Math.min(pct,100)}%"></div></div>
+      <span class="pc">${lead>0 ? pct+'%' : '—'}</span>
+    </div>`;
+  }).join('');
+  const ind = sumKey('ind_ags');
+  const totAgs = totAgsCanal + ind;
+  const conv = totLeads>0 ? Math.round(totAgsCanal/totLeads*100) : 0;
+
+  document.getElementById('lr-date').textContent = `Dia ${getDateStr()}`;
+  document.getElementById('lr-leads').textContent = totLeads;
+  document.getElementById('lr-ags').textContent = totAgs;
+  document.getElementById('lr-conv').textContent = totLeads>0 ? conv+'%' : '—';
+  document.getElementById('lr-channels').innerHTML = html;
+
+  const peopleHtml = rows.map(r=>{
+    const lead = LEAD_KEYS.reduce((s,k)=>s+(Number(r.lead?.[k])||0),0);
+    const ags  = AGS_KEYS.reduce((s,k)=>s+(Number(r.lead?.[k])||0),0);
+    const pct  = lead>0 ? Math.round(ags/lead*100) : 0;
+    const nm   = r.name ? escapeHtml(r.name) : '(sem nome)';
+    return `<div class="lprow">
+      <span class="nm">${nm}</span>
+      <span class="vals"><b>${lead}</b> leads · <b>${ags}</b> ags</span>
+      <span class="pc">${lead>0 ? pct+'%' : '—'}</span>
+    </div>`;
+  }).join('') || '<p style="color:#71717a;font-size:13px">Nenhuma pessoa na lista.</p>';
+  document.getElementById('lr-people-list').innerHTML = peopleHtml;
+
+  document.getElementById('lr-ind').textContent = ind;
+  document.getElementById('lr-people').textContent = rows.length;
+  document.getElementById('modal-leads-resumo').classList.add('show');
+}
+function closeResumoLeads(){ document.getElementById('modal-leads-resumo').classList.remove('show'); }
+
+// Fallback: se o base.html não disparar onConstantsLoaded, inicializa mesmo assim
+if (typeof formatDateKey === 'function') {
+  setTimeout(() => { if(document.getElementById('table-head').innerHTML === '') onConstantsLoaded(); }, 800);
+}
+</script>
+{% endblock %}

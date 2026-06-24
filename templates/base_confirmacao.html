@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Connecting — Equipe Confirmação</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Inter',sans-serif; background:#0c0c0c; color:#e4e4e7; font-size:14px; line-height:1.5; }
+    a { text-decoration:none; color:inherit; }
+    input,select,button { font-family:inherit; }
+
+    /* ── Layout ── */
+    .conf-wrapper { display:flex; min-height:100vh; }
+
+    /* ── Sidebar ── */
+    .conf-sidebar {
+      width:200px; min-height:100vh;
+      background:#0f0f0f;
+      border-right:1px solid #1f1f1f;
+      display:flex; flex-direction:column;
+      flex-shrink:0; position:fixed;
+      top:0; left:0; z-index:100;
+      transition:transform .25s;
+    }
+    .conf-sidebar-logo {
+      padding:20px 16px;
+      border-bottom:1px solid #1f1f1f;
+      text-align:center;
+    }
+    .conf-sidebar-logo img {
+      width:100%; max-width:150px;
+      height:auto; display:block; margin:0 auto;
+    }
+    .conf-team-badge {
+      margin:12px;
+      background:rgba(34,197,94,0.1);
+      border:1px solid rgba(34,197,94,0.25);
+      border-radius:8px;
+      padding:8px 12px;
+      font-size:11px;
+      font-weight:700;
+      color:#22c55e;
+      text-align:center;
+      letter-spacing:0.05em;
+    }
+    .conf-nav { flex:1; padding:8px 12px; overflow-y:auto; }
+    .conf-nav-label {
+      font-size:9px; font-weight:700;
+      color:#52525b; letter-spacing:.15em;
+      padding:8px 12px 6px;
+    }
+    .conf-nav-item {
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px; border-radius:8px;
+      font-size:12px; font-weight:500;
+      color:#71717a; transition:all .2s;
+      cursor:pointer; margin-bottom:2px;
+    }
+    .conf-nav-item:hover { color:#e4e4e7; background:#1a1a1a; }
+    .conf-nav-item.active { background:#22c55e; color:#052e16; font-weight:600; }
+    .conf-nav-icon { font-size:14px; flex-shrink:0; }
+
+    /* User box */
+    .conf-user-box {
+      padding:12px 16px;
+      border-top:1px solid #1f1f1f;
+      display:flex; align-items:center; gap:10px;
+    }
+    .conf-user-avatar {
+      width:32px; height:32px; border-radius:50%;
+      background:#22c55e; color:#052e16;
+      font-weight:800; display:flex;
+      align-items:center; justify-content:center;
+      font-size:13px; flex-shrink:0;
+    }
+    .conf-user-info { flex:1; min-width:0; }
+    .conf-user-name {
+      font-size:12px; font-weight:600; color:#e4e4e7;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .conf-user-role { font-size:10px; color:#22c55e; }
+    .conf-sidebar-footer {
+      padding:12px 16px;
+      font-size:10px; color:#3f3f46;
+      border-top:1px solid #1f1f1f;
+    }
+
+    /* ── Mobile header ── */
+    .conf-mobile-header {
+      display:none; align-items:center; gap:12px;
+      padding:12px 16px; background:#0f0f0f;
+      border-bottom:1px solid #1f1f1f;
+      position:sticky; top:0; z-index:50;
+    }
+    .conf-mobile-title { font-size:12px; font-weight:700; letter-spacing:.1em; color:#22c55e; }
+    .conf-hamburger { background:none; border:none; color:#e4e4e7; font-size:20px; cursor:pointer; padding:4px 8px; border-radius:6px; }
+    .conf-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:99; }
+    .conf-overlay.show { display:block; }
+
+    /* ── Main ── */
+    .conf-main { flex:1; margin-left:200px; min-width:0; }
+
+    /* ── Reuse global styles ── */
+    .page-content { padding:24px 32px; display:flex; flex-direction:column; gap:20px; }
+    .page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    .page-title { font-size:24px; font-weight:700; }
+    .page-subtitle { font-size:11px; color:#71717a; margin-top:4px; }
+    .title-bar { display:flex; align-items:center; gap:12px; }
+    .title-accent { width:4px; height:32px; background:#22c55e; border-radius:4px; }
+    .section-title { font-size:10px; font-weight:700; color:#71717a; letter-spacing:.15em; margin-bottom:10px; }
+    .card { background:#141414; border:1px solid #1f1f1f; border-radius:12px; padding:20px; }
+    .filter-bar { display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px; }
+    .filter-group { display:flex; flex-direction:column; gap:4px; }
+    .filter-label { font-size:9px; font-weight:700; color:#71717a; letter-spacing:.15em; }
+    .select { background:#1a1a1a; border:1px solid #2a2a2a; color:#e4e4e7; border-radius:8px; padding:0 10px; height:36px; font-size:12px; cursor:pointer; outline:none; }
+    .select:focus { border-color:#22c55e; }
+    .input { background:#1a1a1a; border:1px solid #2a2a2a; color:#e4e4e7; border-radius:8px; padding:0 10px; height:36px; font-size:12px; outline:none; }
+    .input:focus { border-color:#22c55e; }
+    .input::placeholder { color:#52525b; }
+    .action-bar { display:flex; flex-wrap:wrap; gap:8px; }
+    .btn { display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 14px; border-radius:8px; font-size:12px; font-weight:500; cursor:pointer; border:none; transition:all .2s; }
+    .btn-primary { background:#22c55e; color:#052e16; }
+    .btn-primary:hover { background:#4ade80; }
+    .btn-outline { background:transparent; border:1px solid #2a2a2a; color:#e4e4e7; }
+    .btn-outline:hover { background:#1a1a1a; }
+    .btn-danger { background:transparent; border:1px solid #ef4444; color:#ef4444; }
+    .btn-danger:hover { background:rgba(239,68,68,.1); }
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; align-items:center; justify-content:center; padding:16px; }
+    .modal-overlay.show { display:flex; }
+    .modal { background:#141414; border:1px solid #1f1f1f; border-radius:12px; width:100%; max-width:520px; max-height:90vh; display:flex; flex-direction:column; }
+    .modal-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #1f1f1f; font-size:13px; font-weight:600; flex-shrink:0; }
+    .modal-close { background:none; border:none; color:#71717a; cursor:pointer; font-size:16px; padding:4px 8px; border-radius:6px; }
+    .modal-close:hover { background:#1a1a1a; color:#e4e4e7; }
+    .modal-body { padding:16px 20px; overflow-y:auto; }
+    .loading { text-align:center; padding:40px; color:#71717a; font-size:13px; }
+    .no-data { text-align:center; padding:20px; color:#71717a; font-size:12px; }
+    .toast-container { position:fixed; bottom:24px; right:24px; z-index:999; display:flex; flex-direction:column; gap:8px; }
+    .toast { background:#141414; border:1px solid #1f1f1f; border-radius:8px; padding:12px 16px; font-size:13px; opacity:0; transform:translateY(8px); transition:all .3s; min-width:200px; }
+    .toast.show { opacity:1; transform:translateY(0); }
+    .toast-success { border-left:3px solid #22c55e; }
+    .toast-error { border-left:3px solid #ef4444; }
+
+    /* ── Responsive ── */
+    @media (max-width:768px) {
+      .conf-sidebar { transform:translateX(-100%); }
+      .conf-sidebar.open { transform:translateX(0); }
+      .conf-mobile-header { display:flex; }
+      .conf-main { margin-left:0; }
+      .page-content { padding:12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="conf-wrapper">
+    <aside class="conf-sidebar" id="conf-sidebar">
+      <div class="conf-sidebar-logo">
+        <img src="/static/logo.png" alt="Connecting"/>
+      </div>
+      <div class="conf-team-badge">✅ EQUIPE CONFIRMAÇÃO</div>
+      <nav class="conf-nav">
+        <p class="conf-nav-label">NAVEGAÇÃO</p>
+        <a href="/confirmacao" class="conf-nav-item {% if request.path == "/confirmacao" %}active{% endif %}">
+          <span class="conf-nav-icon">📊</span> Análise Geral
+        </a>
+
+        <p class="conf-nav-label" style="margin-top:10px">ATENDENTES</p>
+        {% set atendentes_list = ['VIVIANE','DIELLEM','LIDIENE','KEILANE','LUANE','MARIA'] %}
+        {% for nome in atendentes_list %}
+        <a href="/confirmacao/{{ nome }}"
+           class="conf-nav-item {% if atendente == nome %}active{% endif %}">
+          <span class="conf-nav-icon">👤</span> {{ nome }}
+        </a>
+        {% endfor %}
+
+        <a href="/logout" class="conf-nav-item" style="margin-top:8px;color:#fca5a5;border-top:1px solid #1f1f1f;padding-top:12px">
+          <span class="conf-nav-icon">⎋</span> Sair
+        </a>
+      </nav>
+      {% if current_user %}
+      <div class="conf-user-box">
+        <div class="conf-user-avatar">{{ current_user[0]|upper }}</div>
+        <div class="conf-user-info">
+          <div class="conf-user-name">{{ current_user }}</div>
+          <div class="conf-user-role">Confirmação</div>
+        </div>
+      </div>
+      {% endif %}
+      <div class="conf-sidebar-footer">v3.2 — Connecting</div>
+    </aside>
+
+    <div class="conf-mobile-header">
+      <button class="conf-hamburger" onclick="toggleConfSidebar()">☰</button>
+      <span class="conf-mobile-title">✅ CONFIRMAÇÃO</span>
+    </div>
+    <div class="conf-overlay" id="conf-overlay" onclick="toggleConfSidebar()"></div>
+
+    <main class="conf-main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    const UNITS = [];
+    const MONTHS = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+    const TIME_SLOTS = [];
+
+    function toggleConfSidebar() {
+      document.getElementById('conf-sidebar').classList.toggle('open');
+      document.getElementById('conf-overlay').classList.toggle('show');
+    }
+
+    function showToast(msg, type='success') {
+      const t = document.createElement('div');
+      t.className = 'toast toast-' + type;
+      t.textContent = msg;
+      document.getElementById('toast-container').appendChild(t);
+      setTimeout(()=>t.classList.add('show'),10);
+      setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); },3000);
+    }
+
+    // Chama onConstantsLoaded se existir
+    if(typeof onConstantsLoaded === 'function') {
+      document.addEventListener('DOMContentLoaded', onConstantsLoaded);
+    }
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

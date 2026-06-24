@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Connecting — Aguarde um momento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;background:#03060f;color:#e8eaf0;}
+
+#stars{position:fixed;inset:0;z-index:0;background:radial-gradient(circle at 80% 20%,rgba(255,255,255,0.03) 0%,transparent 50%),radial-gradient(circle at 20% 60%,rgba(138,180,248,0.02) 0%,transparent 40%),#040814;}
+
+.page{position:relative;z-index:5;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 20px;text-align:center;}
+
+.logo-wrap{margin-bottom:36px;}
+.logo-wrap img{height:90px;width:auto;display:block;margin:0 auto;}
+
+.card{
+  background:rgba(10,20,42,0.55);
+  backdrop-filter:blur(25px);
+  -webkit-backdrop-filter:blur(25px);
+  border:1px solid rgba(245,166,35,0.18);
+  border-radius:24px;
+  padding:44px 40px;
+  width:100%;max-width:440px;
+  box-shadow:0 24px 50px rgba(0,0,0,0.6);
+}
+
+.icon-wrap{
+  width:80px;height:80px;border-radius:50%;
+  background:rgba(245,166,35,0.1);
+  border:2px solid rgba(245,166,35,0.3);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 24px;font-size:38px;
+}
+
+.title{
+  font-family:'Syne',sans-serif;
+  font-size:24px;font-weight:800;
+  color:#f5a623;margin-bottom:12px;
+  letter-spacing:-0.02em;
+}
+
+.message{
+  font-size:15px;color:rgba(255,255,255,0.65);
+  line-height:1.6;margin-bottom:32px;
+}
+
+.timer-wrap{
+  background:rgba(245,166,35,0.06);
+  border:1px solid rgba(245,166,35,0.15);
+  border-radius:16px;padding:24px;
+  margin-bottom:28px;
+}
+.timer-label{
+  font-family:'Syne',sans-serif;
+  font-size:10px;font-weight:700;
+  letter-spacing:0.2em;text-transform:uppercase;
+  color:rgba(255,255,255,0.4);margin-bottom:10px;
+}
+.timer-value{
+  font-family:'Syne',sans-serif;
+  font-size:48px;font-weight:800;
+  color:#f5a623;line-height:1;
+  font-variant-numeric:tabular-nums;
+}
+.timer-unit{
+  font-size:14px;color:rgba(255,255,255,0.5);
+  margin-top:6px;
+}
+
+.btn{
+  width:100%;border:none;
+  padding:15px;border-radius:50px;
+  font-family:'Syne',sans-serif;
+  font-size:12px;font-weight:700;
+  letter-spacing:0.16em;text-transform:uppercase;
+  cursor:pointer;
+  background:linear-gradient(135deg,#f5a623,#e07000);
+  color:#0a0a0a;
+  box-shadow:0 4px 24px rgba(230,112,0,0.25);
+  transition:all 0.25s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn:hover:not(:disabled){box-shadow:0 6px 36px rgba(230,112,0,0.45);}
+.btn:disabled{
+  background:rgba(255,255,255,0.06);
+  color:rgba(255,255,255,0.3);
+  cursor:not-allowed;
+  box-shadow:none;
+}
+
+.footer-note{
+  margin-top:24px;font-size:12px;
+  color:rgba(255,255,255,0.25);line-height:1.6;
+}
+
+@media(max-width:480px){
+  .logo-wrap img{height:70px;}
+  .card{padding:32px 24px;}
+  .timer-value{font-size:40px;}
+}
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<div class="page">
+  <div class="logo-wrap">
+    <img src="/static/logo.png" alt="Connecting"/>
+  </div>
+
+  <div class="card">
+    <div class="icon-wrap">🔒</div>
+    <h1 class="title">Muitas tentativas</h1>
+    <p class="message">
+      Por segurança, o acesso foi temporariamente bloqueado.<br>
+      Aguarde o tempo abaixo para tentar novamente.
+    </p>
+
+    <div class="timer-wrap">
+      <div class="timer-label">Tempo de espera</div>
+      <div class="timer-value" id="timer">60</div>
+      <div class="timer-unit">segundos</div>
+    </div>
+
+    <button class="btn" id="retry-btn" disabled onclick="window.location.href='/login'">
+      <span id="btn-text">Aguarde...</span>
+    </button>
+
+    <p class="footer-note">
+      Isso protege o sistema contra acessos não autorizados.
+    </p>
+  </div>
+</div>
+
+<script>
+// Estrelas cintilantes
+const c=document.getElementById('stars'),ctx=c.getContext('2d');
+let st=[];
+function resize(){
+  c.width=innerWidth;c.height=innerHeight;
+  st=Array.from({length:180},()=>({
+    x:Math.random()*c.width,y:Math.random()*c.height,
+    r:Math.random()*1.4+0.3,o:Math.random()*0.7+0.1,
+    t:Math.random()*Math.PI*2
+  }));
+}
+window.addEventListener('resize',resize);resize();
+(function draw(){
+  ctx.clearRect(0,0,c.width,c.height);
+  st.forEach(s=>{
+    s.t+=0.006;
+    const o=s.o+Math.sin(s.t)*0.3;
+    ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${Math.max(0,o)})`;
+    ctx.fill();
+  });
+  requestAnimationFrame(draw);
+})();
+
+// Contador regressivo
+let seconds = 60;
+const timerEl = document.getElementById('timer');
+const retryBtn = document.getElementById('retry-btn');
+const btnText = document.getElementById('btn-text');
+
+const countdown = setInterval(() => {
+  seconds--;
+  timerEl.textContent = seconds;
+
+  if (seconds <= 0) {
+    clearInterval(countdown);
+    timerEl.textContent = '0';
+    retryBtn.disabled = false;
+    btnText.textContent = 'Tentar novamente →';
+    // Redireciona automaticamente após liberar
+    setTimeout(() => window.location.href = '/login', 800);
+  }
+}, 1000);
+</script>
+
+</body>
+</html>

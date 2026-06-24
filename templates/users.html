@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <div class="title-bar">
+        <div class="title-accent"></div>
+        <h1 class="page-title">Usuários</h1>
+      </div>
+      <p class="page-subtitle" style="margin-left:20px">Gerencie quem tem acesso ao sistema</p>
+    </div>
+    <div class="filter-bar">
+      <button class="btn btn-primary" onclick="openAddModal()">+ Novo usuário</button>
+    </div>
+  </div>
+
+  <div class="emp-grid" id="users-grid">
+    <div class="loading">Carregando...</div>
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal-overlay" id="modal-add" onclick="closeAddModal()">
+  <div class="modal" style="max-width:380px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span>🔐 Novo Usuário</span>
+      <button class="modal-close" onclick="closeAddModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="filter-group" style="margin-bottom:12px">
+        <label class="filter-label">USUÁRIO</label>
+        <input class="input" id="new-username" placeholder="Nome de usuário" style="width:100%"
+               autocomplete="off"/>
+      </div>
+      <div class="filter-group" style="margin-bottom:12px">
+        <label class="filter-label">SENHA</label>
+        <input class="input" id="new-password" type="password" placeholder="Mínimo 8 caracteres" style="width:100%"
+               autocomplete="new-password"
+               onkeydown="if(event.key==='Enter')addUser()"/>
+      </div>
+      <div class="filter-group" style="margin-bottom:16px">
+        <label class="filter-label">EQUIPE</label>
+        <select class="select" id="new-role" style="width:100%">
+          <option value="all">👑 Admin (acesso total)</option>
+          <option value="agendamento">📅 Equipe Agendamento</option>
+          <option value="confirmacao">✅ Equipe Confirmação</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="closeAddModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="addUser()">Criar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-overlay" id="modal-pwd" onclick="closePwdModal()">
+  <div class="modal" style="max-width:380px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span>🔑 Trocar senha — <span id="pwd-username"></span></span>
+      <button class="modal-close" onclick="closePwdModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="filter-group" style="margin-bottom:16px">
+        <label class="filter-label">NOVA SENHA</label>
+        <input class="input" id="new-pwd" type="password" placeholder="Mínimo 8 caracteres" style="width:100%"
+               autocomplete="new-password"
+               onkeydown="if(event.key==='Enter')savePassword()"/>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="closePwdModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="savePassword()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Role Modal -->
+<div class="modal-overlay" id="modal-role" onclick="closeRoleModal()">
+  <div class="modal" style="max-width:380px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span>⚙️ Alterar Equipe — <span id="role-username"></span></span>
+      <button class="modal-close" onclick="closeRoleModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="filter-group" style="margin-bottom:16px">
+        <label class="filter-label">EQUIPE</label>
+        <select class="select" id="edit-role" style="width:100%">
+          <option value="all">👑 Admin (acesso total)</option>
+          <option value="agendamento">📅 Equipe Agendamento</option>
+          <option value="confirmacao">✅ Equipe Confirmação</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="closeRoleModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveRole()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CURRENT_USER_ID = {{ current_user_id | tojson }};
+let allUsers = [];
+let pwdTargetId = null;
+let roleTargetId = null;
+
+function onConstantsLoaded() {
+  loadUsers();
+}
+
+async function loadUsers() {
+  const res = await fetch('/api/users');
+  if(res.status === 401) { window.location.href='/login'; return; }
+  allUsers = await res.json();
+  render();
+}
+
+function render() {
+  const grid = document.getElementById('users-grid');
+  if(allUsers.length === 0) {
+    grid.innerHTML = '<div class="empty-state"><p>Nenhum usuário cadastrado.</p></div>';
+    return;
+  }
+  grid.innerHTML = allUsers.map(u => {
+    const isMe = u.id === CURRENT_USER_ID;
+    const roleLabel = u.role === 'agendamento' ? '📅 Agendamento' : u.role === 'confirmacao' ? '✅ Confirmação' : '👑 Admin';
+    const roleBadgeColor = u.role === 'agendamento' ? '#3b82f6' : u.role === 'confirmacao' ? '#22c55e' : '#fbbf24';
+    return `
+    <div class="emp-card">
+      <div class="emp-avatar">${u.username[0]?.toUpperCase()||'?'}</div>
+      <div class="emp-info">
+        <div class="emp-name">${u.username}${isMe?' <span style="color:#fbbf24;font-size:11px;font-weight:600">(você)</span>':''}</div>
+        <div class="emp-unit" style="color:${roleBadgeColor}">${roleLabel}</div>
+      </div>
+      <button class="del-btn emp-del" title="Trocar senha"
+              onclick="openPwdModal(${u.id}, '${u.username.replace(/'/g,"\\'")}')"
+              style="color:#fbbf24;margin-right:4px">🔑</button>
+      ${isMe ? '' : `<button class="del-btn emp-del" title="Excluir usuário" onclick="deleteUser(${u.id}, '${u.username.replace(/'/g,"\\'")}')">🗑</button>`}
+    </div>`;
+  }).join('');
+}
+
+function openAddModal() {
+  document.getElementById('modal-add').classList.add('show');
+  document.getElementById('new-username').value = '';
+  document.getElementById('new-password').value = '';
+  document.getElementById('new-username').focus();
+}
+function closeAddModal() { document.getElementById('modal-add').classList.remove('show'); }
+
+async function addUser() {
+  const username = document.getElementById('new-username').value.trim();
+  const password = document.getElementById('new-password').value;
+  if(!username) { showToast('Digite um nome de usuário.','error'); return; }
+  if(password.length < 8) { showToast('A senha precisa ter pelo menos 8 caracteres.','error'); return; }
+  const role = document.getElementById('new-role').value;
+  const res = await fetch('/api/users', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({username, password, role})
+  });
+  const data = await res.json();
+  if(!res.ok) {
+    showToast(data.error || 'Erro ao criar usuário.', 'error');
+    return;
+  }
+  closeAddModal();
+  await loadUsers();
+  showToast('Usuário criado com sucesso!');
+}
+
+async function deleteUser(id, username) {
+  if(!confirm(`Excluir o usuário "${username}"?`)) return;
+  const res = await fetch(`/api/users/${id}`, { method:'DELETE' });
+  const data = await res.json();
+  if(!res.ok) {
+    showToast(data.error || 'Erro ao excluir.', 'error');
+    return;
+  }
+  await loadUsers();
+  showToast('Usuário excluído.');
+}
+
+function openPwdModal(id, username) {
+  pwdTargetId = id;
+  document.getElementById('pwd-username').textContent = username;
+  document.getElementById('new-pwd').value = '';
+  document.getElementById('modal-pwd').classList.add('show');
+  document.getElementById('new-pwd').focus();
+}
+function closePwdModal() { document.getElementById('modal-pwd').classList.remove('show'); pwdTargetId = null; }
+
+function openRoleModal(id, username, currentRole) {
+  roleTargetId = id;
+  document.getElementById('role-username').textContent = username;
+  document.getElementById('edit-role').value = currentRole || 'all';
+  document.getElementById('modal-role').classList.add('show');
+}
+function closeRoleModal() { document.getElementById('modal-role').classList.remove('show'); roleTargetId = null; }
+
+async function saveRole() {
+  const role = document.getElementById('edit-role').value;
+  const res = await fetch(`/api/users/${roleTargetId}/role`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({role})
+  });
+  const data = await res.json();
+  if(!res.ok) { showToast(data.error || 'Erro ao alterar equipe.', 'error'); return; }
+  closeRoleModal();
+  await loadUsers();
+  showToast('Equipe atualizada com sucesso!');
+}
+
+async function savePassword() {
+  const pwd = document.getElementById('new-pwd').value;
+  if(pwd.length < 8) { showToast('A senha precisa ter pelo menos 8 caracteres.','error'); return; }
+  const res = await fetch(`/api/users/${pwdTargetId}/password`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({password: pwd})
+  });
+  const data = await res.json();
+  if(!res.ok) {
+    showToast(data.error || 'Erro ao trocar senha.', 'error');
+    return;
+  }
+  closePwdModal();
+  showToast('Senha alterada com sucesso!');
+}
+</script>
+{% endblock %}

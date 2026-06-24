@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <div class="title-bar">
+        <div class="title-accent"></div>
+        <h1 class="page-title">Funcionários</h1>
+      </div>
+      <p class="page-subtitle" style="margin-left:20px">Gerencie a equipe de cada unidade</p>
+    </div>
+    <div class="filter-bar">
+      <select class="select" id="filter-unit" onchange="filterEmployees()">
+        <option value="ALL">Todas unidades</option>
+      </select>
+      <button class="btn btn-primary" onclick="openAddModal()">+ Adicionar</button>
+    </div>
+  </div>
+
+  <div class="emp-grid" id="emp-grid">
+    <div class="loading">Carregando...</div>
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal-overlay" id="modal-add" onclick="closeAddModal()">
+  <div class="modal" style="max-width:360px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span>👤 Novo Funcionário</span>
+      <button class="modal-close" onclick="closeAddModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="filter-group" style="margin-bottom:12px">
+        <label class="filter-label">NOME</label>
+        <input class="input" id="new-name" placeholder="Nome completo" style="width:100%"
+          onkeydown="if(event.key==='Enter')addEmployee()"/>
+      </div>
+      <div class="filter-group" style="margin-bottom:16px">
+        <label class="filter-label">UNIDADE</label>
+        <select class="select" id="new-unit" style="width:100%"></select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="closeAddModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="addEmployee()">Adicionar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allEmployees = [];
+
+function onConstantsLoaded() {
+  // Populate unit filters
+  const filterUnit = document.getElementById('filter-unit');
+  const newUnit = document.getElementById('new-unit');
+  UNITS.forEach(u=>{
+    const o1=document.createElement('option'); o1.value=u; o1.textContent=u; filterUnit.appendChild(o1);
+    const o2=document.createElement('option'); o2.value=u; o2.textContent=u; newUnit.appendChild(o2);
+  });
+  loadEmployees();
+}
+
+async function loadEmployees() {
+  const res = await fetch('/api/employees');
+  allEmployees = await res.json();
+  filterEmployees();
+}
+
+function filterEmployees() {
+  const unit = document.getElementById('filter-unit').value;
+  const list = unit==='ALL' ? allEmployees : allEmployees.filter(e=>e.unit===unit);
+  renderEmployees(list);
+}
+
+function renderEmployees(list) {
+  const grid = document.getElementById('emp-grid');
+  if(list.length===0){
+    grid.innerHTML='<div class="empty-state"><p>Nenhum funcionário encontrado.</p></div>';
+    return;
+  }
+  grid.innerHTML=list.map(emp=>`
+    <div class="emp-card">
+      <div class="emp-avatar">${emp.name[0]?.toUpperCase()||'?'}</div>
+      <div class="emp-info">
+        <div class="emp-name">${emp.name}</div>
+        <div class="emp-unit">🏢 ${emp.unit}</div>
+      </div>
+      <button class="del-btn emp-del" onclick="deleteEmployee(${emp.id})">🗑</button>
+    </div>`
+  ).join('');
+}
+
+function openAddModal() { document.getElementById('modal-add').classList.add('show'); document.getElementById('new-name').focus(); }
+function closeAddModal() { document.getElementById('modal-add').classList.remove('show'); document.getElementById('new-name').value=''; }
+
+async function addEmployee() {
+  const name=document.getElementById('new-name').value.trim();
+  const unit=document.getElementById('new-unit').value;
+  if(!name){ showToast('Digite um nome.','error'); return; }
+  await fetch('/api/employees',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name,unit,active:true})
+  });
+  closeAddModal();
+  await loadEmployees();
+  showToast('Funcionário adicionado!');
+}
+
+async function deleteEmployee(id) {
+  if(!confirm('Remover este funcionário?')) return;
+  await fetch(`/api/employees/${id}`,{method:'DELETE'});
+  await loadEmployees();
+  showToast('Funcionário removido.');
+}
+</script>
+{% endblock %}
