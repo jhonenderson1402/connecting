@@ -18,7 +18,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     create_engine, Column, Integer, String, Text, UniqueConstraint, Index,
-    select, insert, update, delete, func, and_,
+    select, insert, update, delete, func, and_, text,
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -35,6 +35,16 @@ DATABASE_URL = os.environ.get('DATABASE_URL', DEFAULT_SQLITE_URL)
 # Railway/Heroku as vezes usam 'postgres://' (legado); SQLAlchemy 2.x exige 'postgresql://'
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+
+# No Vercel, usa pg8000 (driver Python puro, sem dependencias nativas).
+# Localmente, mantém psycopg2 se disponivel; cai para pg8000 se nao.
+is_serverless = os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV')
+if is_serverless and 'postgresql' in DATABASE_URL and 'pg8000' not in DATABASE_URL:
+    # Remove qualquer driver explicito e usa pg8000
+    import re
+    DATABASE_URL = re.sub(r'postgresql\+\w+://', 'postgresql+pg8000://', DATABASE_URL)
+    if 'postgresql+pg8000://' not in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+pg8000://')
 
 _engine_kwargs = {}
 if DATABASE_URL.startswith('sqlite'):
@@ -111,7 +121,18 @@ class Confirmacao(Base):
 # ---- Inicializacao ----------------------------------------------------------
 
 def init_db():
-    """Cria tabelas e indices se ainda nao existirem. Idempotente."""
+    """Cria tabelas e indices se ainda nao existirem. Idempotente.
+    Em ambiente serverless (Vercel), o DDL e pulado para evitar timeout —
+    as tabelas devem ser criadas via script separado (veja create_tables.py)."""
+    is_serverless = os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV')
+    if is_serverless:
+        # No Vercel: assume que o banco ja existe.
+        # Apenas garante o admin sem rodar CREATE TABLE / ALTER TABLE.
+        try:
+            ensure_default_admin()
+        except Exception:
+            pass
+        return
     Base.metadata.create_all(engine)
     _run_migrations()
     ensure_default_admin()
