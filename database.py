@@ -124,19 +124,22 @@ def init_db():
     """Cria tabelas e indices se ainda nao existirem. Idempotente.
     Em ambiente serverless (Vercel), o DDL e pulado para evitar timeout —
     as tabelas devem ser criadas via script separado (veja create_tables.py)."""
+
     is_serverless = os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV')
+
     if is_serverless:
         # No Vercel: assume que o banco ja existe.
         # Apenas garante o admin sem rodar CREATE TABLE / ALTER TABLE.
         try:
             ensure_default_admin()
         except Exception as e:
-    print("ERRO AO CRIAR ADMIN:", e)
+            print("ERRO AO CRIAR ADMIN:", e)
+
         return
+
     Base.metadata.create_all(engine)
     _run_migrations()
     ensure_default_admin()
-
 
 def _run_migrations():
     """Aplica migrações incrementais no banco existente (idempotente)."""
