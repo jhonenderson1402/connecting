@@ -130,8 +130,8 @@ def init_db():
         # Apenas garante o admin sem rodar CREATE TABLE / ALTER TABLE.
         try:
             ensure_default_admin()
-        except Exception:
-            pass
+        except Exception as e:
+    print("ERRO AO CRIAR ADMIN:", e)
         return
     Base.metadata.create_all(engine)
     _run_migrations()
