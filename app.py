@@ -23,13 +23,17 @@ limiter = Limiter(
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 # SECRET_KEY: usada pra assinar cookies de sessão.
-# Configuração segura para evitar escrita de arquivos em Read-Only (Vercel)
+# Em produção, defina via variável de ambiente FLASK_SECRET.
+# Em dev, geramos uma chave estável a partir do filesystem.
+_SECRET_FILE = os.path.join(os.path.dirname(__file__), '.secret_key')
 if 'FLASK_SECRET' in os.environ:
     app.secret_key = os.environ['FLASK_SECRET']
 else:
-    # Em ambiente de desenvolvimento local, usa uma chave fixa estável.
-    # Em produção (Vercel), adicione a variável FLASK_SECRET nas configurações do painel.
-    app.secret_key = b'\x84\xfa\xae\x0e\xbd\xce\x1c\xbb\xec\x01\x18\x9f\xbdv\xbdN\x92\x8aT\x11Z\xec\xa9M\x98\x127\xdaU\xd5\x9a\xf4'
+    if not os.path.exists(_SECRET_FILE):
+        with open(_SECRET_FILE, 'wb') as f:
+            f.write(os.urandom(32))
+    with open(_SECRET_FILE, 'rb') as f:
+        app.secret_key = f.read()
 
 # Sessão dura 1 dia (mais seguro em máquinas compartilhadas do call center)
 app.permanent_session_lifetime = 60 * 60 * 24
@@ -612,6 +616,8 @@ def api_set_user_role(uid):
         return jsonify({'ok': True})
     except ValueError as e:
         return _err(str(e))
+
+# ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 # ── Bootstrap ─────────────────────────────────────────────────────────────────
 
