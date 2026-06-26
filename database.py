@@ -13,6 +13,7 @@ create_employee, verify_password, etc. continuam com a mesma assinatura.
 """
 
 import os
+import re
 import json
 from datetime import datetime
 
@@ -36,15 +37,17 @@ DATABASE_URL = os.environ.get('DATABASE_URL', DEFAULT_SQLITE_URL)
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-# No Vercel, usa pg8000 (driver Python puro, sem dependencias nativas).
-# Localmente, mantém psycopg2 se disponivel; cai para pg8000 se nao.
+# Seleciona o driver correto por ambiente:
+# - Vercel (serverless): pg8000 (Python puro, sem dependencias nativas)
+# - Railway/local: psycopg2 (nativo, mais rapido)
 is_serverless = os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV')
-if is_serverless and 'postgresql' in DATABASE_URL and 'pg8000' not in DATABASE_URL:
-    # Remove qualquer driver explicito e usa pg8000
-    import re
-    DATABASE_URL = re.sub(r'postgresql\+\w+://', 'postgresql+pg8000://', DATABASE_URL)
-    if 'postgresql+pg8000://' not in DATABASE_URL:
+if 'postgresql' in DATABASE_URL:
+    # Remove driver existente para normalizar
+    DATABASE_URL = re.sub(r'postgresql\+\w+://', 'postgresql://', DATABASE_URL)
+    if is_serverless:
         DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+pg8000://')
+    else:
+        DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg2://')
 
 _engine_kwargs = {}
 if DATABASE_URL.startswith('sqlite'):
@@ -124,9 +127,7 @@ def init_db():
     """Cria tabelas e indices se ainda nao existirem. Idempotente.
     Em ambiente serverless (Vercel), o DDL e pulado para evitar timeout —
     as tabelas devem ser criadas via script separado (veja create_tables.py)."""
-
     is_serverless = os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV')
-
     if is_serverless:
         # No Vercel: assume que o banco ja existe.
         # Apenas garante o admin sem rodar CREATE TABLE / ALTER TABLE.
@@ -134,12 +135,11 @@ def init_db():
             ensure_default_admin()
         except Exception as e:
             print("ERRO AO CRIAR ADMIN:", e)
-
         return
-
     Base.metadata.create_all(engine)
     _run_migrations()
     ensure_default_admin()
+
 
 def _run_migrations():
     """Aplica migrações incrementais no banco existente (idempotente)."""
@@ -152,14 +152,9 @@ def _run_migrations():
         except Exception:
             pass  # Coluna já existe, ignora
 
-        # Migração 2: cria tabela confirmacoes se não existir (já feito pelo create_all, mas garante)
-        pass
-
 
 def ensure_default_admin():
-    """Se nao houver nenhum usuario, cria o admin inicial.
-    Senha: usa ADMIN_PASS do ambiente; se ausente, gera uma aleatória forte
-    em produção (PostgreSQL) ou usa um padrão de dev (que deve ser trocado)."""
+    """Se nao houver nenhum usuario, cria o admin inicial."""
     import secrets
     with SessionLocal() as s:
         n = s.scalar(select(func.count(User.id)))
@@ -168,11 +163,9 @@ def ensure_default_admin():
             gerada = False
             if not senha:
                 if not DATABASE_URL.startswith('sqlite'):
-                    # Produção sem ADMIN_PASS: senha aleatória forte
                     senha = secrets.token_urlsafe(12)
                     gerada = True
                 else:
-                    # Dev: padrão temporário
                     senha = 'trocar-senha-123'
             s.add(User(
                 username=DEFAULT_ADMIN_USER,
