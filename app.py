@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from functools import wraps
+from urllib.parse import unquote
 
 from flask import (
     Flask, render_template, jsonify, request,
@@ -179,16 +180,18 @@ def dashboard():
         return render_template('landing.html')
     return render_template('dashboard.html')
 
-@app.route('/unit/<unit_name>')
+@app.route('/unit/<path:unit_name>')
 @login_required
 def unit_schedule(unit_name):
+    unit_name = unquote(unit_name)
     if not _valid_unit(unit_name):
         return _err(f'Unidade inválida: {unit_name}', 404)
     return render_template('unit.html', unit=unit_name)
 
-@app.route('/unit/<unit_name>/leads')
+@app.route('/unit/<path:unit_name>/leads')
 @login_required
 def leads_page(unit_name):
+    unit_name = unquote(unit_name)
     if not _valid_unit(unit_name):
         return _err(f'Unidade inválida: {unit_name}', 404)
     return render_template('leads.html', unit=unit_name)
