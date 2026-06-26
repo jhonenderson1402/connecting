@@ -385,21 +385,32 @@ def api_get_leads(unit, date):
     appt = db.get_appointment(LEADS_PREFIX + unit, date)
     return jsonify(appt or {})
 
-@app.route('/api/leads/<unit>/<date>', methods=['POST'])
+@app.route('/api/appointments/<unit>/<date>', methods=['POST'])
 @login_required
-def api_save_leads(unit, date):
+def api_save_appointment(unit, date):
+
+    # Corrige caracteres especiais como PAR%C3%81
+    unit = unquote(unit)
+
     if not _valid_unit(unit):
         return _err(f'Unidade inválida: {unit}')
+
     if not _valid_date(date):
         return _err('Data inválida. Use YYYY-MM-DD.')
+
     data = request.get_json(silent=True) or {}
+
     leader = data.get('leader', '')
     rows = data.get('rows', [])
+
     if not isinstance(leader, str):
         return _err('Campo "leader" deve ser string.')
+
     if not isinstance(rows, list):
         return _err('Campo "rows" deve ser lista.')
-    db.upsert_appointment(LEADS_PREFIX + unit, date, leader, rows)
+
+    db.upsert_appointment(unit, date, leader, rows)
+
     return jsonify({'ok': True})
 
 @app.route('/api/leads/<unit>/<date>', methods=['DELETE'])
