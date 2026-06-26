@@ -251,6 +251,8 @@ def api_change_password(uid):
 @login_required
 def api_employees():
     unit = request.args.get('unit')
+    if unit:
+        unit = unquote(unit)
     if unit and not _valid_unit(unit):
         return _err(f'Unidade inválida: {unit}')
     active = request.args.get('active')
@@ -325,6 +327,7 @@ def api_appointments():
 @app.route('/api/appointments/<unit>/<date>', methods=['GET'])
 @login_required
 def api_get_appointment(unit, date):
+    unit = unquote(unit)
     if not _valid_unit(unit):
         return _err(f'Unidade inválida: {unit}')
     if not _valid_date(date):
@@ -335,6 +338,7 @@ def api_get_appointment(unit, date):
 @app.route('/api/appointments/<unit>/<date>', methods=['POST'])
 @login_required
 def api_save_appointment(unit, date):
+    unit = unquote(unit)
     if not _valid_unit(unit):
         return _err(f'Unidade inválida: {unit}')
     if not _valid_date(date):
@@ -352,6 +356,7 @@ def api_save_appointment(unit, date):
 @app.route('/api/appointments/<unit>/<date>/comparecimento', methods=['POST'])
 @login_required
 def api_save_comparecimento(unit, date):
+    unit = unquote(unit)
     if not _valid_unit(unit):
         return _err(f'Unidade inválida: {unit}')
     if not _valid_date(date):
@@ -366,6 +371,7 @@ def api_save_comparecimento(unit, date):
 @app.route('/api/appointments/<unit>/<date>', methods=['DELETE'])
 @login_required
 def api_clear_appointment(unit, date):
+    unit = unquote(unit)
     if not _valid_unit(unit):
         return _err(f'Unidade inválida: {unit}')
     if not _valid_date(date):
@@ -378,6 +384,7 @@ def api_clear_appointment(unit, date):
 @app.route('/api/leads/<unit>/<date>', methods=['GET'])
 @login_required
 def api_get_leads(unit, date):
+    unit = unquote(unit)
     if not _valid_unit(unit):
         return _err(f'Unidade inválida: {unit}')
     if not _valid_date(date):
@@ -388,6 +395,7 @@ def api_get_leads(unit, date):
 @app.route('/api/leads/<unit>/<date>', methods=['POST'])
 @login_required
 def api_save_leads(unit, date):
+    unit = unquote(unit)
     if not _valid_unit(unit):
         return _err(f'Unidade inválida: {unit}')
     if not _valid_date(date):
@@ -405,6 +413,7 @@ def api_save_leads(unit, date):
 @app.route('/api/leads/<unit>/<date>', methods=['DELETE'])
 @login_required
 def api_clear_leads(unit, date):
+    unit = unquote(unit)
     if not _valid_unit(unit):
         return _err(f'Unidade inválida: {unit}')
     if not _valid_date(date):
