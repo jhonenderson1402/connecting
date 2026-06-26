@@ -332,23 +332,6 @@ def api_get_appointment(unit, date):
     appt = db.get_appointment(unit, date)
     return jsonify(appt or {})
 
-@app.route('/api/appointments/<unit>/<date>', methods=['POST'])
-@login_required
-def api_save_appointment(unit, date):
-    if not _valid_unit(unit):
-        return _err(f'Unidade inválida: {unit}')
-    if not _valid_date(date):
-        return _err('Data inválida. Use YYYY-MM-DD.')
-    data = request.get_json(silent=True) or {}
-    leader = data.get('leader', '')
-    rows = data.get('rows', [])
-    if not isinstance(leader, str):
-        return _err('Campo "leader" deve ser string.')
-    if not isinstance(rows, list):
-        return _err('Campo "rows" deve ser lista.')
-    db.upsert_appointment(unit, date, leader, rows)
-    return jsonify({'ok': True})
-
 @app.route('/api/appointments/<unit>/<date>/comparecimento', methods=['POST'])
 @login_required
 def api_save_comparecimento(unit, date):
