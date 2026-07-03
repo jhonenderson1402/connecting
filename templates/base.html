@@ -86,7 +86,7 @@
         <img src="/static/logo.png" alt="Connecting" class="logo-img"/>
       </div>
       <nav class="sidebar-nav">
-        {% if current_role in ('agendamento', 'all') %}
+        {% if current_role in ('agendamento', 'all', 'admin') %}
         <p class="nav-label">EQUIPE AGENDAMENTO</p>
         <a href="/" class="nav-item" data-path="/">
           <span class="nav-icon">📊</span> Resumo Geral
@@ -96,12 +96,12 @@
           <span class="nav-icon">👥</span> Funcionários
         </a>
         {% endif %}
-        {% if current_role == 'all' %}
+        {% if current_role in ('all', 'admin') %}
         <p class="nav-label" style="margin-top:12px">ADMIN</p>
-        {% endif %}
         <a href="/users" class="nav-item" data-path="/users">
           <span class="nav-icon">🔐</span> Usuários
         </a>
+        {% endif %}
       </nav>
 
       {% if current_user %}
@@ -154,6 +154,9 @@
 
     function buildUnitLinks() {
       const container = document.getElementById('unit-links');
+      // O container só existe para papéis com acesso à área de agendamento.
+      // Se não existir (ex.: papel 'confirmacao'), apenas segue sem quebrar.
+      if (!container) { highlightNav(); return; }
       UNITS.forEach(u => {
         const a = document.createElement('a');
         a.href = '/unit/' + encodeURIComponent(u);
