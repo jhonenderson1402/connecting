@@ -105,11 +105,11 @@
       <div class="filter-group">
         <label class="filter-label">FILTRO</label>
         <select class="select" id="filter-type" onchange="onFilterTypeChange()">
+          <option value="month" selected>Mês</option>
           <option value="day">Dia</option>
-          <option value="month">Mês</option>
         </select>
       </div>
-      <div class="filter-group" id="day-filter-group">
+      <div class="filter-group" id="day-filter-group" style="display:none">
         <label class="filter-label">DIA</label>
         <select class="select" id="filter-day" onchange="loadDashboard()"></select>
       </div>
