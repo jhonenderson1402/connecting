@@ -110,6 +110,22 @@ def login_required(view):
         return view(*args, **kwargs)
     return wrapper
 
+def admin_required(view):
+    """Restringe a rota a usuários com papel 'admin'.
+    Páginas: redireciona pro dashboard. APIs: retorna 403 JSON."""
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if 'user_id' not in session:
+            if _wants_json():
+                return _err('Não autenticado.', 401)
+            return redirect(url_for('login', next=request.path))
+        if session.get('role') != 'admin':
+            if _wants_json():
+                return _err('Acesso restrito a administradores.', 403)
+            return redirect(url_for('dashboard'))
+        return view(*args, **kwargs)
+    return wrapper
+
 # Disponibiliza o nome do usuário pra todos os templates
 @app.context_processor
 def inject_user():
@@ -202,7 +218,7 @@ def employees_page():
     return render_template('employees.html')
 
 @app.route('/users')
-@login_required
+@admin_required
 def users_page():
     return render_template('users.html')
 
@@ -214,7 +230,7 @@ def api_list_users():
     return jsonify(db.list_users())
 
 @app.route('/api/users', methods=['POST'])
-@login_required
+@admin_required
 def api_create_user():
     data = request.get_json(silent=True) or {}
     try:
@@ -224,7 +240,7 @@ def api_create_user():
         return _err(str(e))
 
 @app.route('/api/users/<int:uid>', methods=['DELETE'])
-@login_required
+@admin_required
 def api_delete_user(uid):
     # Proteção: não permite deletar a si mesmo (evita ficar sem acesso)
     if uid == session.get('user_id'):
@@ -238,6 +254,11 @@ def api_delete_user(uid):
 @app.route('/api/users/<int:uid>/password', methods=['POST'])
 @login_required
 def api_change_password(uid):
+    # Admin pode trocar a senha de qualquer usuário.
+    # Não-admin só pode trocar a PRÓPRIA senha.
+    is_admin = session.get('role') == 'admin'
+    if not is_admin and uid != session.get('user_id'):
+        return _err('Você só pode alterar a sua própria senha.', 403)
     data = request.get_json(silent=True) or {}
     try:
         db.change_password(uid, data.get('password'))
@@ -421,7 +442,7 @@ def api_clear_leads(unit, date):
     db.clear_appointment(LEADS_PREFIX + unit, date)
     return jsonify({'ok': True})
 
-# ── API: Constantes (não protegida — usada pela tela de login pra renderizar) ─
+# ── API: Constantes ───────────────────────────────────────────────────────────
 
 @app.route('/api/constants')
 @login_required
@@ -518,7 +539,7 @@ def api_leads_por_tmk():
 
 def _role_allowed(*roles):
     user_role = session.get('role', 'all')
-    return user_role == 'all' or user_role in roles
+    return user_role == 'all' or user_role == 'admin' or user_role in roles
 
 ATENDENTES = ['VIVIANE', 'DIELLEM', 'LIDIENE', 'KEILANE', 'LUANE', 'MARIA']
 UNIDADES_CONF = {
@@ -560,14 +581,14 @@ def api_list_confirmacoes():
     mes      = request.args.get('mes')
     data_str = request.args.get('data_str')
     tmk      = request.args.get('tmk')
-    
+
     # Validação server-side do TMK
     if tmk:
         if not isinstance(tmk, str):
             return _err('tmk deve ser uma string.')
         if len(tmk) > 200:
             return _err('tmk muito longo (máximo 200 caracteres).')
-    
+
     return jsonify(db.get_confirmacoes(mes=mes, data_str=data_str, tmk=tmk))
 
 @app.route('/api/confirmacoes/clear_day', methods=['DELETE'])
@@ -620,7 +641,7 @@ def api_bulk_confirmacoes():
     return jsonify({'ok': True, 'count': len(rows)}), 201
 
 @app.route('/api/users/<int:uid>/role', methods=['POST'])
-@login_required
+@admin_required
 def api_set_user_role(uid):
     data = request.get_json(silent=True) or {}
     try:
@@ -628,8 +649,6 @@ def api_set_user_role(uid):
         return jsonify({'ok': True})
     except ValueError as e:
         return _err(str(e))
-
-# ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 # ── Bootstrap ─────────────────────────────────────────────────────────────────
 
