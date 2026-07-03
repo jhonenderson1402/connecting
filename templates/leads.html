@@ -23,6 +23,8 @@
 .leads-table tbody td.fix { color:#a1a1aa; font-weight:500; text-transform:uppercase; font-size:9.5px; }
 .leads-table tbody td.name-cell { text-align:left; color:#e4e4e7; font-weight:600; text-transform:none; font-size:11px; padding-left:8px; min-width:150px; }
 .leads-table tbody td.name-cell.empty { color:#52525b; font-style:italic; }
+/* Alinha o cabeçalho NOME à esquerda, igual à célula do nome abaixo */
+.leads-table thead th.th-nome { text-align:left; padding-left:8px; }
 
 .lead-input { width:54px; background:transparent; border:1px solid #2a2a2a; color:#52525b; text-align:center; padding:4px 0; border-radius:5px; font-size:10.5px; font-weight:700; font-family:inherit; transition:all .15s; }
 .lead-input:focus { outline:none; border-color:#fbbf24; }
@@ -238,7 +240,7 @@ async function onConstantsLoaded(){
   await loadData();
 }
 function buildTableHead(){
-  let html = '<tr><th>MÊS</th><th>ANO</th><th>DATA</th><th>LÍDER</th><th>NOME</th>';
+  let html = '<tr><th>MÊS</th><th>ANO</th><th>DATA</th><th>LÍDER</th><th class="th-nome">NOME</th>';
   LEAD_COLS.forEach(c => { html += `<th class="${c.t==='cv'?'col-conv':''}">${c.l}</th>`; });
   html += '<th>TOTAL</th></tr>';
   document.getElementById('table-head').innerHTML = html;
