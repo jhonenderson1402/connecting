@@ -1,7 +1,0 @@
-.secret_key
-   agendamentos.db
-   *.db
-   __pycache__/
-   *.pyc
-   .env
-   venv/
