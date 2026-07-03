@@ -96,7 +96,7 @@ class User(Base):
     id            = Column(Integer, primary_key=True, autoincrement=True)
     username      = Column(String(150), nullable=False, unique=True)
     password_hash = Column(String(300), nullable=False)
-    role          = Column(String(50), default='all')  # 'agendamento', 'confirmacao', 'all'
+    role          = Column(String(50), default='all')  # 'agendamento', 'confirmacao', 'all', 'admin'
     created_at    = Column(String(40),  default=lambda: datetime.utcnow().isoformat())
     __table_args__ = (
         Index('idx_users_username', 'username'),
@@ -154,7 +154,7 @@ def _run_migrations():
 
 
 def ensure_default_admin():
-    """Se nao houver nenhum usuario, cria o admin inicial."""
+    """Se nao houver nenhum usuario, cria o admin inicial (papel 'admin')."""
     import secrets
     with SessionLocal() as s:
         n = s.scalar(select(func.count(User.id)))
@@ -170,6 +170,7 @@ def ensure_default_admin():
             s.add(User(
                 username=DEFAULT_ADMIN_USER,
                 password_hash=generate_password_hash(senha),
+                role='admin',
             ))
             s.commit()
             print("\n[!] Nenhum usuario encontrado. Criado admin inicial:")
@@ -218,7 +219,7 @@ def verify_password(username, password):
     if not user:
         return None
     if check_password_hash(user['password_hash'], password):
-        return {'id': user['id'], 'username': user['username']}
+        return {'id': user['id'], 'username': user['username'], 'role': user.get('role', 'all')}
     return None
 
 
@@ -371,7 +372,7 @@ def clear_appointment(unit, date):
 # ---- Role management --------------------------------------------------------
 
 def set_user_role(user_id, role):
-    allowed = ('agendamento', 'confirmacao', 'all')
+    allowed = ('agendamento', 'confirmacao', 'all', 'admin')
     if role not in allowed:
         raise ValueError(f'Role invalido. Use: {allowed}')
     with SessionLocal() as s:
