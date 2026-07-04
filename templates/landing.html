@@ -19,10 +19,11 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
-body{font-family:'DM Sans',sans-serif;background-color:var(--bg);background-image:linear-gradient(rgba(8,8,14,0.82),rgba(8,8,14,0.88)),url('/static/FUNDO_SITE.jpg');background-repeat:no-repeat,repeat-y;background-size:cover,100% auto;background-position:center top,center top;color:var(--txt);overflow-x:hidden;}.wrap{max-width:970px;margin:0 auto;padding:0 24px;}
+body{font-family:'DM Sans',sans-serif;background-color:var(--bg);background-image:linear-gradient(rgba(8,8,14,0.82),rgba(8,8,14,0.88)),url('/static/FUNDO_SITE.jpg');background-repeat:no-repeat,repeat-y;background-size:cover,100% auto;background-position:center top,center top;color:var(--txt);overflow-x:hidden;}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px;}
 a{text-decoration:none;color:inherit;}
 
-/* ── Navbar ── */
+/* Navbar */
 .nav{position:fixed;top:0;left:0;right:0;z-index:100;transition:all .3s;border-bottom:1px solid transparent;}
 .nav.scrolled{background:rgba(8,11,18,0.92);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom-color:var(--panel-bd);}
 .nav-in{display:flex;align-items:center;justify-content:space-between;height:72px;gap:24px;}
@@ -32,35 +33,26 @@ a{text-decoration:none;color:inherit;}
 .nav-links{display:flex;gap:28px;}
 .nav-links a{font-size:14px;color:var(--muted);font-weight:500;transition:color .2s;}
 .nav-links a:hover,.nav-links a.active{color:var(--txt);}
-.btn-cta{display:inline-flex;align-items:center;gap:7px;font-family:'Syne',sans-serif;font-weight:700;font-size:10px;
-  color:#0a0a0a;background:linear-gradient(135deg,var(--gold),var(--gold-deep));padding:10px 20px;border-radius:9px;
-  box-shadow:0 4px 20px rgba(240,165,0,.28);transition:all .2s;border:none;cursor:pointer;white-space:nowrap;}
+.btn-cta{display:inline-flex;align-items:center;gap:7px;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:#0a0a0a;background:linear-gradient(135deg,var(--gold),var(--gold-deep));padding:10px 20px;border-radius:9px;box-shadow:0 4px 20px rgba(240,165,0,.28);transition:all .2s;border:none;cursor:pointer;white-space:nowrap;}
 .btn-cta:hover{box-shadow:0 6px 28px rgba(240,165,0,.5);transform:translateY(-1px);}
-.btn-ghost{display:inline-flex;align-items:center;gap:7px;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;
-  color:var(--gold);border:1px solid rgba(251,191,36,.4);padding:10px 20px;border-radius:9px;transition:all .2s;background:transparent;cursor:pointer;}
+.btn-ghost{display:inline-flex;align-items:center;gap:7px;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--gold);border:1px solid rgba(251,191,36,.4);padding:10px 20px;border-radius:9px;transition:all .2s;background:transparent;cursor:pointer;}
 .btn-ghost:hover{background:rgba(251,191,36,.1);}
 
-/* ── Strip ── */
+/* Strip */
 .strip{background:rgba(251,191,36,0.06);border-top:1px solid rgba(251,191,36,.12);border-bottom:1px solid rgba(251,191,36,.12);margin-top:72px;}
 .strip-in{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;padding:10px 16px;font-size:13px;color:#d9c89a;}
 .strip .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 0 rgba(34,197,94,.5);animation:pulse 2s infinite;flex-shrink:0;}
 .strip .sep{color:rgba(255,255,255,.25);}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.5);}70%{box-shadow:0 0 0 7px rgba(34,197,94,0);}100%{box-shadow:0 0 0 0 rgba(34,197,94,0);}}
 
-/* ── Hero 2 colunas ── */
+/* Hero */
 .hero{position:relative;overflow:hidden;padding:80px 0 60px;}
-.hero::before{content:"";position:absolute;top:0;left:0;right:0;bottom:0;z-index:0;pointer-events:none;
-  background:radial-gradient(ellipse at 60% 50%, rgba(240,165,0,0.18), transparent 65%),
-             radial-gradient(ellipse at 10% 80%, rgba(251,191,36,0.06), transparent 50%);}
-.hero::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.35;
-  background-image:linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px);
-  background-size:50px 50px;}
+.hero::before{content:"";position:absolute;top:0;left:0;right:0;bottom:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 60% 50%, rgba(240,165,0,0.18), transparent 65%),radial-gradient(ellipse at 10% 80%, rgba(251,191,36,0.06), transparent 50%);}
+.hero::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.35;background-image:linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px);background-size:50px 50px;}
 .hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;}
-.hero-left{}
-.hero-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,.25);
-  border-radius:50px;padding:6px 16px;font-size:12px;color:var(--gold);font-weight:600;margin-bottom:24px;letter-spacing:.04em;}
+.hero-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,.25);border-radius:50px;padding:6px 16px;font-size:12px;color:var(--gold);font-weight:600;margin-bottom:24px;letter-spacing:.04em;}
 .hero-tag .tdot{width:6px;height:6px;border-radius:50%;background:var(--gold);}
-.hero h1{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(20px,3vw,20px);line-height:1.05;letter-spacing:-.02em;margin-bottom:10px;}
+.hero h1{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(34px,4.2vw,58px);line-height:1.05;letter-spacing:-.02em;margin-bottom:20px;}
 .hero h1 .g{background:linear-gradient(135deg,var(--gold-soft),var(--gold-deep));-webkit-background-clip:text;background-clip:text;color:transparent;}
 .hero-sub{color:var(--muted);font-size:clamp(15px,1.6vw,18px);line-height:1.65;margin-bottom:36px;max-width:520px;}
 .hero-actions{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:48px;}
@@ -71,26 +63,23 @@ a{text-decoration:none;color:inherit;}
 .hstat-val{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--gold);line-height:1;}
 .hstat-lbl{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.3;}
 
-/* Lado direito do hero: logo + globo */
+/* Lado direito do hero: GLOBO 3D + logo fixo na frente */
 .hero-right{position:relative;display:flex;align-items:center;justify-content:center;}
-.hero-logo-wrap{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;}
-.hero-logo-wrap img{width:min(360px,90%);height:auto;filter:drop-shadow(0 0 60px rgba(251,191,36,0.35));}
-.hero-glow{position:absolute;width:420px;height:420px;border-radius:50%;
-  background:radial-gradient(circle, rgba(251,191,36,0.18) 0%, rgba(251,191,36,0.06) 40%, transparent 70%);
-  pointer-events:none;z-index:1;}
+.globe-wrap{position:relative;width:min(380px,90%);aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;margin:0 auto;}
+.globe-wrap canvas{display:block;width:100%;height:100%;}
+.globe-logo{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;pointer-events:none;width:58%;height:auto;filter:drop-shadow(0 4px 24px rgba(0,0,0,.85));}
 
-/* ── Features cards ── */
+/* Features */
 .features{padding:0 0 80px;}
 .features-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;}
 .feat-card{background:var(--panel);border:1px solid var(--panel-bd);border-radius:16px;padding:28px 22px;transition:all .25s;cursor:default;}
 .feat-card:hover{border-color:rgba(251,191,36,.4);transform:translateY(-4px);background:rgba(251,191,36,0.04);}
-.feat-icon{width:44px;height:44px;border-radius:12px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,.2);
-  display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:16px;}
+.feat-icon{width:44px;height:44px;border-radius:12px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,.2);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:16px;}
 .feat-card h3{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:#fff;margin-bottom:8px;}
 .feat-card p{color:#8a93a8;font-size:13.5px;line-height:1.55;}
 .feat-arrow{margin-top:16px;color:var(--gold);font-size:18px;display:block;}
 
-/* ── Seções ── */
+/* Seções */
 section.block{padding:90px 0;position:relative;}
 section.block:nth-child(even){background:var(--bg2);}
 .sec-head{display:flex;align-items:center;gap:14px;margin-bottom:38px;}
@@ -103,10 +92,7 @@ section.block:nth-child(even){background:var(--bg2);}
 .checks li{display:flex;gap:12px;font-size:15px;line-height:1.5;color:#c7cdd8;}
 .checks li b{color:#fff;}
 .checks .ck{color:var(--gold);font-weight:800;flex-shrink:0;}
-.visual{height:320px;border-radius:18px;border:1px solid rgba(251,191,36,.22);font-size:84px;
-  display:flex;align-items:center;justify-content:center;box-shadow:0 20px 50px rgba(0,0,0,.45);
-  background:radial-gradient(circle at 32% 30%, rgba(251,191,36,.14), transparent 60%),linear-gradient(135deg,#11172a,#0a0e1a);
-  overflow:hidden;}
+.visual{height:320px;border-radius:18px;border:1px solid rgba(251,191,36,.22);font-size:84px;display:flex;align-items:center;justify-content:center;box-shadow:0 20px 50px rgba(0,0,0,.45);background:radial-gradient(circle at 32% 30%, rgba(251,191,36,.14), transparent 60%),linear-gradient(135deg,#11172a,#0a0e1a);overflow:hidden;}
 .visual img{width:100%;height:100%;object-fit:cover;display:block;border-radius:18px;}
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
 .card{background:var(--panel);border:1px solid var(--panel-bd);border-radius:16px;padding:30px 26px;transition:all .25s;}
@@ -142,10 +128,8 @@ section.block:nth-child(even){background:var(--bg2);}
 /* Mapa */
 .map-panel{height:360px;border-radius:18px;border:1px solid rgba(251,191,36,.22);overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.45);}
 .leaflet-container{background:#0a0e1a;font-family:'DM Sans',sans-serif;}
-.cpin-dot{display:block;width:14px;height:14px;border-radius:50%;background:var(--gold);
-  box-shadow:0 0 0 4px rgba(251,191,36,.22),0 0 16px rgba(251,191,36,.85);border:2px solid rgba(255,255,255,.55);}
-.ctip{background:rgba(10,14,26,.92)!important;color:var(--gold)!important;border:1px solid rgba(251,191,36,.4)!important;
-  border-radius:7px!important;font-size:11px;font-weight:700;padding:3px 9px;box-shadow:0 4px 14px rgba(0,0,0,.5)!important;}
+.cpin-dot{display:block;width:14px;height:14px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(251,191,36,.22),0 0 16px rgba(251,191,36,.85);border:2px solid rgba(255,255,255,.55);}
+.ctip{background:rgba(10,14,26,.92)!important;color:var(--gold)!important;border:1px solid rgba(251,191,36,.4)!important;border-radius:7px!important;font-size:11px;font-weight:700;padding:3px 9px;box-shadow:0 4px 14px rgba(0,0,0,.5)!important;}
 .ctip::before{display:none!important;}
 .leaflet-popup-content-wrapper{background:rgba(10,14,26,.95)!important;color:var(--gold)!important;border:1px solid rgba(251,191,36,.4)!important;border-radius:8px!important;}
 .leaflet-popup-content{font-weight:700;font-size:12px;margin:8px 12px!important;}
@@ -156,8 +140,7 @@ section.block:nth-child(even){background:var(--bg2);}
 .units-links{margin-top:36px;}
 .units-links h3{font-family:'Syne',sans-serif;font-weight:800;font-size:19px;color:var(--gold);margin-bottom:16px;}
 .units-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
-.unit-link{display:flex;align-items:center;gap:10px;padding:13px 16px;border:1px solid var(--panel-bd);border-radius:12px;
-  background:var(--panel);color:var(--txt);font-size:14px;font-weight:600;transition:all .2s;}
+.unit-link{display:flex;align-items:center;gap:10px;padding:13px 16px;border:1px solid var(--panel-bd);border-radius:12px;background:var(--panel);color:var(--txt);font-size:14px;font-weight:600;transition:all .2s;}
 .unit-link:hover{border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.08);transform:translateY(-2px);}
 .unit-link .ic{flex-shrink:0;}
 .unit-link .ext{margin-left:auto;color:#5b6273;font-size:13px;}
@@ -165,8 +148,7 @@ section.block:nth-child(even){background:var(--bg2);}
 .contacts{margin-top:40px;}
 .contacts-title{font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:#fff;margin-bottom:18px;}
 .contacts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;max-width:900px;margin:0 auto;}
-.contact-card{display:flex;align-items:center;gap:14px;text-align:left;padding:16px 18px;border:1px solid var(--panel-bd);
-  border-radius:14px;background:var(--panel);transition:all .2s;}
+.contact-card{display:flex;align-items:center;gap:14px;text-align:left;padding:16px 18px;border:1px solid var(--panel-bd);border-radius:14px;background:var(--panel);transition:all .2s;}
 .contact-card:hover{border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.08);transform:translateY(-2px);}
 .contact-card .ic{font-size:24px;flex-shrink:0;}
 .contact-card .info{display:flex;flex-direction:column;line-height:1.3;}
@@ -181,8 +163,7 @@ section.block:nth-child(even){background:var(--bg2);}
   .hero-sub{margin-left:auto;margin-right:auto;}
   .hero-actions{justify-content:center;}
   .hero-right{order:-1;}
-  .hero-logo-wrap img{width:min(260px,70%);}
-  .hero-glow{width:280px;height:280px;}
+  .globe-wrap{width:min(300px,70%);}
   .features-grid{grid-template-columns:repeat(2,1fr);}
   .hero-stats{grid-template-columns:repeat(2,1fr);}
   .hstat:nth-child(2){border-right:none;}
@@ -204,23 +185,19 @@ section.block:nth-child(even){background:var(--bg2);}
 </head>
 <body>
 
-<!-- NAV -->
 <nav class="nav" id="nav">
   <div class="wrap nav-in">
-  <div class="nav-links">
-      
+    <div class="nav-links">
       <a href="#infra">Infraestrutura</a>
       <a href="#tech">Tecnologia</a>
       <a href="#conversao">Conversão</a>
       <a href="#presenca">Presença</a>
       <a href="#contato">Contato</a>
     </div>
-      
     <a href="/login" class="btn-cta">👤 Login →</a>
   </div>
 </nav>
 
-<!-- STRIP -->
 <div class="strip" id="top">
   <div class="wrap strip-in">
     <span class="dot"></span> Operação ativa em 5 estados
@@ -229,11 +206,9 @@ section.block:nth-child(even){background:var(--bg2);}
   </div>
 </div>
 
-<!-- HERO 2 COLUNAS -->
 <header class="hero">
   <div class="wrap">
     <div class="hero-grid">
-      <!-- Esquerda: texto -->
       <div class="hero-left">
         <div class="hero-tag"><span class="tdot"></span> O maior televendas de alta performance do Brasil</div>
         <h1>Transformando<br>Contato em<br><span class="g">Conexão de Alta<br>Performance</span></h1>
@@ -242,70 +217,33 @@ section.block:nth-child(even){background:var(--bg2);}
           <a href="#infra" class="btn-cta btn-lg">🚀 Conheça nossa estrutura</a>
           <a href="#tech" class="btn-ghost btn-lg">▶ Ver como funciona</a>
         </div>
-        <!-- Stats bar -->
         <div class="hero-stats">
-          <div class="hstat">
-            <div class="hstat-val">+500</div>
-            <div class="hstat-lbl">Colaboradores Especializados</div>
-          </div>
-          <div class="hstat">
-            <div class="hstat-val">+3M</div>
-            <div class="hstat-lbl">Ligações Realizadas por Mês</div>
-          </div>
-          <div class="hstat">
-            <div class="hstat-val">+45%</div>
-            <div class="hstat-lbl">Taxa Média de Conversão</div>
-          </div>
-          <div class="hstat">
-            <div class="hstat-val">5.0</div>
-            <div class="hstat-lbl">Avaliação no Google (+3.700)</div>
-          </div>
+          <div class="hstat"><div class="hstat-val">+500</div><div class="hstat-lbl">Colaboradores Especializados</div></div>
+          <div class="hstat"><div class="hstat-val">+3M</div><div class="hstat-lbl">Ligações Realizadas por Mês</div></div>
+          <div class="hstat"><div class="hstat-val">+45%</div><div class="hstat-lbl">Taxa Média de Conversão</div></div>
+          <div class="hstat"><div class="hstat-val">5.0</div><div class="hstat-lbl">Avaliação no Google (+3.700)</div></div>
         </div>
       </div>
-      <!-- Direita: logo com glow -->
       <div class="hero-right">
-        <div class="hero-glow"></div>
-        <div class="hero-logo-wrap">
-          <img src="/static/logo.png" alt="Connecting"/>
+        <div class="globe-wrap" id="globe-wrap">
+          <img class="globe-logo" src="/static/logo.png" alt="Connecting"/>
         </div>
       </div>
     </div>
   </div>
 </header>
 
-<!-- FEATURE CARDS -->
 <section class="features">
   <div class="wrap">
     <div class="features-grid reveal">
-      <div class="feat-card">
-        <div class="feat-icon">🎧</div>
-        <h3>Atendimento de Elite</h3>
-        <p>Equipe altamente treinada e especializada em conversão de leads em vendas reais.</p>
-        <span class="feat-arrow">→</span>
-      </div>
-      <div class="feat-card">
-        <div class="feat-icon">📊</div>
-        <h3>Alta Performance</h3>
-        <p>Processos otimizados e tecnologia de ponta para melhores resultados consistentes.</p>
-        <span class="feat-arrow">→</span>
-      </div>
-      <div class="feat-card">
-        <div class="feat-icon">🎯</div>
-        <h3>Foco em Conversão</h3>
-        <p>Estratégias comprovadas que transformam contatos em vendas com taxa acima do mercado.</p>
-        <span class="feat-arrow">→</span>
-      </div>
-      <div class="feat-card">
-        <div class="feat-icon">🛡️</div>
-        <h3>Presença Nacional</h3>
-        <p>Operação ativa em 5 estados com atendimento nacional e suporte especializado.</p>
-        <span class="feat-arrow">→</span>
-      </div>
+      <div class="feat-card"><div class="feat-icon">🎧</div><h3>Atendimento de Elite</h3><p>Equipe altamente treinada e especializada em conversão de leads em vendas reais.</p><span class="feat-arrow">→</span></div>
+      <div class="feat-card"><div class="feat-icon">📊</div><h3>Alta Performance</h3><p>Processos otimizados e tecnologia de ponta para melhores resultados consistentes.</p><span class="feat-arrow">→</span></div>
+      <div class="feat-card"><div class="feat-icon">🎯</div><h3>Foco em Conversão</h3><p>Estratégias comprovadas que transformam contatos em vendas com taxa acima do mercado.</p><span class="feat-arrow">→</span></div>
+      <div class="feat-card"><div class="feat-icon">🛡️</div><h3>Presença Nacional</h3><p>Operação ativa em 5 estados com atendimento nacional e suporte especializado.</p><span class="feat-arrow">→</span></div>
     </div>
   </div>
 </section>
 
-<!-- INFRAESTRUTURA -->
 <section class="block" id="infra">
   <div class="wrap reveal">
     <div class="sec-head"><div class="acc"></div><h2>Infraestrutura Exclusiva de Vendas</h2></div>
@@ -324,7 +262,6 @@ section.block:nth-child(even){background:var(--bg2);}
   </div>
 </section>
 
-<!-- TECNOLOGIA -->
 <section class="block" id="tech">
   <div class="wrap reveal">
     <div class="sec-head"><div class="acc"></div><h2>Nosso Ecossistema de Tecnologia</h2></div>
@@ -336,7 +273,6 @@ section.block:nth-child(even){background:var(--bg2);}
   </div>
 </section>
 
-<!-- CASO DE SUCESSO -->
 <section class="block">
   <div class="wrap reveal">
     <div class="sec-head"><div class="acc"></div><h2>Caso de Sucesso: Instituto Visão Perfeita</h2></div>
@@ -354,7 +290,6 @@ section.block:nth-child(even){background:var(--bg2);}
   </div>
 </section>
 
-<!-- CONVERSÃO -->
 <section class="block" id="conversao">
   <div class="wrap reveal">
     <div class="sec-head"><div class="acc"></div><h2>Aumento de Conversão com a Connecting</h2></div>
@@ -367,7 +302,6 @@ section.block:nth-child(even){background:var(--bg2);}
   </div>
 </section>
 
-<!-- PRESENÇA -->
 <section class="block" id="presenca">
   <div class="wrap reveal">
     <div class="sec-head"><div class="acc"></div><h2>Presença e Expansão Estratégica</h2></div>
@@ -403,7 +337,6 @@ section.block:nth-child(even){background:var(--bg2);}
   </div>
 </section>
 
-<!-- CONTATO -->
 <section class="block" id="contato">
   <div class="wrap reveal" style="text-align:center">
     <h2 style="font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(28px,4.5vw,52px);color:var(--gold)">Trabalhe Conosco / Parcerias</h2>
@@ -416,21 +349,13 @@ section.block:nth-child(even){background:var(--bg2);}
     <div class="contacts">
       <h3 class="contacts-title">Fale com nosso time</h3>
       <div class="contacts-grid">
-        <a class="contact-card" href="https://wa.me/5591920001769?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20Connecting." target="_blank" rel="noopener">
-          <span class="ic">💬</span><div class="info"><b>PARÁ</b><span>WhatsApp · (91) 92000-1769</span></div><span class="go">↗</span>
-        </a>
-        <a class="contact-card" href="https://wa.me/5592994020914?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20Connecting." target="_blank" rel="noopener">
-          <span class="ic">💬</span><div class="info"><b>MANAUS</b><span>WhatsApp · (92) 99402-0914</span></div><span class="go">↗</span>
-        </a>
-        <a class="contact-card" href="https://wa.me/5598991128718?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20Connecting." target="_blank" rel="noopener">
-          <span class="ic">💬</span><div class="info"><b>SÃO LUÍS</b><span>WhatsApp · (98) 99112-8718</span></div><span class="go">↗</span>
-        </a>
-        <a class="contact-card" href="https://wa.me/5585988537775?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20Connecting." target="_blank" rel="noopener">
-          <span class="ic">💬</span><div class="info"><b>FORTALEZA</b><span>WhatsApp · (85) 98853-7775</span></div><span class="go">↗</span>
-        </a>
+        <a class="contact-card" href="https://wa.me/5591920001769?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20Connecting." target="_blank" rel="noopener"><span class="ic">💬</span><div class="info"><b>PARÁ</b><span>WhatsApp · (91) 92000-1769</span></div><span class="go">↗</span></a>
+        <a class="contact-card" href="https://wa.me/5592994020914?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20Connecting." target="_blank" rel="noopener"><span class="ic">💬</span><div class="info"><b>MANAUS</b><span>WhatsApp · (92) 99402-0914</span></div><span class="go">↗</span></a>
+        <a class="contact-card" href="https://wa.me/5598991128718?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20Connecting." target="_blank" rel="noopener"><span class="ic">💬</span><div class="info"><b>SÃO LUÍS</b><span>WhatsApp · (98) 99112-8718</span></div><span class="go">↗</span></a>
+        <a class="contact-card" href="https://wa.me/5585988537775?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20Connecting." target="_blank" rel="noopener"><span class="ic">💬</span><div class="info"><b>FORTALEZA</b><span>WhatsApp · (85) 98853-7775</span></div><span class="go">↗</span></a>
       </div>
     </div>
-    <div style="margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+    <div style="margin-top:40px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
       <a href="/login" class="btn-cta btn-lg">Acessar o Sistema →</a>
     </div>
   </div>
@@ -438,8 +363,49 @@ section.block:nth-child(even){background:var(--bg2);}
 
 <div class="foot">© Connecting — Transformando Contato em Conexão.</div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+// Globo 3D girando com o logo fixo na frente
+(function(){
+  const wrap = document.getElementById('globe-wrap');
+  if(!wrap || !window.THREE) return;
+  const size = wrap.clientWidth;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.z = 3.2;
+  const renderer = new THREE.WebGLRenderer({alpha:true, antialias:true});
+  renderer.setSize(size, size);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  wrap.appendChild(renderer.domElement);
+  const globeGroup = new THREE.Group();
+  scene.add(globeGroup);
+  const geometry = new THREE.SphereGeometry(1, 64, 64);
+  const material = new THREE.MeshStandardMaterial({color:0x5a4415, metalness:0.85, roughness:0.45, emissive:0x0e0900});
+  globeGroup.add(new THREE.Mesh(geometry, material));
+  new THREE.TextureLoader().load('/static/mapa_mundi.png', function(tex){
+    material.map = tex;
+    material.color.set(0xffffff);
+    material.emissive.set(0x1a1200);
+    material.emissiveMap = tex;
+    material.emissiveIntensity = 0.6;
+    material.needsUpdate = true;
+  });
+  const glowMat = new THREE.MeshBasicMaterial({color:0xfbbf24, transparent:true, opacity:0.04, side:THREE.BackSide});
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.35,48,48), glowMat));
+  scene.add(new THREE.AmbientLight(0x664422, 1.15));
+  const key = new THREE.DirectionalLight(0xffd76a, 2.1);
+  key.position.set(3,2,4); scene.add(key);
+  globeGroup.rotation.z = 0.15;
+  function animate(){
+    requestAnimationFrame(animate);
+    globeGroup.rotation.y += 0.0035;
+    renderer.render(scene, camera);
+  }
+  animate();
+  window.addEventListener('resize', function(){ const s = wrap.clientWidth; renderer.setSize(s,s); });
+})();
+
 // Navbar scroll
 const nav = document.getElementById('nav');
 window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 40));
@@ -477,15 +443,11 @@ let unitMap = null;
 function initMap(){
   if(unitMap || !window.L) return;
   unitMap = L.map('map-presenca', { scrollWheelZoom:false, zoomControl:true });
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-    maxZoom:18, attribution:'&copy; OpenStreetMap, &copy; CARTO'
-  }).addTo(unitMap);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{ maxZoom:18, attribution:'&copy; OpenStreetMap, &copy; CARTO' }).addTo(unitMap);
   const icon = L.divIcon({ className:'cpin', html:'<span class="cpin-dot"></span>', iconSize:[14,14], iconAnchor:[7,7] });
   const pts = [];
   UNIDADES.forEach(u => {
-    L.marker([u.lat, u.lng], {icon}).addTo(unitMap)
-      .bindTooltip(u.n, { direction:'top', className:'ctip', offset:[0,-6] })
-      .bindPopup(u.n);
+    L.marker([u.lat, u.lng], {icon}).addTo(unitMap).bindTooltip(u.n, { direction:'top', className:'ctip', offset:[0,-6] }).bindPopup(u.n);
     pts.push([u.lat, u.lng]);
   });
   unitMap.fitBounds(pts, { padding:[45,45] });
