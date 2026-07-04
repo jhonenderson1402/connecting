@@ -68,6 +68,14 @@
   .ext-cards { grid-template-columns: repeat(2,1fr); }
   .ext-grid2 { grid-template-columns: 1fr; }
 }
+
+/* ── Rankings com coluna LEADS (sobrescreve o style.css) ─────────────────── */
+/* Acrescenta a coluna LEADS mantendo o alinhamento das demais.
+   Ordem por pessoa/líder: NOME · LEADS · AGEND · COMP · CONV% */
+.rank-header-row { grid-template-columns: 1fr 3.5rem 3.5rem 3.5rem 3.5rem !important; }
+.rank-header-row.leader-header { grid-template-columns: 1fr 3.5rem 3.5rem 3.5rem 3.5rem !important; }
+.rank-row { grid-template-columns: 1.5rem 1fr 3.5rem 3.5rem 3.5rem 3.5rem !important; }
+.rank-leads { font-size: 11px; font-weight: 700; text-align: center; color: #3d82f6; }
 </style>
 <style>
 .bairros-btn {
@@ -233,6 +241,7 @@
 let allAppointments = [];
 let allEmployees = [];
 let leadsTotais = {};
+let leadsPorTmkDash = {};   // leads por nome (TMK) — usado no ranking de líderes
 
 function onConstantsLoaded() {
   const now = new Date();
@@ -296,13 +305,16 @@ async function loadDashboard() {
   const filterType = document.getElementById('filter-type').value;
   const day = parseInt(document.getElementById('filter-day').value) || now.getDate();
 
-  let url, leadsUrl;
+  let url, leadsUrl, leadsTmkUrl;
   if(filterType === 'day') {
-    url = '/api/appointments?date=' + formatDateKey(year, monthIndex, day);
-    leadsUrl = '/api/leads_totais?date=' + formatDateKey(year, monthIndex, day);
+    const dk = formatDateKey(year, monthIndex, day);
+    url = '/api/appointments?date=' + dk;
+    leadsUrl = '/api/leads_totais?date=' + dk;
+    leadsTmkUrl = '/api/leads_por_tmk?date=' + dk;
   } else {
     url = `/api/appointments?year=${year}&month=${monthIndex+1}`;
     leadsUrl = `/api/leads_totais?year=${year}&month=${monthIndex+1}`;
+    leadsTmkUrl = `/api/leads_por_tmk?year=${year}&month=${monthIndex+1}`;
   }
   const res = await fetch(url);
   allAppointments = await res.json();
@@ -313,6 +325,14 @@ async function loadDashboard() {
     leadsTotais = leadsRes.ok ? await leadsRes.json() : {};
   } catch(e) {
     leadsTotais = {};
+  }
+
+  // Busca os leads recebidos por nome (TMK) — usado no ranking de líderes
+  try {
+    const tmkRes = await fetch(leadsTmkUrl);
+    leadsPorTmkDash = tmkRes.ok ? await tmkRes.json() : {};
+  } catch(e) {
+    leadsPorTmkDash = {};
   }
 
   // Stats
@@ -349,6 +369,16 @@ async function loadRanking() {
   const filterType = document.getElementById('rank-type').value;
   const day = parseInt(document.getElementById('rank-day').value) || now.getDate();
 
+  // Leads por nome (TMK) para o período selecionado no ranking
+  let leadsTmk = {};
+  try {
+    const lu = filterType === 'day'
+      ? `/api/leads_por_tmk?date=${formatDateKey(year,monthIndex,day)}`
+      : `/api/leads_por_tmk?year=${year}&month=${monthIndex+1}`;
+    const lr = await fetch(lu);
+    leadsTmk = lr.ok ? await lr.json() : {};
+  } catch(e) { leadsTmk = {}; }
+
   let appts = [];
   for(const unit of UNITS) {
     let url;
@@ -361,7 +391,7 @@ async function loadRanking() {
     const data = await res.json();
     appts.push({unit, data});
   }
-  renderRankingGrid(appts);
+  renderRankingGrid(appts, leadsTmk);
 }
 
 function renderUnitsGrid() {
@@ -460,7 +490,8 @@ function toggleBairros(event, btn) {
   btn.textContent = open ? '🏘️ Ver bairros' : '🏘️ Ocultar bairros';
 }
 
-function renderRankingGrid(unitsData) {
+function renderRankingGrid(unitsData, leadsTmk) {
+  leadsTmk = leadsTmk || {};
   const grid = document.getElementById('ranking-grid');
   grid.innerHTML = '';
   unitsData.forEach(({unit, data}) => {
@@ -473,13 +504,14 @@ function renderRankingGrid(unitsData) {
       });
       if(appt.comparecimento_data){
         Object.entries(appt.comparecimento_data).forEach(([name,v])=>{
+          if(name === '__bairros__') return;   // ignora o mapa de bairros (não é pessoa)
           if(!personMap[name]) personMap[name]={ag:0,comp:0};
           personMap[name].comp+=Number(v)||0;
         });
       }
     });
     const ranked = Object.entries(personMap)
-      .map(([name,d])=>({name,...d}))
+      .map(([name,d])=>({name, leads:Number(leadsTmk[name])||0, ...d}))
       .sort((a,b)=>b.ag-a.ag);
     const medals = ['🥇','🥈','🥉'];
     const rows = ranked.map((p,i)=>{
@@ -487,6 +519,7 @@ function renderRankingGrid(unitsData) {
       return `<div class="rank-row">
         <span class="rank-pos">${i<3?medals[i]:`${i+1}º`}</span>
         <span class="rank-name">${p.name}</span>
+        <span class="rank-leads blue">${p.leads}</span>
         <span class="rank-ag primary">${p.ag}</span>
         <span class="rank-comp green">${p.comp}</span>
         <span class="rank-conv yellow">${conv}%</span>
@@ -497,7 +530,7 @@ function renderRankingGrid(unitsData) {
     box.innerHTML = `<div class="rank-unit-title">${unit}</div>
       ${ranked.length===0?'<p class="no-data">Sem dados</p>':`
       <div class="rank-header-row">
-        <span>NOME</span><span>AGEND.</span><span>COMP.</span><span>CONV.%</span>
+        <span>NOME</span><span>LEADS</span><span>AGEND.</span><span>COMP.</span><span>CONV.%</span>
       </div>${rows}`}`;
     grid.appendChild(box);
   });
@@ -519,6 +552,9 @@ function renderLeaderRanking() {
 
   const unitLeaderMap = {};
   UNITS.forEach(u => unitLeaderMap[u] = {});
+  // Conjunto de nomes (TMKs) sob cada líder, por unidade — usado para somar leads
+  const leaderNames = {};
+  UNITS.forEach(u => leaderNames[u] = {});
 
   allAppointments.forEach(appt => {
     const leader = appt.leader?.trim();
@@ -529,12 +565,19 @@ function renderLeaderRanking() {
     if (!unitLeaderMap[leaderUnit]) return;
 
     if (!unitLeaderMap[leaderUnit][leader]) unitLeaderMap[leaderUnit][leader] = {ag:0, comp:0};
+    if (!leaderNames[leaderUnit][leader]) leaderNames[leaderUnit][leader] = new Set();
+
     (appt.rows||[]).forEach(r => {
-      if (!r.name?.trim()) return;
+      const nm = r.name?.trim();
+      if (!nm) return;
       unitLeaderMap[leaderUnit][leader].ag += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+      leaderNames[leaderUnit][leader].add(nm);   // registra a pessoa sob esse líder
     });
     if (appt.comparecimento_data)
-      Object.values(appt.comparecimento_data).forEach(v => { unitLeaderMap[leaderUnit][leader].comp += Number(v)||0; });
+      Object.entries(appt.comparecimento_data).forEach(([nm,v]) => {
+        if (nm === '__bairros__') return;
+        unitLeaderMap[leaderUnit][leader].comp += Number(v)||0;
+      });
   });
 
   const medals = ['🥇','🥈','🥉'];
@@ -545,7 +588,13 @@ function renderLeaderRanking() {
 
   el.innerHTML = `<div class="units-ranking-grid">` + UNITS.map(unit => {
     const leaders = Object.entries(unitLeaderMap[unit])
-      .map(([name,d]) => ({name,...d}))
+      .map(([name,d]) => {
+        // Soma os leads das pessoas (nomes únicos) que aparecem sob esse líder
+        let leads = 0;
+        const nameSet = leaderNames[unit][name];
+        if (nameSet) nameSet.forEach(nm => { leads += Number(leadsPorTmkDash[nm])||0; });
+        return {name, leads, ...d};
+      })
       .sort((a,b) => b.ag - a.ag);
 
     const rows = leaders.map((l,i) => {
@@ -553,6 +602,7 @@ function renderLeaderRanking() {
       return `<div class="rank-row">
         <span class="rank-pos">${i<3?medals[i]:`${i+1}º`}</span>
         <span class="rank-name">${l.name}</span>
+        <span class="rank-leads blue">${l.leads}</span>
         <span class="rank-ag primary">${l.ag}</span>
         <span class="rank-comp green">${l.comp}</span>
         <span class="rank-conv yellow">${conv}%</span>
@@ -562,8 +612,8 @@ function renderLeaderRanking() {
     return `<div class="rank-unit-box">
       <div class="rank-unit-title">${unit}</div>
       ${leaders.length === 0 ? '<p class="no-data">Sem dados</p>' : `
-      <div class="rank-header-row">
-        <span>LÍDER</span><span>AGEND.</span><span>COMP.</span><span>CONV.%</span>
+      <div class="rank-header-row leader-header">
+        <span>LÍDER</span><span>LEADS</span><span>AGEND.</span><span>COMP.</span><span>CONV.%</span>
       </div>${rows}`}
     </div>`;
   }).join('') + `</div>`;
@@ -645,6 +695,39 @@ function _periodoLabelExt(periodo, monthIndex, year, day) {
   return `Semana ${f(ini)} a ${f(fim)}`;
 }
 
+// Monta o ranking de líderes (nome do líder -> leads, ag, comp) a partir dos appointments
+function _buildLeaderRank(appts, leadsTmk) {
+  leadsTmk = leadsTmk || {};
+  const employeeUnitMap = {};
+  allEmployees.forEach(e => { if (e.name?.trim()) employeeUnitMap[e.name.trim().toLowerCase()] = e.unit; });
+  const map = {};       // leader -> {ag, comp, unit}
+  const names = {};     // leader -> Set(nomes)
+  appts.forEach(appt=>{
+    const leader = appt.leader?.trim();
+    if(!leader) return;
+    const unit = employeeUnitMap[leader.toLowerCase()] || appt.unit;
+    if(!map[leader]) { map[leader] = {ag:0, comp:0, unit}; names[leader] = new Set(); }
+    (appt.rows||[]).forEach(r=>{
+      const nm = r.name?.trim();
+      if(!nm) return;
+      map[leader].ag += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+      names[leader].add(nm);
+    });
+    if(appt.comparecimento_data){
+      Object.entries(appt.comparecimento_data).forEach(([nm,v])=>{
+        if(nm === '__bairros__') return;
+        map[leader].comp += Number(v)||0;
+      });
+    }
+  });
+  return Object.entries(map).map(([leader,d])=>{
+    let leads = 0;
+    names[leader].forEach(nm => { leads += Number(leadsTmk[nm])||0; });
+    const conv = d.ag>0?Math.round((d.comp/d.ag)*100):0;
+    return {leader, unit:d.unit, leads, ag:d.ag, comp:d.comp, conv};
+  }).sort((a,b)=>b.ag-a.ag);
+}
+
 async function renderExtract() {
   const periodo = document.getElementById('ext-period').value;
   const monthIndex = parseInt(document.getElementById('ext-month').value);
@@ -708,6 +791,9 @@ async function renderExtract() {
     .map(([nome,d])=>({nome, unit:d.unit, leads:Number(leadsTmk[nome])||0, ag:d.ag, comp:d.comp, conv: d.ag>0?Math.round((d.comp/d.ag)*100):0}))
     .sort((a,b)=>b.ag-a.ag);
 
+  // Ranking de Líderes (com leads somados das pessoas sob cada líder)
+  const leaderRank = _buildLeaderRank(appts, leadsTmk);
+
   // Comparação com o mês anterior (só faz sentido em modo mês; nos outros, compara mês atual vs anterior dos totais)
   const prevMonth = monthIndex>0?monthIndex-1:11;
   const prevYear  = monthIndex>0?year:year-1;
@@ -723,9 +809,9 @@ async function renderExtract() {
 
   // Guarda para download
   extractData = {periodo, label:_periodoLabelExt(periodo,monthIndex,year,day), porUnidade, tot,
-                 prevLabel:`${MONTHS[prevMonth]}/${prevYear}`, prevTot, tmkRank, bairrosPara};
+                 prevLabel:`${MONTHS[prevMonth]}/${prevYear}`, prevTot, tmkRank, bairrosPara, leaderRank};
 
-  body.innerHTML = buildExtractHTML(porUnidade, tot, prevTot, `${MONTHS[prevMonth]}/${prevYear}`, tmkRank, bairrosPara);
+  body.innerHTML = buildExtractHTML(porUnidade, tot, prevTot, `${MONTHS[prevMonth]}/${prevYear}`, tmkRank, bairrosPara, leaderRank);
 }
 
 function _delta(cur, prev) {
@@ -736,7 +822,7 @@ function _delta(cur, prev) {
   return `<span style="color:#71717a">= 0%</span>`;
 }
 
-function buildExtractHTML(porUnidade, tot, prevTot, prevLabel, tmkRank, bairrosPara) {
+function buildExtractHTML(porUnidade, tot, prevTot, prevLabel, tmkRank, bairrosPara, leaderRank) {
   // Cards
   const cards = `
     <div class="ext-cards">
@@ -804,8 +890,30 @@ function buildExtractHTML(porUnidade, tot, prevTot, prevLabel, tmkRank, bairrosP
       </table>
     </div>`;
 
-  // Ranking de TMK
+  // Ranking de Líderes
   const medals = ['🥇','🥈','🥉'];
+  const leaderRows = (leaderRank||[]).map((l,i)=>{
+    const cColor = l.conv>=70?'#22c55e':l.conv>=40?'#fbbf24':'#ef4444';
+    return `<tr>
+      <td style="text-align:left">${i<3?medals[i]:(i+1)+'º'} ${l.leader} <span style="color:#52525b;font-size:11px">· ${l.unit}</span></td>
+      <td style="color:#3b82f6">${l.leads}</td>
+      <td style="color:#fbbf24">${l.ag}</td>
+      <td style="color:#22c55e">${l.comp}</td>
+      <td style="color:${cColor};font-weight:700">${l.conv}%</td>
+    </tr>`;
+  }).join('');
+  const leaderTable = `
+    <div class="ext-chartbox" style="margin-top:20px">
+      <h3>👑 Ranking de Líderes</h3>
+      <table class="ext-table">
+        <thead><tr><th>LÍDER</th><th>LEADS</th><th>AGEND.</th><th>COMP.</th><th>CONV.%</th></tr></thead>
+        <tbody>
+          ${leaderRows || '<tr><td colspan="5" style="text-align:center;color:#52525b;padding:16px">Sem líderes no período.</td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
+
+  // Ranking de TMK
   const tmkRows = (tmkRank||[]).map((t,i)=>{
     const cColor = t.conv>=70?'#22c55e':t.conv>=40?'#fbbf24':'#ef4444';
     return `<tr>
@@ -827,7 +935,7 @@ function buildExtractHTML(porUnidade, tot, prevTot, prevLabel, tmkRank, bairrosP
       </table>
     </div>`;
 
-  return cards + charts + table + tmkTable;
+  return cards + charts + table + leaderTable + tmkTable;
 }
 
 // Donut SVG simples (distribuição de agendamentos por unidade)
@@ -865,7 +973,7 @@ function buildDonut(porUnidade) {
 // ── Download Excel (CSV que abre no Excel) ──
 function downloadExtractExcel() {
   if(!extractData) return;
-  const {label, porUnidade, tot, tmkRank, bairrosPara} = extractData;
+  const {label, porUnidade, tot, tmkRank, bairrosPara, leaderRank} = extractData;
   let csv = `Relatório Connecting;${label}\n\n`;
   csv += `Unidade;Leads;Agendamentos;Comparecimentos;Conversão%\n`;
   porUnidade.forEach(u=>{
@@ -875,6 +983,11 @@ function downloadExtractExcel() {
     }
   });
   csv += `TOTAL;${tot.leads};${tot.ag};${tot.comp};${tot.conv}%\n`;
+  if(leaderRank && leaderRank.length) {
+    csv += `\nRanking de Líderes\n`;
+    csv += `Posição;Líder;Unidade;Leads;Agendamentos;Comparecimentos;Conversão%\n`;
+    leaderRank.forEach((l,i)=>{ csv += `${i+1}º;${l.leader};${l.unit};${l.leads};${l.ag};${l.comp};${l.conv}%\n`; });
+  }
   if(tmkRank && tmkRank.length) {
     csv += `\nRanking de TMK\n`;
     csv += `Posição;TMK;Unidade;Leads;Agendamentos;Comparecimentos;Conversão%\n`;
@@ -890,7 +1003,7 @@ function downloadExtractExcel() {
 // ── Download PDF (via janela de impressão) ──
 function downloadExtractPDF() {
   if(!extractData) return;
-  const {label, porUnidade, tot, prevLabel, prevTot, tmkRank, bairrosPara} = extractData;
+  const {label, porUnidade, tot, prevLabel, prevTot, tmkRank, bairrosPara, leaderRank} = extractData;
   const rows = porUnidade.map(u=>{
     let l = `<tr>
     <td>${u.unit}</td><td style="text-align:right">${u.leads}</td>
@@ -905,6 +1018,17 @@ function downloadExtractPDF() {
     }
     return l;
   }).join('');
+  const leaderRows = (leaderRank||[]).map((l,i)=>`<tr>
+    <td>${i+1}º ${l.leader} <span style="color:#888">· ${l.unit}</span></td>
+    <td style="text-align:right">${l.leads}</td>
+    <td style="text-align:right">${l.ag}</td><td style="text-align:right">${l.comp}</td>
+    <td style="text-align:right">${l.conv}%</td></tr>`).join('');
+  const leaderBlock = (leaderRank && leaderRank.length) ? `
+    <h2 style="color:#b8860b;font-size:16px;margin:28px 0 8px">👑 Ranking de Líderes</h2>
+    <table>
+      <thead><tr><th>Líder</th><th style="text-align:right">Leads</th><th style="text-align:right">Agend.</th><th style="text-align:right">Comp.</th><th style="text-align:right">Conv.%</th></tr></thead>
+      <tbody>${leaderRows}</tbody>
+    </table>` : '';
   const tmkRows = (tmkRank||[]).map((t,i)=>`<tr>
     <td>${i+1}º ${t.nome} <span style="color:#888">· ${t.unit}</span></td>
     <td style="text-align:right">${t.leads}</td>
@@ -940,6 +1064,7 @@ function downloadExtractPDF() {
       <tbody>${rows}</tbody>
       <tfoot><tr><td>TOTAL</td><td style="text-align:right">${tot.leads}</td><td style="text-align:right">${tot.ag}</td><td style="text-align:right">${tot.comp}</td><td style="text-align:right">${tot.conv}%</td></tr></tfoot>
     </table>
+    ${leaderBlock}
     ${tmkBlock}
     </body></html>`);
   win.document.close();
