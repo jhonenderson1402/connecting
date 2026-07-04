@@ -391,8 +391,6 @@ section.block:nth-child(even){background:var(--bg2);}
     material.emissiveIntensity = 0.6;
     material.needsUpdate = true;
   });
-  const glowMat = new THREE.MeshBasicMaterial({color:0xfbbf24, transparent:true, opacity:0.04, side:THREE.BackSide});
-  scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.35,48,48), glowMat));
   scene.add(new THREE.AmbientLight(0x664422, 1.15));
   const key = new THREE.DirectionalLight(0xffd76a, 2.1);
   key.position.set(3,2,4); scene.add(key);
