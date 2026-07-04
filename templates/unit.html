@@ -276,6 +276,13 @@
   font-size: 14px;
 }
 .date-invalid-warning.show { display: block; }
+
+/* ── Ranking do Dia com coluna LEADS (sobrescreve o style.css) ───────────── */
+/* Acrescenta a coluna LEADS mantendo o alinhamento das demais.
+   Ordem: NOME · LEADS · AGEND · COMP · CONV% */
+#sum-ranking .rank-header-row { grid-template-columns: 1fr 3.5rem 3.5rem 3.5rem 3.5rem; }
+#sum-ranking .rank-row { grid-template-columns: 1.5rem 1fr 3.5rem 3.5rem 3.5rem 3.5rem; }
+#sum-ranking .rank-leads { font-size: 11px; font-weight: 700; text-align: center; color: #3d82f6; }
 </style>
 
 <div class="page-content">
@@ -1055,9 +1062,17 @@ async function openSummary() {
     compData = apptJson.comparecimento_data || {};
   } catch(e) { compData = {}; }
 
+  // Carrega os LEADS por nome (TMK) do dia — para a coluna LEADS do ranking
+  let leadsPorNome = {};
+  try {
+    const lRes = await fetch(`/api/leads_por_tmk?date=${getDateKey()}`);
+    leadsPorNome = lRes.ok ? await lRes.json() : {};
+  } catch(e) { leadsPorNome = {}; }
+
   const ranking=rows.filter(r=>r.name?.trim())
     .map(r=>({
       name:r.name.trim(),
+      leads:Number(leadsPorNome[r.name.trim()])||0,
       ag:Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0),
       comp:Number(compData[r.name.trim()])||0
     }))
@@ -1065,12 +1080,13 @@ async function openSummary() {
   const medals=['🥇','🥈','🥉'];
   document.getElementById('sum-ranking').innerHTML = ranking.length ? (
     `<div class="rank-header-row">
-      <span>NOME</span><span>AGEND.</span><span>COMP.</span><span>CONV.%</span>
+      <span>NOME</span><span>LEADS</span><span>AGEND.</span><span>COMP.</span><span>CONV.%</span>
     </div>` +
     ranking.map((p,i)=>{
       const conv = p.ag>0?Math.round((p.comp/p.ag)*100):0;
       return `<div class="rank-row"><span class="rank-pos">${i<3?medals[i]:`${i+1}º`}</span>
         <span class="rank-name">${p.name}</span>
+        <span class="rank-leads blue">${p.leads}</span>
         <span class="rank-ag primary">${p.ag}</span>
         <span class="rank-comp green">${p.comp}</span>
         <span class="rank-conv yellow">${conv}%</span></div>`;
