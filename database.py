@@ -1,42 +1,32 @@
 """
 Camada de banco de dados do sistema Connecting.
-
 Usa SQLAlchemy como ORM/Core, o que permite o MESMO codigo rodar em:
   - SQLite (desenvolvimento local — sem configurar nada, gera agendamentos.db)
   - PostgreSQL (producao — basta definir DATABASE_URL no ambiente)
-
 A escolha do banco e feita pela variavel de ambiente DATABASE_URL.
 Exemplo de URL PostgreSQL: postgresql+psycopg2://user:pass@host:5432/dbname
-
 A API publica (funcoes que app.py chama) NAO mudou: get_employees,
 create_employee, verify_password, etc. continuam com a mesma assinatura.
 """
-
 import os
 import re
 import json
 from datetime import datetime
-
 from sqlalchemy import (
     create_engine, Column, Integer, String, Text, UniqueConstraint, Index,
     select, insert, update, delete, func, and_, text,
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
 from werkzeug.security import generate_password_hash, check_password_hash
-
 # ---- Conexao ----------------------------------------------------------------
-
 DB_PATH = os.path.join(os.path.dirname(__file__), 'agendamentos.db')
 DEFAULT_SQLITE_URL = f"sqlite:///{DB_PATH}"
-
 # Em producao: definir DATABASE_URL apontando pro PostgreSQL.
 # Em dev: sem variavel, usa SQLite local automaticamente.
 DATABASE_URL = os.environ.get('DATABASE_URL', DEFAULT_SQLITE_URL)
-
 # Railway/Heroku as vezes usam 'postgres://' (legado); SQLAlchemy 2.x exige 'postgresql://'
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
-
 # Seleciona o driver correto por ambiente:
 # - Vercel (serverless): pg8000 (Python puro, sem dependencias nativas)
 # - Railway/local: psycopg2 (nativo, mais rapido)
@@ -48,23 +38,18 @@ if 'postgresql' in DATABASE_URL:
         DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+pg8000://')
     else:
         DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg2://')
-
 _engine_kwargs = {}
 if DATABASE_URL.startswith('sqlite'):
     _engine_kwargs['connect_args'] = {'check_same_thread': False}
-
 engine = create_engine(DATABASE_URL, **_engine_kwargs, pool_pre_ping=True, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, future=True)
 Base = declarative_base()
-
 DEFAULT_ADMIN_USER = os.environ.get('ADMIN_USER', 'admin')
 # Senha do admin inicial vem do ambiente (ADMIN_PASS).
 # Em dev, se não definida, usa um padrão que DEVE ser trocado no 1º login.
 # Em produção (DATABASE_URL definido) sem ADMIN_PASS, gera uma senha aleatória forte.
 DEFAULT_ADMIN_PASS = os.environ.get('ADMIN_PASS')
-
 # ---- Modelos ----------------------------------------------------------------
-
 class Employee(Base):
     __tablename__ = 'employees'
     id     = Column(Integer, primary_key=True, autoincrement=True)
@@ -74,8 +59,6 @@ class Employee(Base):
     __table_args__ = (
         Index('idx_emp_unit_active', 'unit', 'active'),
     )
-
-
 class Appointment(Base):
     __tablename__ = 'appointments'
     id     = Column(Integer, primary_key=True, autoincrement=True)
@@ -89,8 +72,6 @@ class Appointment(Base):
         Index('idx_appt_date', 'date'),
         Index('idx_appt_unit_date', 'unit', 'date'),
     )
-
-
 class User(Base):
     __tablename__ = 'users'
     id            = Column(Integer, primary_key=True, autoincrement=True)
@@ -101,28 +82,25 @@ class User(Base):
     __table_args__ = (
         Index('idx_users_username', 'username'),
     )
-
-
 class Confirmacao(Base):
     __tablename__ = 'confirmacoes'
-    id       = Column(Integer, primary_key=True, autoincrement=True)
-    mes      = Column(String(20),  default='')
-    data_str = Column(String(10),  default='')   # DD/MM/YYYY
-    cliente  = Column(String(300), default='')
-    tmk      = Column(String(200), default='')
-    unidade  = Column(String(100), default='')
-    horario  = Column(String(20),  default='')
-    contato  = Column(String(100), default='')
-    flag     = Column(String(100), default='')
+    id        = Column(Integer, primary_key=True, autoincrement=True)
+    atendente = Column(String(200), default='')   # dona da confirmacao (VIVIANE, LUANE, etc.)
+    mes       = Column(String(20),  default='')
+    data_str  = Column(String(10),  default='')   # DD/MM/YYYY
+    cliente   = Column(String(300), default='')
+    tmk       = Column(String(200), default='')
+    unidade   = Column(String(100), default='')
+    horario   = Column(String(20),  default='')
+    contato   = Column(String(100), default='')
+    flag      = Column(String(100), default='')
     created_at = Column(String(40), default=lambda: datetime.utcnow().isoformat())
     __table_args__ = (
         Index('idx_conf_mes', 'mes'),
         Index('idx_conf_data', 'data_str'),
+        Index('idx_conf_atendente', 'atendente'),
     )
-
-
 # ---- Inicializacao ----------------------------------------------------------
-
 def init_db():
     """Cria tabelas e indices se ainda nao existirem. Idempotente.
     Em ambiente serverless (Vercel), o DDL e pulado para evitar timeout —
@@ -139,8 +117,6 @@ def init_db():
     Base.metadata.create_all(engine)
     _run_migrations()
     ensure_default_admin()
-
-
 def _run_migrations():
     """Aplica migrações incrementais no banco existente (idempotente)."""
     with engine.connect() as conn:
@@ -151,8 +127,13 @@ def _run_migrations():
             print("[migration] Coluna 'role' adicionada à tabela users.")
         except Exception:
             pass  # Coluna já existe, ignora
-
-
+        # Migração 2: adiciona coluna 'atendente' na tabela confirmacoes se não existir
+        try:
+            conn.execute(text("ALTER TABLE confirmacoes ADD COLUMN atendente VARCHAR(200) DEFAULT ''"))
+            conn.commit()
+            print("[migration] Coluna 'atendente' adicionada à tabela confirmacoes.")
+        except Exception:
+            pass  # Coluna já existe, ignora
 def ensure_default_admin():
     """Se nao houver nenhum usuario, cria o admin inicial (papel 'admin')."""
     import secrets
@@ -180,17 +161,12 @@ def ensure_default_admin():
             else:
                 print(f"    senha: {senha}")
             print(f"    >>> TROQUE essa senha apos o primeiro login! <<<\n")
-
-
 # ---- Helpers ----------------------------------------------------------------
-
 def _safe_json_loads(s, default):
     try:
         return json.loads(s) if s else default
     except (ValueError, TypeError):
         return default
-
-
 def _appt_to_dict(a):
     return {
         'id': a.id,
@@ -200,10 +176,7 @@ def _appt_to_dict(a):
         'rows': _safe_json_loads(a.rows, []),
         'comparecimento_data': _safe_json_loads(a.comparecimento_data, {}),
     }
-
-
 # ---- Users / Auth -----------------------------------------------------------
-
 def get_user_by_username(username):
     with SessionLocal() as s:
         u = s.scalar(select(User).where(User.username == username))
@@ -212,8 +185,6 @@ def get_user_by_username(username):
         return {'id': u.id, 'username': u.username,
                 'password_hash': u.password_hash, 'created_at': u.created_at,
                 'role': u.role or 'all'}
-
-
 def verify_password(username, password):
     user = get_user_by_username(username)
     if not user:
@@ -221,14 +192,10 @@ def verify_password(username, password):
     if check_password_hash(user['password_hash'], password):
         return {'id': user['id'], 'username': user['username'], 'role': user.get('role', 'all')}
     return None
-
-
 def list_users():
     with SessionLocal() as s:
         users = s.scalars(select(User).order_by(User.username)).all()
         return [{'id': u.id, 'username': u.username, 'created_at': u.created_at, 'role': u.role or 'all'} for u in users]
-
-
 def create_user(username, password):
     username = (username or '').strip()
     if not username:
@@ -243,8 +210,6 @@ def create_user(username, password):
         s.commit()
         s.refresh(u)
         return u.id
-
-
 def change_password(user_id, new_password):
     if not new_password or len(new_password) < 8:
         raise ValueError("A senha precisa ter pelo menos 8 caracteres.")
@@ -254,21 +219,14 @@ def change_password(user_id, new_password):
             .values(password_hash=generate_password_hash(new_password))
         )
         s.commit()
-
-
 def delete_user(user_id):
     with SessionLocal() as s:
         s.execute(delete(User).where(User.id == user_id))
         s.commit()
-
-
 def count_users():
     with SessionLocal() as s:
         return s.scalar(select(func.count(User.id)))
-
-
 # ---- Employees --------------------------------------------------------------
-
 def get_employees(unit=None, active=None):
     with SessionLocal() as s:
         q = select(Employee)
@@ -279,8 +237,6 @@ def get_employees(unit=None, active=None):
         q = q.order_by(Employee.name)
         rows = s.scalars(q).all()
         return [{'id': r.id, 'name': r.name, 'unit': r.unit, 'active': r.active} for r in rows]
-
-
 def create_employee(name, unit, active=True):
     with SessionLocal() as s:
         e = Employee(name=name, unit=unit, active=1 if active else 0)
@@ -288,36 +244,25 @@ def create_employee(name, unit, active=True):
         s.commit()
         s.refresh(e)
         return e.id
-
-
 def deactivate_employee(eid):
     with SessionLocal() as s:
         s.execute(update(Employee).where(Employee.id == eid).values(active=0))
         s.commit()
-
-
 def delete_employee_hard(eid):
     with SessionLocal() as s:
         s.execute(delete(Employee).where(Employee.id == eid))
         s.commit()
-
-
 # ---- Appointments -----------------------------------------------------------
-
 def get_appointment(unit, date):
     with SessionLocal() as s:
         a = s.scalar(select(Appointment).where(
             and_(Appointment.unit == unit, Appointment.date == date)
         ))
         return _appt_to_dict(a) if a else None
-
-
 def get_appointments_by_date(date):
     with SessionLocal() as s:
         rows = s.scalars(select(Appointment).where(Appointment.date == date)).all()
         return [_appt_to_dict(r) for r in rows]
-
-
 def get_appointments_by_month(year, month):
     start = f"{year:04d}-{month:02d}-01"
     if month == 12:
@@ -331,8 +276,6 @@ def get_appointments_by_month(year, month):
             .order_by(Appointment.date)
         ).all()
         return [_appt_to_dict(r) for r in rows]
-
-
 def upsert_appointment(unit, date, leader, rows_list):
     payload = json.dumps(rows_list, ensure_ascii=False)
     with SessionLocal() as s:
@@ -348,8 +291,6 @@ def upsert_appointment(unit, date, leader, rows_list):
         else:
             s.add(Appointment(unit=unit, date=date, leader=leader, rows=payload))
         s.commit()
-
-
 def update_comparecimento(unit, date, comparecimento_data):
     payload = json.dumps(comparecimento_data, ensure_ascii=False)
     with SessionLocal() as s:
@@ -359,18 +300,13 @@ def update_comparecimento(unit, date, comparecimento_data):
             .values(comparecimento_data=payload)
         )
         s.commit()
-
-
 def clear_appointment(unit, date):
     with SessionLocal() as s:
         s.execute(delete(Appointment).where(
             and_(Appointment.unit == unit, Appointment.date == date)
         ))
         s.commit()
-
-
 # ---- Role management --------------------------------------------------------
-
 def set_user_role(user_id, role):
     allowed = ('agendamento', 'confirmacao', 'all', 'admin')
     if role not in allowed:
@@ -378,22 +314,19 @@ def set_user_role(user_id, role):
     with SessionLocal() as s:
         s.execute(update(User).where(User.id == user_id).values(role=role))
         s.commit()
-
-
 # ---- Confirmacoes -----------------------------------------------------------
-
 def _conf_to_dict(c):
     return {
-        'id': c.id, 'mes': c.mes, 'data_str': c.data_str,
+        'id': c.id, 'atendente': c.atendente or '', 'mes': c.mes, 'data_str': c.data_str,
         'cliente': c.cliente, 'tmk': c.tmk, 'unidade': c.unidade,
         'horario': c.horario, 'contato': c.contato, 'flag': c.flag,
         'created_at': c.created_at,
     }
-
-
-def get_confirmacoes(mes=None, data_str=None, tmk=None):
+def get_confirmacoes(mes=None, data_str=None, tmk=None, atendente=None):
     with SessionLocal() as s:
         q = select(Confirmacao).order_by(Confirmacao.data_str, Confirmacao.horario, Confirmacao.id)
+        if atendente:
+            q = q.where(Confirmacao.atendente == atendente)
         if mes:
             q = q.where(Confirmacao.mes == mes)
         if data_str:
@@ -401,44 +334,37 @@ def get_confirmacoes(mes=None, data_str=None, tmk=None):
         if tmk:
             q = q.where(Confirmacao.tmk.ilike(f'%{tmk}%'))
         return [_conf_to_dict(r) for r in s.scalars(q).all()]
-
-
 def create_confirmacao(data):
     with SessionLocal() as s:
         c = Confirmacao(**{k: v for k, v in data.items() if k in
-            ('mes','data_str','cliente','tmk','unidade','horario','contato','flag')})
+            ('atendente','mes','data_str','cliente','tmk','unidade','horario','contato','flag')})
         s.add(c)
         s.commit()
         s.refresh(c)
         return c.id
-
-
 def update_confirmacao(cid, data):
-    allowed = ('mes','data_str','cliente','tmk','unidade','horario','contato','flag')
+    allowed = ('atendente','mes','data_str','cliente','tmk','unidade','horario','contato','flag')
     vals = {k: v for k, v in data.items() if k in allowed}
     if not vals:
         return
     with SessionLocal() as s:
         s.execute(update(Confirmacao).where(Confirmacao.id == cid).values(**vals))
         s.commit()
-
-
 def delete_confirmacao(cid):
     with SessionLocal() as s:
         s.execute(delete(Confirmacao).where(Confirmacao.id == cid))
         s.commit()
-
-
 def bulk_insert_confirmacoes(rows):
     with SessionLocal() as s:
         for r in rows:
             c = Confirmacao(**{k: v for k, v in r.items() if k in
-                ('mes','data_str','cliente','tmk','unidade','horario','contato','flag')})
+                ('atendente','mes','data_str','cliente','tmk','unidade','horario','contato','flag')})
             s.add(c)
         s.commit()
-
-
-def clear_confirmacoes_dia(data_str):
+def clear_confirmacoes_dia(data_str, atendente=None):
     with SessionLocal() as s:
-        s.execute(delete(Confirmacao).where(Confirmacao.data_str == data_str))
+        q = delete(Confirmacao).where(Confirmacao.data_str == data_str)
+        if atendente:
+            q = q.where(Confirmacao.atendente == atendente)
+        s.execute(q)
         s.commit()
