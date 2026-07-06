@@ -15,7 +15,6 @@
 .rank-tmk-bar-wrap { width:140px; height:8px; background:#1a1a1a; border-radius:4px; overflow:hidden; }
 .rank-tmk-bar { height:100%; background:#22c55e; border-radius:4px; transition:width .5s; }
 .rank-tmk-stats { display:flex; gap:12px; font-size:12px; font-weight:700; min-width:120px; justify-content:flex-end; }
-
 .unit-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
 .unit-box {
   background:rgba(255,255,255,0.02); border:1px solid #1f1f1f;
@@ -35,16 +34,41 @@
 .unit-sub-total { color:#fbbf24; font-weight:700; min-width:28px; text-align:center; }
 .unit-sub-conf  { color:#22c55e; font-weight:700; min-width:28px; text-align:center; }
 .unit-sub-pct   { color:#f59e0b; font-weight:700; min-width:36px; text-align:right; }
-
 .stat-chip {
   display:inline-flex; align-items:center; gap:6px;
   padding:6px 14px; border-radius:20px;
   font-size:12px; font-weight:700;
 }
+/* Extrair Dados */
+.extract-overlay { display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.75); backdrop-filter:blur(3px); padding:24px; overflow-y:auto; }
+.extract-overlay.show { display:block; }
+.extract-panel { max-width:1000px; margin:0 auto; background:#0d1117; border:1px solid rgba(251,191,36,0.18); border-radius:16px; box-shadow:0 30px 80px rgba(0,0,0,0.6); overflow:hidden; }
+.extract-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 24px; border-bottom:1px solid rgba(255,255,255,0.06); background:linear-gradient(135deg,rgba(251,191,36,0.06),transparent); flex-wrap:wrap; }
+.extract-title { font-size:20px; font-weight:800; color:#fbbf24; margin:0; }
+.extract-sub { font-size:12px; color:#71717a; margin:4px 0 0; }
+.extract-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.extract-dl { padding:7px 12px; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.35); color:#22c55e; border-radius:7px; font-size:12px; font-weight:700; cursor:pointer; }
+.extract-dl:hover { background:rgba(34,197,94,0.22); }
+.extract-close { width:34px; height:34px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#d4d4d8; border-radius:8px; font-size:16px; cursor:pointer; }
+.extract-body { padding:24px; }
+.ext-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+.ext-card { background:linear-gradient(135deg,#161b26,#0f131c); border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:18px; }
+.ext-card-val { font-size:30px; font-weight:800; line-height:1; }
+.ext-card-lbl { font-size:12px; color:#71717a; margin-top:8px; }
+.ext-chartbox { background:#11151e; border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:18px; margin-bottom:20px; }
+.ext-chartbox h3 { font-size:13px; color:#d4d4d8; margin:0 0 14px; font-weight:700; }
+.ext-flag-row { display:grid; grid-template-columns:1fr 80px 3rem; gap:10px; align-items:center; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,0.04); }
+.ext-flag-row:last-child { border-bottom:none; }
+.ext-table { width:100%; border-collapse:collapse; }
+.ext-table th { font-size:10px; color:#71717a; text-align:right; padding:8px 10px; letter-spacing:0.05em; border-bottom:1px solid rgba(255,255,255,0.08); }
+.ext-table th:first-child { text-align:left; }
+.ext-table td { font-size:13px; padding:9px 10px; text-align:right; border-bottom:1px solid rgba(255,255,255,0.04); }
+.ext-table td:first-child { text-align:left; font-weight:600; color:#e4e4e7; }
+.ext-table tr:last-child td { border-bottom:none; }
 @media(max-width:900px) { .unit-grid { grid-template-columns:repeat(2,1fr); } }
+@media(max-width:768px) { .ext-cards { grid-template-columns:repeat(2,1fr); } }
 @media(max-width:600px) { .unit-grid { grid-template-columns:1fr; } }
 </style>
-
 <div class="page-content">
   <div class="page-header">
     <div>
@@ -54,8 +78,10 @@
       </div>
       <p class="page-subtitle">Ranking de TMK e performance por unidade</p>
     </div>
+    <div class="action-bar">
+      <button class="btn btn-primary" onclick="openExtract()">📊 Extrair Dados</button>
+    </div>
   </div>
-
   <!-- Seletor de data -->
   <div class="analise-card" style="padding:14px">
     <div class="filter-bar">
@@ -93,10 +119,8 @@
       </div>
     </div>
   </div>
-
   <!-- Stats gerais -->
   <div style="display:flex;gap:10px;flex-wrap:wrap" id="analise-stats"></div>
-
   <!-- Ranking TMK -->
   <div class="analise-card">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
@@ -109,7 +133,6 @@
     </div>
     <div id="rank-tmk-list"><div class="loading">Carregando...</div></div>
   </div>
-
   <!-- Por Unidade -->
   <div class="analise-card">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
@@ -119,8 +142,24 @@
     <div class="unit-grid" id="unit-grid"><div class="loading">Carregando...</div></div>
   </div>
 </div>
+<!-- Modal: Extrair Dados -->
+<div class="extract-overlay" id="extract-modal">
+  <div class="extract-panel">
+    <div class="extract-head">
+      <div>
+        <h2 class="extract-title">📊 Extração de Dados — Análise Geral</h2>
+        <p class="extract-sub" id="ext-period-label">—</p>
+      </div>
+      <div class="extract-controls">
+        <button class="extract-dl" onclick="downloadExtractExcel()">⬇ Excel</button>
+        <button class="extract-dl" onclick="downloadExtractPDF()">⬇ PDF</button>
+        <button class="extract-close" onclick="closeExtract()">✕</button>
+      </div>
+    </div>
+    <div class="extract-body" id="extract-body"><div class="loading">Carregando...</div></div>
+  </div>
+</div>
 {% endblock %}
-
 {% block scripts %}
 <script>
 const UNIDADES_CONF = {
@@ -132,9 +171,14 @@ const UNIDADES_CONF = {
   'FORTALEZA': ['FORTALEZA'],
   'SÃO LUIZ':  ['SÃO LUIZ'],
 };
-
+const ATENDENTES = ['VIVIANE','DIELLEM','LIDIENE','KEILANE','LUANE','MARIA'];
+// Flags completas para contagem no Extrair Dados
+const ALL_FLAGS = [
+  'CONFIRMADO','SEM RETORNO','CANCELADO','DUPLICADO','NÚMERO INVÁLIDO',
+  'NÃO AGENDADO','UNIDADE ERRADA','HORÁRIO ERRADO','MÚLTIPLOS AGEND.',
+  'REAGENDOU','EXAME REALIZADO','NÃO PODE REALIZAR','PATOLOGIA','DESISTÊNCIA'
+];
 let analiseData = [];
-
 document.addEventListener('DOMContentLoaded', () => {
   const now = new Date();
   document.getElementById('sel-month').value = now.getMonth();
@@ -142,54 +186,53 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('sel-day').value   = now.getDate();
   loadAnalise();
 });
-
 function onPeriodoChange() {
   const p = document.getElementById('sel-periodo').value;
   document.getElementById('sel-day').closest('.filter-group').style.display = p === 'day' ? '' : 'none';
   loadAnalise();
 }
-
 function getDateStr() {
   const mi = parseInt(document.getElementById('sel-month').value);
   const y  = document.getElementById('sel-year').value;
   const d  = String(document.getElementById('sel-day').value).padStart(2,'0');
   return `${d}/${String(mi+1).padStart(2,'0')}/${y}`;
 }
-
+function getMesStr() {
+  const mi = parseInt(document.getElementById('sel-month').value);
+  return document.getElementById('sel-month').options[mi].text;
+}
+function _periodoLabel() {
+  const periodo = document.getElementById('sel-periodo').value;
+  if(periodo === 'day') return getDateStr();
+  return `${getMesStr()}/${document.getElementById('sel-year').value}`;
+}
 async function loadAnalise() {
   const periodo = document.getElementById('sel-periodo').value;
   let url;
   if(periodo === 'day') {
     url = `/api/confirmacoes?data_str=${encodeURIComponent(getDateStr())}`;
   } else {
-    const mi = parseInt(document.getElementById('sel-month').value)+1;
-    const y  = document.getElementById('sel-year').value;
-    // Busca todos do mês filtrando client-side
-    url = `/api/confirmacoes?mes=${encodeURIComponent(document.getElementById('sel-month').options[document.getElementById('sel-month').value].text)}`;
+    url = `/api/confirmacoes?mes=${encodeURIComponent(getMesStr())}`;
   }
   const res = await fetch(url);
   if(res.status === 401) { window.location.href='/login'; return; }
   analiseData = await res.json();
   renderAnalise();
 }
-
 function renderAnalise() {
   const data = analiseData;
   const total = data.length;
   const conf  = data.filter(r => r.flag === 'CONFIRMADO').length;
   const pend  = data.filter(r => !r.flag).length;
   const pct   = total > 0 ? Math.round((conf/total)*100) : 0;
-
   // Stats gerais
   document.getElementById('analise-stats').innerHTML = `
     <div class="stat-chip" style="background:rgba(251,191,36,0.1);color:#fbbf24">📋 Total: ${total}</div>
     <div class="stat-chip" style="background:rgba(34,197,94,0.1);color:#22c55e">✅ Confirmados: ${conf} (${pct}%)</div>
     <div class="stat-chip" style="background:#1f1f1f;color:#71717a">⏳ Pendentes: ${pend}</div>`;
-
   renderRankTMK(data);
   renderUnidades(data);
 }
-
 const FLAGS_RANK = [
   { key: 'CANCELADO',       label: 'CANCELADO',        short: 'CANCEL.',   color: '#ef4444' },
   { key: 'DUPLICADO',       label: 'DUPLICADO',        short: 'DUPLIC.',   color: '#ec4899' },
@@ -197,7 +240,6 @@ const FLAGS_RANK = [
   { key: 'NÃO AGENDADO',    label: 'NÃO AGENDADO',     short: 'N.AGEND.',  color: '#a855f7' },
   { key: 'UNIDADE ERRADA',  label: 'UNIDADE ERRADA',   short: 'UNID.ERR.', color: '#3b82f6' },
 ];
-
 function renderRankTMK(data) {
   const tmkMap = {};
   data.forEach(r => {
@@ -210,19 +252,15 @@ function renderRankTMK(data) {
     const fRank = FLAGS_RANK.find(f => f.key === r.flag);
     if(fRank) tmkMap[tmk][r.flag]++;
   });
-
   const ranked = Object.entries(tmkMap)
     .map(([name, d]) => ({ name, ...d }))
     .sort((a,b) => b.total - a.total);
-
   const el = document.getElementById('rank-tmk-list');
   if(ranked.length === 0) {
     el.innerHTML = '<p style="color:#71717a;text-align:center;padding:20px;font-size:12px">Sem dados no período.</p>';
     return;
   }
-
   const medals = ['🥇','🥈','🥉'];
-
   // Header
   const header = `<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;margin-bottom:4px;font-size:9px;font-weight:700;color:#52525b;letter-spacing:.1em;border-bottom:1px solid #1f1f1f">
     <span style="min-width:28px"></span>
@@ -230,7 +268,6 @@ function renderRankTMK(data) {
     <span style="min-width:48px;text-align:center">TOTAL</span>
     ${FLAGS_RANK.map(f=>`<span style="min-width:56px;text-align:center;color:${f.color}">${f.short}</span>`).join('')}
   </div>`;
-
   const rows = ranked.map((r,i) => `
     <div class="rank-tmk-row">
       <span class="rank-tmk-pos">${i<3?medals[i]:`${i+1}º`}</span>
@@ -241,18 +278,12 @@ function renderRankTMK(data) {
         return `<span style="min-width:56px;text-align:center;font-size:12px;font-weight:700;color:${cnt>0?f.color:'#3f3f46'}">${cnt}</span>`;
       }).join('')}
     </div>`).join('');
-
   el.innerHTML = header + rows;
 }
-
 function renderUnidades(data) {
   const grid = document.getElementById('unit-grid');
-
   const boxes = Object.entries(UNIDADES_CONF).map(([grupo, subs]) => {
-    // Para grupos com 1 sub (MANAUS, MANOA etc), mostra resumo simples
-    // Para PARÁ com múltiplos bairros, mostra lista
     const isSingle = subs.length === 1;
-
     if(isSingle) {
       const sub  = subs[0];
       const rows = data.filter(r => (r.unidade||'').toUpperCase().includes(sub.toUpperCase()));
@@ -268,7 +299,6 @@ function renderUnidades(data) {
         </div>
       </div>`;
     } else {
-      // PARÁ — lista de bairros
       const subRows = subs.map(sub => {
         const rows  = data.filter(r => (r.unidade||'').toUpperCase().includes(sub.toUpperCase()));
         const total = rows.length;
@@ -276,11 +306,9 @@ function renderUnidades(data) {
         const pct   = total>0?Math.round((conf/total)*100):0;
         return {sub, total, conf, pct};
       }).filter(r => r.total > 0).sort((a,b)=>b.total-a.total);
-
       const totalGrupo = subRows.reduce((s,r)=>s+r.total,0);
       const confGrupo  = subRows.reduce((s,r)=>s+r.conf,0);
       const pctGrupo   = totalGrupo>0?Math.round((confGrupo/totalGrupo)*100):0;
-
       return `<div class="unit-box" style="grid-column:span 1">
         <div class="unit-box-title">${grupo} <span style="font-size:10px;font-weight:400;color:#71717a">${totalGrupo} total · ${confGrupo} conf · ${pctGrupo}%</span></div>
         ${subRows.length===0
@@ -298,18 +326,215 @@ function renderUnidades(data) {
       </div>`;
     }
   });
-
-  // PARÁ vai ocupar mais espaço — ajusta grid
   grid.style.gridTemplateColumns = 'repeat(2,1fr) repeat(3,1fr)';
   grid.innerHTML = boxes.map((box,i) => {
-    // PARÁ (índice 2) ocupa 3 colunas
     if(i===2) return `<div style="grid-column:span 3">${box.replace('class="unit-box"','class="unit-box"')}</div>`;
     return box;
   }).join('');
 }
-
 function esc(s) {
   return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// ══════════════ EXTRAIR DADOS (Análise Geral) ══════════════
+let extractData = null;
+function openExtract() {
+  document.getElementById('extract-modal').classList.add('show');
+  renderExtract();
+}
+function closeExtract() {
+  document.getElementById('extract-modal').classList.remove('show');
+}
+document.addEventListener('click', e=>{
+  if(e.target && e.target.id === 'extract-modal') closeExtract();
+});
+function renderExtract() {
+  // Usa os dados que já estão carregados (analiseData) — mesmo período da tela.
+  const data = analiseData;
+  document.getElementById('ext-period-label').textContent = _periodoLabel();
+  const total = data.length;
+  // Contagem por flag (geral)
+  const flagCount = {};
+  ALL_FLAGS.forEach(f => flagCount[f] = 0);
+  data.forEach(r => { if(flagCount[r.flag] !== undefined) flagCount[r.flag]++; });
+  const semFlag = data.filter(r => !r.flag).length;
+  const conf   = flagCount['CONFIRMADO']||0;
+  const canc   = flagCount['CANCELADO']||0;
+  const semret = flagCount['SEM RETORNO']||0;
+  const convPct = total>0?Math.round((conf/total)*100):0;
+  // Quebra por atendente (só as com dados no período)
+  const porAtendente = ATENDENTES.map(at => {
+    const rows = data.filter(r => (r.atendente||'').toUpperCase() === at);
+    const t = rows.length;
+    const c = rows.filter(r=>r.flag==='CONFIRMADO').length;
+    const ca = rows.filter(r=>r.flag==='CANCELADO').length;
+    const sr = rows.filter(r=>r.flag==='SEM RETORNO').length;
+    const p = t>0?Math.round((c/t)*100):0;
+    return { atendente: at, total: t, conf: c, canc: ca, semret: sr, pct: p };
+  }).filter(a => a.total > 0).sort((a,b)=>b.total-a.total);
+  // Ranking de TMK (mesmo da tela)
+  const tmkMap = {};
+  data.forEach(r => {
+    const tmk = (r.tmk||'').trim() || 'Sem TMK';
+    if(!tmkMap[tmk]) {
+      tmkMap[tmk] = { total: 0 };
+      FLAGS_RANK.forEach(f => tmkMap[tmk][f.key] = 0);
+    }
+    tmkMap[tmk].total++;
+    const fRank = FLAGS_RANK.find(f => f.key === r.flag);
+    if(fRank) tmkMap[tmk][r.flag]++;
+  });
+  const tmkRank = Object.entries(tmkMap).map(([name,d])=>({name, ...d})).sort((a,b)=>b.total-a.total);
+  extractData = { label:_periodoLabel(), total, conf, canc, semret, convPct, semFlag, flagCount, porAtendente, tmkRank };
+  document.getElementById('extract-body').innerHTML = buildExtractHTML(extractData);
+}
+function buildExtractHTML(d) {
+  // Cards principais
+  const cards = `
+    <div class="ext-cards">
+      <div class="ext-card"><div class="ext-card-val" style="color:#fbbf24">${d.total}</div><div class="ext-card-lbl">Total de contatos</div></div>
+      <div class="ext-card"><div class="ext-card-val" style="color:#22c55e">${d.conf}</div><div class="ext-card-lbl">Confirmados</div></div>
+      <div class="ext-card"><div class="ext-card-val" style="color:#ef4444">${d.canc}</div><div class="ext-card-lbl">Cancelados</div></div>
+      <div class="ext-card"><div class="ext-card-val" style="color:#fbbf24">${d.convPct}%</div><div class="ext-card-lbl">Conversão</div></div>
+    </div>`;
+  // Tabela por atendente
+  const atRows = d.porAtendente.map(a => `
+    <tr>
+      <td style="text-align:left">${esc(a.atendente)}</td>
+      <td>${a.total}</td>
+      <td style="color:#22c55e">${a.conf}</td>
+      <td style="color:#ef4444">${a.canc}</td>
+      <td style="color:#ca8a04">${a.semret}</td>
+      <td style="color:${a.pct>=50?'#22c55e':a.pct>=25?'#fbbf24':'#ef4444'};font-weight:700">${a.pct}%</td>
+    </tr>`).join('');
+  const atBox = `
+    <div class="ext-chartbox">
+      <h3>👤 Desempenho por Atendente</h3>
+      <div style="overflow-x:auto">
+      <table class="ext-table" style="min-width:520px">
+        <thead><tr><th>ATENDENTE</th><th>CONTATOS</th><th>CONFIRM.</th><th>CANCEL.</th><th>SEM RET.</th><th>CONV.%</th></tr></thead>
+        <tbody>${atRows || `<tr><td colspan="6" style="text-align:center;color:#52525b;padding:16px">Nenhuma atendente com dados no período.</td></tr>`}</tbody>
+      </table>
+      </div>
+    </div>`;
+  // Contagem por flag (geral)
+  const maxFlag = Math.max(1, ...ALL_FLAGS.map(f=>d.flagCount[f]||0));
+  const flagRows = ALL_FLAGS.map(f=>{
+    const cnt = d.flagCount[f]||0;
+    const w = Math.round((cnt/maxFlag)*100);
+    const dim = cnt===0?'opacity:0.4;':'';
+    return `<div class="ext-flag-row" style="${dim}">
+      <span style="font-size:12px;color:#d4d4d8">${f}</span>
+      <div style="height:8px;background:#1f2430;border-radius:5px;overflow:hidden"><div style="width:${w}%;height:100%;background:#22c55e;border-radius:5px"></div></div>
+      <span style="font-size:13px;font-weight:700;color:#d4d4d8;text-align:right">${cnt}</span>
+    </div>`;
+  }).join('');
+  const flagBox = `
+    <div class="ext-chartbox">
+      <h3>Contagem por Flag (geral)</h3>
+      ${flagRows}
+      <div class="ext-flag-row" style="border-top:1px solid rgba(255,255,255,0.08);margin-top:6px">
+        <span style="font-size:12px;color:#a1a1aa">⏳ Sem flag (pendentes)</span>
+        <span></span>
+        <span style="font-size:13px;font-weight:700;color:#71717a;text-align:right">${d.semFlag}</span>
+      </div>
+    </div>`;
+  // Ranking TMK
+  const medals = ['🥇','🥈','🥉'];
+  const tmkRows = (d.tmkRank||[]).map((t,i)=>{
+    const errCells = FLAGS_RANK.map(f=>{
+      const v = t[f.key]||0;
+      return `<td style="color:${v>0?f.color:'#3f3f46'}">${v}</td>`;
+    }).join('');
+    return `<tr>
+      <td style="text-align:left">${i<3?medals[i]:(i+1)+'º'} ${esc(t.name)}</td>
+      <td>${t.total}</td>
+      ${errCells}
+    </tr>`;
+  }).join('');
+  const tmkHeaders = FLAGS_RANK.map(f=>`<th style="color:${f.color}">${f.short}</th>`).join('');
+  const tmkBox = `
+    <div class="ext-chartbox">
+      <h3>🏆 Ranking de TMK</h3>
+      <div style="overflow-x:auto">
+      <table class="ext-table" style="min-width:640px">
+        <thead><tr><th>TMK</th><th>TOTAL</th>${tmkHeaders}</tr></thead>
+        <tbody>${tmkRows || `<tr><td colspan="${2+FLAGS_RANK.length}" style="text-align:center;color:#52525b;padding:16px">Sem TMK no período.</td></tr>`}</tbody>
+      </table>
+      </div>
+    </div>`;
+  return cards + atBox + flagBox + tmkBox;
+}
+function downloadExtractExcel() {
+  if(!extractData) return;
+  const d = extractData;
+  let csv = `Análise Geral - Confirmação Connecting;${d.label}\n\n`;
+  csv += `Indicador;Valor\n`;
+  csv += `Total de contatos;${d.total}\nConfirmados;${d.conf}\nCancelados;${d.canc}\nSem retorno;${d.semret}\nConversão;${d.convPct}%\n\n`;
+  csv += `Desempenho por Atendente\n`;
+  csv += `Atendente;Contatos;Confirmados;Cancelados;Sem Retorno;Conversão%\n`;
+  d.porAtendente.forEach(a=>{
+    csv += `${a.atendente};${a.total};${a.conf};${a.canc};${a.semret};${a.pct}%\n`;
+  });
+  csv += `\nContagem por Flag (geral)\n`;
+  csv += `Flag;Quantidade\n`;
+  ALL_FLAGS.forEach(f=>{ csv += `${f};${d.flagCount[f]||0}\n`; });
+  csv += `Sem flag (pendentes);${d.semFlag}\n\n`;
+  if(d.tmkRank && d.tmkRank.length){
+    csv += `Ranking de TMK\n`;
+    csv += `Posição;TMK;Total;${FLAGS_RANK.map(f=>f.label).join(';')}\n`;
+    d.tmkRank.forEach((t,i)=>{
+      csv += `${i+1}º;${t.name};${t.total};${FLAGS_RANK.map(f=>t[f.key]||0).join(';')}\n`;
+    });
+  }
+  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `analise_geral_${d.label.replace(/[^\w]+/g,'_')}.csv`;
+  a.click();
+}
+function downloadExtractPDF() {
+  if(!extractData) return;
+  const d = extractData;
+  const atRows = d.porAtendente.map(a=>`<tr>
+    <td>${a.atendente}</td><td style="text-align:right">${a.total}</td>
+    <td style="text-align:right">${a.conf}</td><td style="text-align:right">${a.canc}</td>
+    <td style="text-align:right">${a.semret}</td><td style="text-align:right">${a.pct}%</td></tr>`).join('');
+  const flagRows = ALL_FLAGS.map(f=>`<tr><td>${f}</td><td style="text-align:right">${d.flagCount[f]||0}</td></tr>`).join('');
+  const tmkRows = (d.tmkRank||[]).map((t,i)=>`<tr>
+    <td>${i+1}º ${t.name}</td><td style="text-align:right">${t.total}</td>
+    ${FLAGS_RANK.map(f=>`<td style="text-align:right">${t[f.key]||0}</td>`).join('')}</tr>`).join('');
+  const win = window.open('', '_blank');
+  win.document.write(`<html><head><title>Análise Geral — ${d.label}</title>
+    <style>
+      body{font-family:Arial,sans-serif;padding:30px;color:#111}
+      h1{color:#b8860b;margin:0 0 4px} .sub{color:#666;margin:0 0 24px;font-size:13px}
+      h2{color:#b8860b;font-size:16px;margin:24px 0 8px}
+      .cards{display:flex;gap:12px;margin-bottom:24px}
+      .card{flex:1;border:1px solid #ddd;border-radius:8px;padding:14px}
+      .card .v{font-size:24px;font-weight:800} .card .l{font-size:11px;color:#666;margin-top:4px}
+      table{width:100%;border-collapse:collapse;margin-bottom:10px} th,td{padding:7px;border-bottom:1px solid #eee;font-size:12px}
+      th{text-align:left;background:#faf6e9}
+    </style></head><body>
+    <h1>📊 Análise Geral — Confirmação</h1>
+    <p class="sub">${d.label}</p>
+    <div class="cards">
+      <div class="card"><div class="v">${d.total}</div><div class="l">Total de contatos</div></div>
+      <div class="card"><div class="v">${d.conf}</div><div class="l">Confirmados</div></div>
+      <div class="card"><div class="v">${d.canc}</div><div class="l">Cancelados</div></div>
+      <div class="card"><div class="v">${d.convPct}%</div><div class="l">Conversão</div></div>
+    </div>
+    <h2>👤 Desempenho por Atendente</h2>
+    <table><thead><tr><th>Atendente</th><th style="text-align:right">Contatos</th><th style="text-align:right">Confirm.</th><th style="text-align:right">Cancel.</th><th style="text-align:right">Sem Ret.</th><th style="text-align:right">Conv.%</th></tr></thead>
+      <tbody>${atRows}</tbody></table>
+    <h2>Contagem por Flag (geral)</h2>
+    <table><thead><tr><th>Flag</th><th style="text-align:right">Qtd</th></tr></thead>
+      <tbody>${flagRows}<tr><td>Sem flag (pendentes)</td><td style="text-align:right">${d.semFlag}</td></tr></tbody></table>
+    <h2>🏆 Ranking de TMK</h2>
+    <table><thead><tr><th>TMK</th><th style="text-align:right">Total</th>${FLAGS_RANK.map(f=>`<th style="text-align:right">${f.short}</th>`).join('')}</tr></thead>
+      <tbody>${tmkRows}</tbody></table>
+    </body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(), 400);
 }
 </script>
 {% endblock %}
