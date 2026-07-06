@@ -33,7 +33,6 @@
 }
 .conf-table tbody tr:nth-child(even) td.td-flag { background:#eef2f7 !important; }
 .conf-table tbody tr:hover td.td-flag { background:#dbeafe !important; }
-
 /* Flag select badge */
 .flag-select {
   appearance:none; -webkit-appearance:none;
@@ -60,7 +59,6 @@
 .flag-PATOLOGIA       { background:#991b1b; color:#fff; }
 .flag-DESISTENCIA     { background:#b91c1c; color:#fff; }
 .flag-vazio           { background:#e2e8f0; color:#64748b; }
-
 .conf-stats { display:flex; gap:10px; flex-wrap:wrap; }
 .conf-stat-chip {
   padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700;
@@ -77,7 +75,6 @@
   font-family:monospace; resize:vertical; outline:none;
 }
 .paste-textarea:focus { border-color:#22c55e; }
-
 /* Slot bars — igual ao sistema de agendamento */
 .slot-bar-row { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
 .slot-label { font-size:11px; color:#71717a; width:80px; flex-shrink:0; }
@@ -112,7 +109,6 @@
 .ext-table tr:last-child td { border-bottom:none; }
 @media (max-width:768px) { .ext-cards { grid-template-columns:repeat(2,1fr); } }
 </style>
-
 <div class="page-content">
   <div class="page-header">
     <div>
@@ -130,7 +126,6 @@
       <button class="btn btn-danger" onclick="clearDay()" id="btn-clear" style="display:none">🗑 Limpar Dia</button>
     </div>
   </div>
-
   <!-- Seletor de data -->
   <div class="card" style="padding:14px">
     <div class="filter-bar">
@@ -171,10 +166,8 @@
       </div>
     </div>
   </div>
-
   <!-- Stats -->
   <div class="conf-stats" id="conf-stats"></div>
-
   <!-- Tabela -->
   <div class="card" style="padding:0;overflow:hidden">
     <div style="overflow-x:auto">
@@ -192,7 +185,6 @@
     </div>
   </div>
 </div>
-
 <!-- Modal: Resumo do Dia -->
 <div class="modal-overlay" id="modal-resumo" onclick="closeResumoModal()">
   <div class="modal" style="max-width:460px" onclick="event.stopPropagation()">
@@ -208,19 +200,15 @@
         <span style="font-size:13px;color:#a1a1aa">⏳ Sem flag (pendentes)</span>
         <span style="font-size:18px;font-weight:800;color:#71717a" id="resumo-pendentes-count">0</span>
       </div>
-
       <p style="font-size:10px;font-weight:700;color:#71717a;letter-spacing:.15em;margin:18px 0 8px">⚠️ RANKING DE ERROS — TMK</p>
       <div id="resumo-erros"></div>
-
       <p style="font-size:10px;font-weight:700;color:#71717a;letter-spacing:.15em;margin:16px 0 8px">CONTATOS POR HORÁRIO</p>
       <div id="resumo-horarios"></div>
-
       <p style="font-size:10px;font-weight:700;color:#71717a;letter-spacing:.15em;margin:18px 0 8px">RESUMO DO MÊS</p>
       <div id="resumo-mes"></div>
     </div>
   </div>
 </div>
-
 <!-- Modal: Relatório WhatsApp -->
 <div class="modal-overlay" id="modal-relatorio" onclick="closeRelatorioModal()">
   <div class="modal" style="max-width:560px;width:95vw" onclick="event.stopPropagation()">
@@ -248,7 +236,6 @@
           <input class="input" id="rel-num" placeholder="Ex: 2º" oninput="buildRelatorio()" style="width:90px"/>
         </div>
       </div>
-
       <!-- Campos de texto livre -->
       <div class="filter-group" style="margin-bottom:10px">
         <label class="filter-label">SITUAÇÃO ATÍPICA (opcional, uma por linha)</label>
@@ -258,11 +245,9 @@
         <label class="filter-label">ASSINATURA (opcional)</label>
         <input class="input" id="rel-assinatura" placeholder="Ex: Vivianne" oninput="buildRelatorio()" style="width:100%"/>
       </div>
-
       <!-- Preview -->
       <p class="section-title" style="margin-top:6px">PRÉVIA</p>
       <textarea id="rel-preview" readonly style="width:100%;min-height:280px;background:#0f0f0f;border:1px solid #2a2a2a;border-radius:8px;color:#d4d4d8;font-family:monospace;font-size:12px;line-height:1.5;padding:12px;resize:vertical;white-space:pre-wrap"></textarea>
-
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
         <button class="btn btn-outline" onclick="closeRelatorioModal()">Fechar</button>
         <button class="btn btn-primary" id="rel-copy-btn" onclick="copyRelatorio()">📋 Copiar para WhatsApp</button>
@@ -270,7 +255,6 @@
     </div>
   </div>
 </div>
-
 <!-- Modal: Extrair Dados -->
 <div class="extract-overlay" id="extract-modal">
   <div class="extract-panel">
@@ -293,7 +277,6 @@
     <div class="extract-body" id="extract-body"><div class="loading">Carregando...</div></div>
   </div>
 </div>
-
 <!-- Modal: Colar da Planilha -->
 <div class="modal-overlay" id="modal-paste" onclick="closePasteModal()">
   <div class="modal" style="max-width:860px;width:95vw" onclick="event.stopPropagation()">
@@ -339,11 +322,11 @@
   </div>
 </div>
 {% endblock %}
-
 {% block scripts %}
 <script>
 const ATENDENTE = {{ atendente | tojson }};  // null ou 'VIVIANE' etc.
-
+// Sufixo de query string com a atendente atual (vazio na tela "Análise Geral")
+const AT_QS = ATENDENTE ? `&atendente=${encodeURIComponent(ATENDENTE)}` : '';
 const FLAGS = [
   {key:'CONFIRMADO',       label:'CONFIRMADO',          cls:'flag-CONFIRMADO',       bg:'#16a34a', color:'#fff'},
   {key:'SEM RETORNO',      label:'SEM RETORNO',          cls:'flag-SEM-RETORNO',      bg:'#ca8a04', color:'#fff'},
@@ -360,10 +343,8 @@ const FLAGS = [
   {key:'PATOLOGIA',        label:'PATOLOGIA',            cls:'flag-PATOLOGIA',        bg:'#991b1b', color:'#fff'},
   {key:'DESISTÊNCIA',      label:'DESISTÊNCIA',          cls:'flag-DESISTENCIA',      bg:'#b91c1c', color:'#fff'},
 ];
-
 let allConf = [];
 let filtered = [];
-
 // ── Inicialização ──────────────────────────────────────────────────────────
 function onConstantsLoaded() {
   const now = new Date();
@@ -371,7 +352,6 @@ function onConstantsLoaded() {
   document.getElementById('sel-month').value = now.getMonth();
   document.getElementById('sel-year').value  = now.getFullYear();
   document.getElementById('sel-day').value   = now.getDate();
-
   // Popula filtro de flags
   const selFlag = document.getElementById('filter-flag');
   FLAGS.forEach(f => {
@@ -379,10 +359,8 @@ function onConstantsLoaded() {
     o.value = f.key; o.textContent = f.label;
     selFlag.appendChild(o);
   });
-
   loadDay();
 }
-
 function updateDayOptions(selectedDay) {
   // Dias já estão no select via Jinja (1-31)
   // Apenas seleciona o dia correto se passado
@@ -390,7 +368,6 @@ function updateDayOptions(selectedDay) {
     document.getElementById('sel-day').value = selectedDay;
   }
 }
-
 function getDateStr() {
   const mi = parseInt(document.getElementById('sel-month').value);
   const y  = document.getElementById('sel-year').value;
@@ -398,28 +375,24 @@ function getDateStr() {
   const m  = String(mi+1).padStart(2,'0');
   return `${d}/${m}/${y}`;
 }
-
 function getMesStr() {
   const mi = parseInt(document.getElementById('sel-month').value);
   return MONTHS[mi];
 }
-
 function onDateChange() {
   updateDayOptions();
   loadDay();
 }
-
 // ── Carregar dados do dia ──────────────────────────────────────────────────
 async function loadDay() {
   const dataStr = getDateStr();
-  // Mostra todos os registros do dia (o TMK agora é o vendedor real, não o filtro)
-  const res = await fetch(`/api/confirmacoes?data_str=${encodeURIComponent(dataStr)}`);
+  // Mostra os registros do dia. Se há atendente selecionada, filtra só por ela.
+  const res = await fetch(`/api/confirmacoes?data_str=${encodeURIComponent(dataStr)}${AT_QS}`);
   if(res.status === 401) { window.location.href='/login'; return; }
   allConf = await res.json();
   applyFilter();
   document.getElementById('btn-clear').style.display = allConf.length > 0 ? '' : 'none';
 }
-
 function applyFilter() {
   const search = document.getElementById('filter-search').value.toLowerCase();
   const flag   = document.getElementById('filter-flag').value;
@@ -431,14 +404,12 @@ function applyFilter() {
   renderTable();
   renderStats();
 }
-
 // ── Renderizar tabela ──────────────────────────────────────────────────────
 function getFlagCls(flag) {
   if(!flag) return 'flag-vazio';
   const f = FLAGS.find(x=>x.key===flag);
   return f ? f.cls : 'flag-vazio';
 }
-
 function renderTable() {
   const tbody = document.getElementById('conf-tbody');
   if(filtered.length === 0) {
@@ -468,7 +439,6 @@ function renderTable() {
     </tr>`;
   }).join('');
 }
-
 function renderStats() {
   const total = filtered.length;
   const flagCount = {};
@@ -476,13 +446,11 @@ function renderStats() {
   const conf = flagCount['CONFIRMADO']||0;
   const pct  = total>0?Math.round((conf/total)*100):0;
   const pend = filtered.filter(r=>!r.flag).length;
-
   document.getElementById('conf-stats').innerHTML = `
     <div class="conf-stat-chip" style="background:rgba(251,191,36,0.1);color:#fbbf24">📋 Total: ${total}</div>
     <div class="conf-stat-chip" style="background:rgba(34,197,94,0.1);color:#22c55e">✅ Confirmados: ${conf} (${pct}%)</div>
     ${pend?`<div class="conf-stat-chip" style="background:#1f1f1f;color:#71717a">⏳ Pendentes: ${pend}</div>`:''}`;
 }
-
 // ── Atualizar flag ─────────────────────────────────────────────────────────
 async function updateFlag(id, sel) {
   const flag = sel.value;
@@ -497,17 +465,16 @@ async function updateFlag(id, sel) {
     body: JSON.stringify({flag})
   });
 }
-
 // ── Limpar dia ─────────────────────────────────────────────────────────────
 async function clearDay() {
   const dataStr = getDateStr();
   if(!confirm(`Limpar todos os ${allConf.length} registros do dia ${dataStr}?`)) return;
-  await fetch(`/api/confirmacoes/clear_day?data_str=${encodeURIComponent(dataStr)}`, {method:'DELETE'});
+  // Limpa só os registros do dia DESTA atendente (se houver atendente selecionada).
+  await fetch(`/api/confirmacoes/clear_day?data_str=${encodeURIComponent(dataStr)}${AT_QS}`, {method:'DELETE'});
   allConf = []; applyFilter();
   document.getElementById('btn-clear').style.display = 'none';
   showToast('Dia limpo com sucesso.');
 }
-
 // ── Resumo do Dia ──────────────────────────────────────────────────────────
 function openResumoModal() {
   const data = filtered.length > 0 ? filtered : allConf;
@@ -518,7 +485,6 @@ function openResumoModal() {
   const semFlag = data.filter(r=>!r.flag).length;
   const conf = flagCount['CONFIRMADO']||0;
   const pct  = total>0?Math.round((conf/total)*100):0;
-
   document.getElementById('resumo-date-label').textContent = getDateStr();
   document.getElementById('resumo-stats').innerHTML = `
     <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:12px;text-align:center">
@@ -533,7 +499,6 @@ function openResumoModal() {
       <div style="font-size:22px;font-weight:800;color:#fbbf24">${pct}%</div>
       <div style="font-size:10px;color:#71717a;margin-top:2px">CONVERSÃO</div>
     </div>`;
-
   const flagColors = {
     'CONFIRMADO':'#22c55e','SEM RETORNO':'#ca8a04','CANCELADO':'#dc2626',
     'DUPLICADO':'#db2777','NÚMERO INVÁLIDO':'#71717a','NÃO AGENDADO':'#7c3aed',
@@ -547,7 +512,6 @@ function openResumoModal() {
     'HORÁRIO ERRADO':'🔵','MÚLTIPLOS AGEND.':'🟠','REAGENDOU':'🟣',
     'EXAME REALIZADO':'🟢','NÃO PODE REALIZAR':'🟢','PATOLOGIA':'🔴','DESISTÊNCIA':'🔴'
   };
-
   const html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' + FLAGS.map(f => {
     const cnt = flagCount[f.key]||0;
     const color = flagColors[f.key]||'#71717a';
@@ -560,10 +524,8 @@ function openResumoModal() {
       <span style="font-size:13px;font-weight:700;color:${color};min-width:24px;text-align:right">${cnt}</span>
     </div>`;
   }).join('') + '</div>';
-
   document.getElementById('resumo-flags').innerHTML = html || '<p style="color:#71717a;font-size:12px;text-align:center;padding:12px">Nenhuma flag registrada.</p>';
   document.getElementById('resumo-pendentes-count').textContent = semFlag;
-
   // ── Ranking de erros por TMK ──
   // Erros considerados: Unidade Errada, Reagendou, Desistência, Cancelado, Sem Retorno
   const ERRO_FLAGS = ['UNIDADE ERRADA','REAGENDOU','DESISTÊNCIA','CANCELADO','SEM RETORNO'];
@@ -579,11 +541,9 @@ function openResumoModal() {
       errosPorTmk[tmk][r.flag]++;
     }
   });
-
   const errosRank = Object.entries(errosPorTmk)
     .map(([tmk,d]) => ({ tmk, ...d }))
     .sort((a,b) => b.total - a.total);
-
   const medalsErr = ['🥇','🥈','🥉'];
   const errCols = [
     {key:'UNIDADE ERRADA', short:'UN.ERR', color:'#2563eb'},
@@ -592,7 +552,6 @@ function openResumoModal() {
     {key:'CANCELADO',      short:'CANC.',  color:'#dc2626'},
     {key:'SEM RETORNO',    short:'S.RET',  color:'#ca8a04'},
   ];
-
   if(errosRank.length === 0) {
     document.getElementById('resumo-erros').innerHTML =
       '<p style="color:#52525b;font-size:12px;text-align:center;padding:14px">Nenhum erro registrado. 👏</p>';
@@ -602,7 +561,6 @@ function openResumoModal() {
       <span style="text-align:center;color:#ef4444">TOT</span>
       ${errCols.map(c=>`<span style="text-align:center;color:${c.color}">${c.short}</span>`).join('')}
     </div>`;
-
     const errRows = errosRank.map((r,i) => `
       <div style="display:grid;grid-template-columns:1.4rem 1fr 2rem 2.4rem 2.4rem 2.4rem 2.4rem 2.4rem;gap:3px;align-items:center;padding:7px 8px;border-radius:6px;background:rgba(255,255,255,0.02);margin-bottom:3px">
         <span style="font-size:13px">${i<3?medalsErr[i]:`${i+1}º`}</span>
@@ -613,16 +571,13 @@ function openResumoModal() {
           return `<span style="text-align:center;font-size:12px;font-weight:700;color:${v>0?c.color:'#3f3f46'}">${v}</span>`;
         }).join('')}
       </div>`).join('');
-
     document.getElementById('resumo-erros').innerHTML = errHeader + errRows;
   }
-
   // Slots fixos de horário (igual ao sistema de agendamento)
   const SLOTS_CONF = [
     '08H-09H','09H-10H','10H-11H','11H-12H','12H-13H','13H-14H',
     '14H-15H','15H-16H','16H-17H','17H-18H','18H-19H','19H-20H','20H-21H'
   ];
-
   // Mapeia horario "08:00" → slot "08H-09H"
   const slotCount = {};
   SLOTS_CONF.forEach(s => slotCount[s] = 0);
@@ -635,7 +590,6 @@ function openResumoModal() {
     }
   });
   const maxH = Math.max(...Object.values(slotCount), 1);
-
   document.getElementById('resumo-horarios').innerHTML = SLOTS_CONF.map(slot => {
     const cnt = slotCount[slot] || 0;
     const pct = Math.round((cnt/maxH)*100);
@@ -645,11 +599,9 @@ function openResumoModal() {
       <span class="slot-cnt">${cnt}</span>
     </div>`;
   }).join('');
-
   document.getElementById('modal-resumo').classList.add('show');
   renderResumoMes();
 }
-
 // ── Resumo do mês: contagem de Confirmados / Cancelados / Sem Retorno por dia ──
 async function renderResumoMes() {
   const mi = parseInt(document.getElementById('sel-month').value);
@@ -657,17 +609,15 @@ async function renderResumoMes() {
   const mm = String(mi+1).padStart(2,'0');
   const container = document.getElementById('resumo-mes');
   container.innerHTML = '<p style="color:#71717a;font-size:12px;text-align:center;padding:12px">Carregando…</p>';
-
   let monthData = [];
   try {
-    const res = await fetch(`/api/confirmacoes?mes=${encodeURIComponent(getMesStr())}`);
+    const res = await fetch(`/api/confirmacoes?mes=${encodeURIComponent(getMesStr())}${AT_QS}`);
     if(res.status === 401) { window.location.href = '/login'; return; }
     monthData = await res.json();
   } catch(e) {
     container.innerHTML = '<p style="color:#dc2626;font-size:12px;text-align:center;padding:12px">Erro ao carregar o mês.</p>';
     return;
   }
-
   // Agrupa por dia (somente do mês/ano selecionados)
   const byDay = {};
   monthData.forEach(r => {
@@ -681,14 +631,11 @@ async function renderResumoMes() {
     else if(r.flag === 'CANCELADO')   byDay[d].canc++;
     else if(r.flag === 'SEM RETORNO') byDay[d].semret++;
   });
-
   const WD = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   const selDay = String(document.getElementById('sel-day').value).padStart(2,'0');
   const z = v => v > 0 ? '' : 'color:#52525b';
-
   // Só os dias que têm dados, em ordem crescente
   const diasComDados = Object.keys(byDay).sort((a,b)=>parseInt(a)-parseInt(b));
-
   let body = '';
   diasComDados.forEach(dd => {
     const c  = byDay[dd];
@@ -702,11 +649,9 @@ async function renderResumoMes() {
       <td style="padding:6px 10px;text-align:center;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.04);color:#ca8a04;${z(c.semret)}">${c.semret}</td>
     </tr>`;
   });
-
   if(!body) {
     body = '<tr><td colspan="4" style="padding:20px;text-align:center;color:#71717a;font-size:12px">Nenhum dia preenchido neste mês.</td></tr>';
   }
-
   container.innerHTML = `
     <div style="max-height:260px;overflow:auto;border:1px solid rgba(255,255,255,0.06);border-radius:8px">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -723,37 +668,31 @@ async function renderResumoMes() {
     </div>`;
 }
 function closeResumoModal() { document.getElementById('modal-resumo').classList.remove('show'); }
-
 // ── Relatório WhatsApp ─────────────────────────────────────────────────────
 function openRelatorioModal() {
   document.getElementById('modal-relatorio').classList.add('show');
   buildRelatorio();
 }
 function closeRelatorioModal() { document.getElementById('modal-relatorio').classList.remove('show'); }
-
 // Busca os registros conforme o período escolhido (dia / semana / mês)
 async function getRelatorioData(periodo) {
   const mi = parseInt(document.getElementById('sel-month').value);
   const y  = parseInt(document.getElementById('sel-year').value);
   const d  = parseInt(document.getElementById('sel-day').value);
   const mm = String(mi+1).padStart(2,'0');
-
   if(periodo === 'day') {
-    const res = await fetch(`/api/confirmacoes?data_str=${encodeURIComponent(getDateStr())}`);
+    const res = await fetch(`/api/confirmacoes?data_str=${encodeURIComponent(getDateStr())}${AT_QS}`);
     return res.ok ? await res.json() : [];
   }
-
   // Mês ou semana: busca o mês todo e filtra
-  const res = await fetch(`/api/confirmacoes?mes=${encodeURIComponent(getMesStr())}`);
+  const res = await fetch(`/api/confirmacoes?mes=${encodeURIComponent(getMesStr())}${AT_QS}`);
   let monthData = res.ok ? await res.json() : [];
   // Garante que é do mês/ano certos
   monthData = monthData.filter(r => {
     const m = (r.data_str||'').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     return m && m[2] === mm && parseInt(m[3]) === y;
   });
-
   if(periodo === 'month') return monthData;
-
   // Semana: do domingo ao sábado que contém o dia selecionado
   const base = new Date(y, mi, d);
   const dow = base.getDay();
@@ -766,13 +705,11 @@ async function getRelatorioData(periodo) {
     return dt >= ini && dt <= fim;
   });
 }
-
 // Retorna mapa { TMK_NOME(maiúsculo): LÍDER } a partir dos agendamentos do período
 async function getLideresPorTmk(periodo) {
   const mi = parseInt(document.getElementById('sel-month').value);
   const y  = parseInt(document.getElementById('sel-year').value);
   const d  = parseInt(document.getElementById('sel-day').value);
-
   let appts = [];
   try {
     if(periodo === 'day') {
@@ -794,7 +731,6 @@ async function getLideresPorTmk(periodo) {
       }
     }
   } catch(e) { appts = []; }
-
   const map = {};
   appts.forEach(a => {
     (a.rows||[]).forEach(row => {
@@ -807,13 +743,11 @@ async function getLideresPorTmk(periodo) {
   });
   return map;
 }
-
 // Busca os bairros da PARÁ (comparecimento_data.__bairros__) no período
 async function getBairrosPara(periodo) {
   const mi = parseInt(document.getElementById('sel-month').value);
   const y  = parseInt(document.getElementById('sel-year').value);
   const d  = parseInt(document.getElementById('sel-day').value);
-
   let appts = [];
   try {
     if(periodo === 'day') {
@@ -835,7 +769,6 @@ async function getBairrosPara(periodo) {
       }
     }
   } catch(e) { appts = []; }
-
   const bairrosMap = {};
   appts.forEach(a => {
     const bd = a.comparecimento_data && a.comparecimento_data.__bairros__;
@@ -852,7 +785,6 @@ async function getBairrosPara(periodo) {
     pct: d.ag>0 ? Math.round(d.comp/d.ag*100) : 0
   }));
 }
-
 function _periodoLabel(periodo) {
   if(periodo === 'day')   return getDateStr();
   if(periodo === 'month') return `${getMesStr()}/${document.getElementById('sel-year').value}`;
@@ -867,7 +799,6 @@ function _periodoLabel(periodo) {
   const f = dt => `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
   return `Semana ${f(ini)} a ${f(fim)}`;
 }
-
 async function buildRelatorio() {
   const periodo = document.getElementById('rel-periodo').value;
   if(periodo === 'day') {
@@ -876,11 +807,9 @@ async function buildRelatorio() {
     await buildRelatorioCompleto(periodo);
   }
 }
-
 // ── Modelo SIMPLES (apenas Dia) ──
 async function buildRelatorioDia() {
   const data = await getRelatorioData('day');
-
   const total = data.length;
   const conf  = data.filter(r => r.flag === 'CONFIRMADO').length;
   const canc  = data.filter(r => r.flag === 'CANCELADO').length;
@@ -888,7 +817,6 @@ async function buildRelatorioDia() {
   const exame = data.filter(r => r.flag === 'EXAME REALIZADO').length;
   const pato  = data.filter(r => r.flag === 'PATOLOGIA').length;
   const desist= data.filter(r => r.flag === 'DESISTÊNCIA').length;
-
   const semretTmk = {};
   data.filter(r => r.flag === 'SEM RETORNO').forEach(r => {
     const t = (r.tmk||'').trim() || 'Sem TMK';
@@ -899,16 +827,13 @@ async function buildRelatorioDia() {
     const t = (r.tmk||'').trim() || 'Sem TMK';
     cancTmk[t] = (cancTmk[t]||0) + 1;
   });
-
   const unidade = (document.getElementById('rel-unidade').value || '').trim().toUpperCase();
   const num     = (document.getElementById('rel-num').value || '').trim();
   const atipica = (document.getElementById('rel-atipica').value || '').trim();
   const assinatura = (document.getElementById('rel-assinatura').value || '').trim();
-
   let txt = '';
   txt += `📋 RELATÓRIO${unidade ? ' ' + unidade : ''}\n`;
   txt += `${num ? num + ' ' : ''}RELATÓRIO ${_periodoLabel('day')}\n\n`;
-
   txt += `📌 INDICADORES DO PERÍODO\n`;
   txt += `• Total: ${total}\n`;
   txt += `• Confirmados: ${conf}\n`;
@@ -917,37 +842,30 @@ async function buildRelatorioDia() {
   txt += `• Exame Realizado: ${exame}\n`;
   txt += `• Patologia: ${pato}\n`;
   txt += `• Desistência: ${desist}\n`;
-
   if(atipica) {
     txt += `\n📌 SITUAÇÃO ATÍPICA DO DIA A DIA\n`;
     atipica.split('\n').forEach(l => { if(l.trim()) txt += `• ${l.trim()}\n`; });
   }
-
   const semretEntries = Object.entries(semretTmk).sort((a,b)=>b[1]-a[1]);
   if(semretEntries.length) {
     txt += `\nNúmeros de sem retorno de TMK:\n`;
     semretEntries.forEach(([t,c]) => { txt += `${t}: ${c}\n`; });
   }
-
   const cancEntries = Object.entries(cancTmk).sort((a,b)=>b[1]-a[1]);
   if(cancEntries.length) {
     txt += `\n🚫 CANCELAMENTOS\nTMK\n`;
     cancEntries.forEach(([t,c]) => { txt += `• ${t}: ${c}\n`; });
   }
-
   if(assinatura) {
     txt += `\n-\n${assinatura}\n`;
   }
-
   document.getElementById('rel-preview').value = txt;
 }
-
 // ── Modelo COMPLETO (Semana e Mês) — modelo do relatório real ──
 async function buildRelatorioCompleto(periodo) {
   const data = await getRelatorioData(periodo);
   const lideresPorTmk = await getLideresPorTmk(periodo);
   const bairros = await getBairrosPara(periodo);
-
   // Contagens gerais
   const total   = data.length;
   const conf    = data.filter(r => r.flag === 'CONFIRMADO').length;
@@ -959,7 +877,6 @@ async function buildRelatorioCompleto(periodo) {
   const mabe    = data.filter(r => r.flag === 'MABE' || /campanha\s*mabe/i.test(r.flag||'')).length;
   const unidErr = data.filter(r => r.flag === 'UNIDADE ERRADA');
   const convPct = total>0 ? Math.round((conf/total)*100) : 0;
-
   // Sem retorno agrupado por LÍDER (líder vem do agendamento, cruzado por TMK)
   const semretPorLider = {};
   data.filter(r => r.flag === 'SEM RETORNO').forEach(r => {
@@ -968,30 +885,25 @@ async function buildRelatorioCompleto(periodo) {
     if(!semretPorLider[lider]) semretPorLider[lider] = {};
     semretPorLider[lider][tmk] = (semretPorLider[lider][tmk]||0) + 1;
   });
-
   // Cancelamentos por TMK
   const cancTmk = {};
   data.filter(r => r.flag === 'CANCELADO').forEach(r => {
     const t = (r.tmk||'').trim() || 'Sem TMK';
     cancTmk[t] = (cancTmk[t]||0) + 1;
   });
-
   // Sem retorno por TMK (ranking de "Atenção")
   const semretTmk = {};
   data.filter(r => r.flag === 'SEM RETORNO').forEach(r => {
     const t = (r.tmk||'').trim() || 'Sem TMK';
     semretTmk[t] = (semretTmk[t]||0) + 1;
   });
-
   // Campos livres
   const unidade = (document.getElementById('rel-unidade').value || '').trim().toUpperCase();
   const atipica = (document.getElementById('rel-atipica').value || '').trim();
   const assinatura = (document.getElementById('rel-assinatura').value || '').trim();
-
   // ── Monta o texto ──
   let txt = '';
   txt += `📋 RELATÓRIO – ${unidade || 'UNIDADE'} ${_periodoLabel(periodo)} CONFIRMAÇÃO\n\n`;
-
   txt += `📊 INDICADORES DO PERÍODO\n`;
   txt += `• Agendados: ${total}\n`;
   txt += `• Confirmados: ${conf}\n`;
@@ -1002,12 +914,10 @@ async function buildRelatorioCompleto(periodo) {
   txt += `• Campanha Mabe: ${mabe}\n`;
   txt += `• Conversão: ${convPct}%\n`;
   txt += `• Desistência: ${desist}\n`;
-
   if(atipica) {
     txt += `\n📌 SITUAÇÃO ATÍPICA\n`;
     atipica.split('\n').forEach(l => { if(l.trim()) txt += `• ${l.trim()}\n`; });
   }
-
   // Sem retorno por líder
   const lideres = Object.keys(semretPorLider).sort();
   lideres.forEach(lider => {
@@ -1018,14 +928,12 @@ async function buildRelatorioCompleto(periodo) {
     tmks.forEach(([t,c]) => { txt += `${t}: ${c}\n`; totLider += c; });
     txt += `Total: ${totLider}\n`;
   });
-
   // Cancelados
   const cancEntries = Object.entries(cancTmk).sort((a,b)=>b[1]-a[1]);
   if(cancEntries.length) {
     txt += `\n🚫 CANCELADOS\nTMK\n`;
     cancEntries.forEach(([t,c]) => { txt += `${t}: ${c}\n`; });
   }
-
   // Atenção
   txt += `\n⚠️ ATENÇÃO\n`;
   txt += `OBS: no período tivemos ${canc} cancelamentos e ${semret} sem retorno.\n`;
@@ -1038,7 +946,6 @@ async function buildRelatorioCompleto(periodo) {
     txt += `⚠️ Sem retorno ⚠️\n`;
     semretRank.slice(0,2).forEach(([t,c],i)=>{ txt += `${i+1}º TMK ${t} (${c})\n`; });
   }
-
   // Bairros (Comparecimento da PARÁ)
   if(bairros.length) {
     const ok   = bairros.filter(b => b.pct >= 50).sort((a,b)=>b.pct-a.pct);
@@ -1052,12 +959,10 @@ async function buildRelatorioCompleto(periodo) {
       ruim.forEach((b,i)=>{ txt += `${i+1}º ${b.nome}: ${b.pct}%\n`; });
     }
   }
-
   // Campanha Mabe
   if(mabe > 0) {
     txt += `\n📣 CAMPANHA MABE\n${mabe} Campanha Mabe\n`;
   }
-
   // Unidade Errada
   if(unidErr.length) {
     txt += `\n⚠️ UNIDADE ERRADA\n`;
@@ -1067,17 +972,13 @@ async function buildRelatorioCompleto(periodo) {
       txt += `${cli || tmk || '—'}\n`;
     });
   }
-
   if(assinatura) {
     txt += `\n-\n${assinatura}\n`;
   }
-
   document.getElementById('rel-preview').value = txt;
 }
-
 // ══════════════ EXTRAIR DADOS (Confirmação) ══════════════
 let extractData = null;
-
 function openExtract() {
   document.getElementById('extract-modal').classList.add('show');
   renderExtract();
@@ -1085,28 +986,23 @@ function openExtract() {
 function closeExtract() {
   document.getElementById('extract-modal').classList.remove('show');
 }
-
 async function renderExtract() {
   const periodo = document.getElementById('ext-period').value;
   const body = document.getElementById('extract-body');
   body.innerHTML = '<div class="loading">Carregando...</div>';
   document.getElementById('ext-period-label').textContent = _periodoLabel(periodo);
-
   const data = await getRelatorioData(periodo);
-
   // Contagem por flag
   const flagCount = {};
   FLAGS.forEach(f => flagCount[f.key] = 0);
   data.forEach(r => { if(flagCount[r.flag] !== undefined) flagCount[r.flag]++; });
   const total = data.length;
   const semFlag = data.filter(r => !r.flag).length;
-
   // Indicadores principais
   const conf   = flagCount['CONFIRMADO']||0;
   const canc   = flagCount['CANCELADO']||0;
   const semret = flagCount['SEM RETORNO']||0;
   const convPct = total>0?Math.round((conf/total)*100):0;
-
   // Ranking de TMK: total + confirmados + cada tipo de erro por TMK
   const ERRO_FLAGS = ['UNIDADE ERRADA','REAGENDOU','DESISTÊNCIA','CANCELADO','SEM RETORNO'];
   const tmkMap = {};
@@ -1123,13 +1019,10 @@ async function renderExtract() {
   const tmkRank = Object.entries(tmkMap)
     .map(([nome,d])=>({nome, ...d, taxa: d.total>0?Math.round((d.conf/d.total)*100):0}))
     .sort((a,b)=>b.total-a.total);
-
   extractData = {periodo, label:_periodoLabel(periodo), total, conf, canc, semret, convPct,
                  flagCount, semFlag, tmkRank};
-
   body.innerHTML = buildExtractHTML(total, conf, canc, semret, convPct, flagCount, semFlag, tmkRank);
 }
-
 function buildExtractHTML(total, conf, canc, semret, convPct, flagCount, semFlag, tmkRank) {
   const cards = `
     <div class="ext-cards">
@@ -1138,7 +1031,6 @@ function buildExtractHTML(total, conf, canc, semret, convPct, flagCount, semFlag
       <div class="ext-card"><div class="ext-card-val" style="color:#dc2626">${canc}</div><div class="ext-card-lbl">Cancelados</div></div>
       <div class="ext-card"><div class="ext-card-val" style="color:#fbbf24">${convPct}%</div><div class="ext-card-lbl">Conversão</div></div>
     </div>`;
-
   const maxFlag = Math.max(1, ...FLAGS.map(f=>flagCount[f.key]||0));
   const flagRows = FLAGS.map(f=>{
     const cnt = flagCount[f.key]||0;
@@ -1160,7 +1052,6 @@ function buildExtractHTML(total, conf, canc, semret, convPct, flagCount, semFlag
         <span style="font-size:13px;font-weight:700;color:#71717a;text-align:right">${semFlag}</span>
       </div>
     </div>`;
-
   const medals = ['🥇','🥈','🥉'];
   const errCols = [
     {key:'UNIDADE ERRADA', short:'UN.ERR', color:'#2563eb'},
@@ -1194,10 +1085,8 @@ function buildExtractHTML(total, conf, canc, semret, convPct, flagCount, semFlag
       </table>
       </div>
     </div>`;
-
   return cards + flagBox + tmkTable;
 }
-
 function downloadExtractExcel() {
   if(!extractData) return;
   const {label, total, conf, canc, semret, convPct, flagCount, semFlag, tmkRank} = extractData;
@@ -1220,7 +1109,6 @@ function downloadExtractExcel() {
   a.download = `confirmacao_${label.replace(/[^\w]+/g,'_')}.csv`;
   a.click();
 }
-
 function downloadExtractPDF() {
   if(!extractData) return;
   const {label, total, conf, canc, semret, convPct, flagCount, semFlag, tmkRank} = extractData;
@@ -1264,11 +1152,9 @@ function downloadExtractPDF() {
   win.document.close();
   setTimeout(()=>win.print(), 400);
 }
-
 document.addEventListener('click', e=>{
   if(e.target && e.target.id === 'extract-modal') closeExtract();
 });
-
 async function copyRelatorio() {
   const txt = document.getElementById('rel-preview').value;
   const btn = document.getElementById('rel-copy-btn');
@@ -1285,7 +1171,6 @@ async function copyRelatorio() {
     showToast('Selecione e copie (Ctrl+C).', 'error');
   }
 }
-
 // ── Colar da Planilha ──────────────────────────────────────────────────────
 function openPasteModal() {
   document.getElementById('paste-textarea').value = '';
@@ -1294,18 +1179,15 @@ function openPasteModal() {
   setTimeout(()=>document.getElementById('paste-textarea').focus(), 100);
 }
 function closePasteModal() { document.getElementById('modal-paste').classList.remove('show'); }
-
 document.addEventListener('DOMContentLoaded', () => {
   const ta = document.getElementById('paste-textarea');
   if(ta) ta.addEventListener('input', previewPaste);
 });
-
 function previewPaste() {
   const text = document.getElementById('paste-textarea').value.trim();
   if(!text) return;
   const rows = parsePasteText(text);
   if(rows.length === 0) return;
-
   // Monta preview em tabela
   const tbody = document.getElementById('paste-preview-body');
   tbody.innerHTML = rows.map((r,i) => `<tr style="background:${i%2===0?'#141414':'#1a1a1a'}">
@@ -1317,14 +1199,12 @@ function previewPaste() {
     <td style="padding:5px 10px;color:#d4d4d8;white-space:nowrap">${esc(r.horario)}</td>
     <td style="padding:5px 10px;color:#d4d4d8;white-space:nowrap">${esc(r.contato)}</td>
   </tr>`).join('');
-
   document.getElementById('paste-preview-info').textContent = `✅ ${rows.length} linha(s) detectada(s) — confira abaixo e clique em Importar.`;
   document.getElementById('paste-count').textContent = `(${rows.length})`;
   document.getElementById('paste-step1').style.display = 'none';
   document.getElementById('paste-step2').style.display = '';
   document.getElementById('btn-paste-confirm').style.display = '';
 }
-
 function resetPaste() {
   document.getElementById('paste-step1').style.display = '';
   document.getElementById('paste-step2').style.display = 'none';
@@ -1332,13 +1212,11 @@ function resetPaste() {
   document.getElementById('paste-textarea').value = '';
   document.getElementById('paste-textarea').focus();
 }
-
 function parsePasteText(text) {
   const lines = text.split(/\r?\n/).filter(l=>l.trim());
   const dataStr = getDateStr(); // DD/MM/YYYY
   const mes     = getMesStr();
   const year    = document.getElementById('sel-year').value;
-
   function normalizeDate(d) {
     if(!d) return dataStr;
     // Remove aspas e espaços
@@ -1354,7 +1232,6 @@ function parsePasteText(text) {
     }
     return dataStr;
   }
-
   return lines.map(line => {
     const cols = line.split('\t').map(c=>c.trim());
     if(cols.length >= 7) {
@@ -1367,19 +1244,18 @@ function parsePasteText(text) {
              horario: cols[3]||'', contato: cols[4]||'', flag: '' };
   }).filter(r => r.cliente || r.contato);
 }
-
 async function confirmPaste() {
   const text = document.getElementById('paste-textarea').value.trim();
   if(!text) { showToast('Cole algum dado antes de importar.','error'); return; }
   const rows = parsePasteText(text);
   if(rows.length === 0) { showToast('Nenhuma linha válida encontrada.','error'); return; }
-
   const btn = document.querySelector('#modal-paste .btn-primary');
   btn.disabled = true; btn.textContent = 'Importando...';
   try {
+    // Envia também a atendente atual — assim os dados colados ficam SÓ dela.
     const res = await fetch('/api/confirmacoes/bulk', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({rows})
+      body: JSON.stringify({rows, atendente: ATENDENTE})
     });
     const data = await res.json();
     if(!res.ok) { showToast(data.error||'Erro ao importar.','error'); return; }
@@ -1390,18 +1266,15 @@ async function confirmPaste() {
     btn.disabled = false; btn.textContent = '✅ Importar';
   }
 }
-
 function esc(s) {
   return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
-
 // Inicialização direta (garante que roda independente do base)
 document.addEventListener('DOMContentLoaded', () => {
   const now = new Date();
   document.getElementById('sel-month').value = now.getMonth();
   document.getElementById('sel-year').value  = now.getFullYear();
   document.getElementById('sel-day').value   = now.getDate();
-
   const selFlag = document.getElementById('filter-flag');
   if(selFlag.options.length <= 1) {
     FLAGS.forEach(f => {
@@ -1412,7 +1285,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   loadDay();
 });
-
 // Detecta Ctrl+V na página e abre modal de paste
 document.addEventListener('paste', (e) => {
   const active = document.activeElement;
