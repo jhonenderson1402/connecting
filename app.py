@@ -158,6 +158,15 @@ def login():
             return redirect(next_url)
         error = 'Usuário ou senha incorretos.'
     return render_template('login.html', error=error)
+@app.route('/api/stats_publicas')
+def api_stats_publicas():
+    """Rota PÚBLICA (sem login) para a landing. Devolve apenas 3 totais somados
+    (leads, agendamentos, comparecimentos), sem expor nenhum dado individual."""
+    try:
+        return jsonify(db.get_stats_publicas())
+    except Exception:
+        # Se algo falhar, devolve zeros em vez de erro (a landing é pública)
+        return jsonify({'leads': 0, 'agendamentos': 0, 'comparecimentos': 0})
 @app.route('/logout')
 def logout():
     session.clear()
@@ -578,6 +587,39 @@ def api_bulk_confirmacoes():
                 r['atendente'] = at
     db.bulk_insert_confirmacoes(rows)
     return jsonify({'ok': True, 'count': len(rows)}), 201
+# ── API: Metas ────────────────────────────────────────────────────────────────
+@app.route('/api/metas', methods=['GET'])
+@login_required
+def api_get_metas():
+    try:
+        ano = int(request.args.get('ano'))
+        mes = int(request.args.get('mes'))
+    except (TypeError, ValueError):
+        return _err('Informe ano e mes válidos.')
+    if not (1 <= mes <= 12) or not (1900 <= ano <= 2999):
+        return _err('Ano ou mês fora do intervalo.')
+    return jsonify(db.get_metas(ano, mes))
+@app.route('/api/metas', methods=['POST'])
+@login_required
+def api_save_metas():
+    data = request.get_json(silent=True) or {}
+    try:
+        ano = int(data.get('ano'))
+        mes = int(data.get('mes'))
+    except (TypeError, ValueError):
+        return _err('Informe ano e mes válidos.')
+    if not (1 <= mes <= 12) or not (1900 <= ano <= 2999):
+        return _err('Ano ou mês fora do intervalo.')
+    metas = data.get('metas', [])
+    if not isinstance(metas, list):
+        return _err('metas deve ser uma lista.')
+    # Valida unidades
+    for m in metas:
+        u = m.get('unidade')
+        if u not in UNITS:
+            return _err(f'Unidade inválida nas metas: {u}')
+    db.bulk_upsert_metas(ano, mes, metas)
+    return jsonify({'ok': True, 'count': len(metas)})
 @app.route('/api/users/<int:uid>/role', methods=['POST'])
 @admin_required
 def api_set_user_role(uid):
