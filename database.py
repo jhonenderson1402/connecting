@@ -100,6 +100,21 @@ class Confirmacao(Base):
         Index('idx_conf_data', 'data_str'),
         Index('idx_conf_atendente', 'atendente'),
     )
+class Meta(Base):
+    __tablename__ = 'metas'
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    ano        = Column(Integer, nullable=False)
+    mes        = Column(Integer, nullable=False)          # 1 a 12
+    unidade    = Column(String(100), nullable=False)      # PARÁ, MANAUS, etc.
+    bairro     = Column(String(120), default='')          # só para a PARÁ; vazio nas demais
+    meta_agend = Column(Integer, default=0)
+    meta_comp  = Column(Integer, default=0)
+    meta_conv  = Column(Integer, default=0)               # porcentagem 0-100
+    updated_at = Column(String(40), default='')
+    __table_args__ = (
+        UniqueConstraint('ano', 'mes', 'unidade', 'bairro', name='uq_meta_periodo'),
+        Index('idx_meta_mes', 'ano', 'mes'),
+    )
 # ---- Inicializacao ----------------------------------------------------------
 def init_db():
     """Cria tabelas e indices se ainda nao existirem. Idempotente.
@@ -134,6 +149,9 @@ def _run_migrations():
             print("[migration] Coluna 'atendente' adicionada à tabela confirmacoes.")
         except Exception:
             pass  # Coluna já existe, ignora
+        # Migração 3: cria a tabela 'metas' se não existir (Base.metadata.create_all já cobre,
+        # mas garantimos aqui para bancos que rodaram create_all antes deste modelo existir).
+        # Nada a fazer além do create_all; deixado como marcador.
 def ensure_default_admin():
     """Se nao houver nenhum usuario, cria o admin inicial (papel 'admin')."""
     import secrets
@@ -368,3 +386,111 @@ def clear_confirmacoes_dia(data_str, atendente=None):
             q = q.where(Confirmacao.atendente == atendente)
         s.execute(q)
         s.commit()
+# ---- Metas ------------------------------------------------------------------
+def _meta_to_dict(m):
+    return {
+        'id': m.id, 'ano': m.ano, 'mes': m.mes,
+        'unidade': m.unidade, 'bairro': m.bairro or '',
+        'meta_agend': m.meta_agend or 0,
+        'meta_comp': m.meta_comp or 0,
+        'meta_conv': m.meta_conv or 0,
+        'updated_at': m.updated_at or '',
+    }
+def get_metas(ano, mes):
+    """Retorna todas as metas de um mês/ano (todas as unidades e bairros)."""
+    with SessionLocal() as s:
+        rows = s.scalars(
+            select(Meta).where(and_(Meta.ano == ano, Meta.mes == mes))
+        ).all()
+        return [_meta_to_dict(r) for r in rows]
+def upsert_meta(ano, mes, unidade, bairro, meta_agend, meta_comp, meta_conv):
+    """Cria ou atualiza a meta de uma unidade/bairro para um mês/ano."""
+    bairro = bairro or ''
+    now = datetime.utcnow().isoformat()
+    with SessionLocal() as s:
+        existing = s.scalar(select(Meta).where(and_(
+            Meta.ano == ano, Meta.mes == mes,
+            Meta.unidade == unidade, Meta.bairro == bairro
+        )))
+        if existing:
+            s.execute(
+                update(Meta).where(Meta.id == existing.id).values(
+                    meta_agend=meta_agend, meta_comp=meta_comp,
+                    meta_conv=meta_conv, updated_at=now
+                )
+            )
+        else:
+            s.add(Meta(
+                ano=ano, mes=mes, unidade=unidade, bairro=bairro,
+                meta_agend=meta_agend, meta_comp=meta_comp,
+                meta_conv=meta_conv, updated_at=now
+            ))
+        s.commit()
+def bulk_upsert_metas(ano, mes, metas_list):
+    """Salva várias metas de uma vez (cada item: unidade, bairro, meta_agend, meta_comp, meta_conv)."""
+    now = datetime.utcnow().isoformat()
+    with SessionLocal() as s:
+        for m in metas_list:
+            unidade = m.get('unidade', '')
+            bairro  = m.get('bairro', '') or ''
+            if not unidade:
+                continue
+            ag   = int(m.get('meta_agend') or 0)
+            comp = int(m.get('meta_comp') or 0)
+            conv = int(m.get('meta_conv') or 0)
+            existing = s.scalar(select(Meta).where(and_(
+                Meta.ano == ano, Meta.mes == mes,
+                Meta.unidade == unidade, Meta.bairro == bairro
+            )))
+            if existing:
+                s.execute(
+                    update(Meta).where(Meta.id == existing.id).values(
+                        meta_agend=ag, meta_comp=comp, meta_conv=conv, updated_at=now
+                    )
+                )
+            else:
+                s.add(Meta(
+                    ano=ano, mes=mes, unidade=unidade, bairro=bairro,
+                    meta_agend=ag, meta_comp=comp, meta_conv=conv, updated_at=now
+                ))
+        s.commit()
+# ---- Estatísticas públicas (para a landing) ---------------------------------
+def get_stats_publicas():
+    """Retorna os totais gerais (todos os tempos) para exibir na landing pública:
+    leads recebidos, agendamentos feitos e comparecimentos.
+    Não expõe nenhum dado individual — apenas os 3 totais somados."""
+    LEADS_PREFIX = "LEADS::"
+    LEAD_KEYS = ['wbp_lead', 'vbot_lead', 'antigos_lead', 'mkt_lead', 'whats_lead', 'mabe_lead']
+    total_leads = 0
+    total_agend = 0
+    total_comp = 0
+    with SessionLocal() as s:
+        rows = s.scalars(select(Appointment)).all()
+        for a in rows:
+            unit = a.unit or ''
+            rows_list = _safe_json_loads(a.rows, [])
+            if unit.startswith(LEADS_PREFIX):
+                # Linhas de leads: soma as chaves de lead de cada pessoa
+                for r in rows_list:
+                    lead_data = (r.get('lead') or {}) if isinstance(r, dict) else {}
+                    total_leads += sum(int(lead_data.get(k) or 0) for k in LEAD_KEYS)
+            else:
+                # Agendamentos normais: soma os slots das pessoas com nome
+                for r in rows_list:
+                    if isinstance(r, dict) and (r.get('name') or '').strip():
+                        slots = r.get('slots') or {}
+                        for v in slots.values():
+                            try:
+                                total_agend += int(v or 0)
+                            except (ValueError, TypeError):
+                                pass
+                # Comparecimentos: soma comparecimento_data (ignora __bairros__)
+                comp_data = _safe_json_loads(a.comparecimento_data, {})
+                for k, v in comp_data.items():
+                    if k == '__bairros__':
+                        continue
+                    try:
+                        total_comp += int(v or 0)
+                    except (ValueError, TypeError):
+                        pass
+    return {'leads': total_leads, 'agendamentos': total_agend, 'comparecimentos': total_comp}
