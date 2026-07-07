@@ -89,9 +89,9 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
 .visual{height:320px;border-radius:18px;border:1px solid rgba(251,191,36,.22);font-size:84px;display:flex;align-items:center;justify-content:center;box-shadow:0 20px 50px rgba(0,0,0,.45);background:radial-gradient(circle at 32% 30%, rgba(251,191,36,.14), transparent 60%),linear-gradient(135deg,#11172a,#0a0e1a);overflow:hidden;}
 .visual img{width:100%;height:100%;object-fit:cover;display:block;border-radius:18px;}
 .visual video{width:100%;height:100%;object-fit:cover;display:block;border-radius:18px;background:#0a0e1a;}
-/* Área quando é embed do Instagram: altura automática, sem cortar o post */
-.visual-insta{height:auto;min-height:0;padding:0;background:transparent;border:none;box-shadow:none;display:block;overflow:visible;}
-.visual-insta .instagram-media{margin:0 auto!important;max-width:100%!important;min-width:0!important;border-radius:18px!important;}
+/* Área quando é embed do Instagram: cartão emoldurado e centralizado */
+.visual-insta{height:auto;min-height:0;padding:14px;background:linear-gradient(135deg,#11172a,#0a0e1a);border:1px solid rgba(251,191,36,.22);border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.visual-insta .instagram-media{margin:0 auto!important;max-width:328px!important;width:100%!important;min-width:0!important;border-radius:14px!important;box-shadow:0 8px 24px rgba(0,0,0,.4)!important;}
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
 .card{background:var(--panel);border:1px solid var(--panel-bd);border-radius:16px;padding:30px 26px;transition:all .25s;}
 .card:hover{border-color:rgba(251,191,36,.4);transform:translateY(-5px);}
@@ -275,7 +275,7 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
 <section class="block" id="infra">
   <div class="wrap reveal">
     <div class="sec-head"><div class="acc"></div><h2>Infraestrutura Exclusiva de Vendas</h2></div>
-    <div class="two-col">
+    <div class="two-col" style="align-items:flex-start">
       <div>
         <div class="lead">Call Center &amp; Vendas Focadas</div>
         <p class="body-txt">Nossa equipe é especializada em converter leads em faturamento ativo todos os dias. Unimos inteligência emocional com tecnologia de ponta no telefone.</p>
