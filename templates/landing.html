@@ -22,7 +22,6 @@ html{scroll-behavior:smooth;}
 body{font-family:'DM Sans',sans-serif;background-color:var(--bg);background-image:linear-gradient(rgba(8,8,14,0.82),rgba(8,8,14,0.88)),url('/static/FUNDO_SITE.jpg');background-repeat:no-repeat,repeat-y;background-size:cover,100% auto;background-position:center top,center top;color:var(--txt);overflow-x:hidden;}
 .wrap{max-width:1000px;margin:0 auto;padding:0 24px;}
 a{text-decoration:none;color:inherit;}
-
 /* Navbar */
 .nav{position:fixed;top:0;left:0;right:0;z-index:100;transition:all .3s;border-bottom:1px solid transparent;}
 .nav.scrolled{background:rgba(8,11,18,0.92);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom-color:var(--panel-bd);}
@@ -37,14 +36,12 @@ a{text-decoration:none;color:inherit;}
 .btn-cta:hover{box-shadow:0 6px 28px rgba(240,165,0,.5);transform:translateY(-1px);}
 .btn-ghost{display:inline-flex;align-items:center;gap:7px;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--gold);border:1px solid rgba(251,191,36,.4);padding:10px 20px;border-radius:9px;transition:all .2s;background:transparent;cursor:pointer;}
 .btn-ghost:hover{background:rgba(251,191,36,.1);}
-
 /* Strip */
 .strip{background:rgba(251,191,36,0.06);border-top:1px solid rgba(251,191,36,.12);border-bottom:1px solid rgba(251,191,36,.12);margin-top:72px;}
 .strip-in{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;padding:10px 16px;font-size:13px;color:#d9c89a;}
 .strip .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 0 rgba(34,197,94,.5);animation:pulse 2s infinite;flex-shrink:0;}
 .strip .sep{color:rgba(255,255,255,.25);}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.5);}70%{box-shadow:0 0 0 7px rgba(34,197,94,0);}100%{box-shadow:0 0 0 0 rgba(34,197,94,0);}}
-
 /* Hero */
 .hero{position:relative;overflow:hidden;padding:80px 0 60px;}
 .hero::before{content:"";position:absolute;top:0;left:0;right:0;bottom:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 60% 50%, rgba(240,165,0,0.18), transparent 65%),radial-gradient(ellipse at 10% 80%, rgba(251,191,36,0.06), transparent 50%);}
@@ -62,13 +59,11 @@ a{text-decoration:none;color:inherit;}
 .hstat:last-child{border-right:none;}
 .hstat-val{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--gold);line-height:1;}
 .hstat-lbl{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.3;}
-
 /* Lado direito do hero: GLOBO 3D + logo fixo na frente */
 .hero-right{position:relative;display:flex;align-items:center;justify-content:center;}
 .globe-wrap{position:relative;width:min(380px,90%);aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;margin:0 auto;}
 .globe-wrap canvas{display:block;width:100%;height:100%;}
 .globe-logo{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;pointer-events:none;width:58%;height:auto;filter:drop-shadow(0 4px 24px rgba(0,0,0,.85));}
-
 /* Features */
 .features{padding:0 0 80px;}
 .features-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;}
@@ -78,7 +73,6 @@ a{text-decoration:none;color:inherit;}
 .feat-card h3{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:#fff;margin-bottom:8px;}
 .feat-card p{color:#8a93a8;font-size:13.5px;line-height:1.55;}
 .feat-arrow{margin-top:16px;color:var(--gold);font-size:18px;display:block;}
-
 /* Seções */
 section.block{padding:90px 0;position:relative;}
 section.block:nth-child(even){background:rgba(11,15,26,0.70);}
@@ -112,6 +106,34 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
 .mini{border:1px solid var(--panel-bd);border-left:3px solid var(--gold);border-radius:10px;padding:16px 18px;background:var(--panel);}
 .mini h4{color:var(--gold);font-size:15px;margin-bottom:6px;font-family:'Syne',sans-serif;}
 .mini p{color:#aab2c0;font-size:13px;line-height:1.5;}
+/* ── Fluxo da jornada do cliente (substitui as barras de conversão) ─────────── */
+.flow-intro{text-align:center;margin-bottom:34px;}
+.flow-intro .lead{margin-bottom:8px;}
+.flow-intro p{color:#c7cdd8;font-size:16px;line-height:1.6;max-width:640px;margin:0 auto;}
+.flow{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:nowrap;}
+.flow-step{flex:1 1 0;min-width:0;background:var(--panel);border:1px solid var(--panel-bd);border-radius:14px;padding:20px 10px;text-align:center;transition:all .25s;}
+.flow-step:hover{transform:translateY(-4px);}
+.flow-step .fi{width:46px;height:46px;margin:0 auto 12px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:24px;}
+.flow-step .ft{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:#fff;margin-bottom:5px;line-height:1.2;}
+.flow-step .fd{color:#8a93a8;font-size:12px;line-height:1.4;}
+.flow-step.s-leads{border-color:rgba(59,130,246,.35);}
+.flow-step.s-leads .fi{background:rgba(59,130,246,.12);color:#60a5fa;}
+.flow-step.s-comp{border-color:rgba(34,197,94,.35);}
+.flow-step.s-comp .fi{background:rgba(34,197,94,.12);color:#4ade80;}
+.flow-step.s-vendas{border-color:rgba(168,85,247,.5);background:rgba(168,85,247,0.04);}
+.flow-step.s-vendas .fi{background:rgba(168,85,247,.15);color:#c084fc;}
+/* Par empilhado (Agendamento + Triagem) */
+.flow-pair{flex:1.15 1 0;min-width:0;display:flex;flex-direction:column;gap:7px;}
+.flow-mini{background:var(--panel);border:1px solid var(--panel-bd);border-radius:12px;padding:11px 8px;text-align:center;transition:all .2s;}
+.flow-mini:hover{transform:translateY(-2px);}
+.flow-mini .fmi{font-size:18px;display:block;margin-bottom:3px;}
+.flow-mini .fmt{font-family:'Syne',sans-serif;font-weight:700;font-size:12.5px;color:#fff;line-height:1.15;}
+.flow-mini .fmd{color:#8a93a8;font-size:10.5px;line-height:1.3;margin-top:1px;}
+.flow-mini.m-agend{border-color:rgba(251,191,36,.35);}
+.flow-mini.m-agend .fmi{color:var(--gold);}
+.flow-mini.m-triagem{border-color:rgba(244,114,182,.35);}
+.flow-mini.m-triagem .fmi{color:#f9a8d4;}
+.flow-arrow{flex:0 0 auto;color:var(--gold);font-size:20px;line-height:1;padding:0 1px;}
 .bars{display:flex;flex-direction:column;gap:22px;}
 .bar-row{display:grid;grid-template-columns:230px 1fr;gap:20px;align-items:center;}
 .bar-row .name{text-align:right;font-weight:700;font-size:15px;color:#c7cdd8;}
@@ -124,7 +146,6 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
 .foot{padding:30px 0;border-top:1px solid var(--panel-bd);text-align:center;color:#5b6273;font-size:13px;}
 .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease, transform .7s ease;}
 .reveal.in{opacity:1;transform:none;}
-
 /* Mapa */
 .map-panel{height:360px;border-radius:18px;border:1px solid rgba(251,191,36,.22);overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.45);}
 .leaflet-container{background:#0a0e1a;font-family:'DM Sans',sans-serif;}
@@ -156,7 +177,6 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
 .contact-card .info span{color:var(--muted);font-size:13px;}
 .contact-card .go{margin-left:auto;color:#5b6273;font-size:15px;}
 .contact-card:hover .go{color:var(--gold);}
-
 /* Responsivo */
 @media(max-width:960px){
   .hero-grid{grid-template-columns:1fr;gap:40px;text-align:center;}
@@ -180,11 +200,19 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
   .visual{height:200px;}
   .map-panel{height:280px;}
   .hero-stats{grid-template-columns:repeat(2,1fr);}
+  /* Fluxo continua horizontal no celular, só encolhe */
+  .flow{gap:3px;}
+  .flow-step{padding:14px 5px;}
+  .flow-step .fi{width:36px;height:36px;font-size:18px;margin-bottom:8px;}
+  .flow-step .ft{font-size:11.5px;}
+  .flow-step .fd{font-size:9.5px;}
+  .flow-mini .fmt{font-size:10.5px;}
+  .flow-mini .fmd{font-size:9px;}
+  .flow-arrow{font-size:15px;}
 }
 </style>
 </head>
 <body>
-
 <nav class="nav" id="nav">
   <div class="wrap nav-in">
     <div class="nav-links">
@@ -197,7 +225,6 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
     <a href="/login" class="btn-cta">👤 Login →</a>
   </div>
 </nav>
-
 <div class="strip" id="top">
   <div class="wrap strip-in">
     <span class="dot"></span> Operação ativa em 5 estados
@@ -205,7 +232,6 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
     <span class="sep">•</span> Nota 5.0 no Google (+3.700 avaliações)
   </div>
 </div>
-
 <header class="hero">
   <div class="wrap">
     <div class="hero-grid">
@@ -232,7 +258,6 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
     </div>
   </div>
 </header>
-
 <section class="features">
   <div class="wrap">
     <div class="features-grid reveal">
@@ -243,7 +268,6 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
     </div>
   </div>
 </section>
-
 <section class="block" id="infra">
   <div class="wrap reveal">
     <div class="sec-head"><div class="acc"></div><h2>Infraestrutura Exclusiva de Vendas</h2></div>
@@ -261,7 +285,6 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
     </div>
   </div>
 </section>
-
 <section class="block" id="tech">
   <div class="wrap reveal">
     <div class="sec-head"><div class="acc"></div><h2>Nosso Ecossistema de Tecnologia</h2></div>
@@ -272,7 +295,6 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
     </div>
   </div>
 </section>
-
 <section class="block">
   <div class="wrap reveal">
     <div class="sec-head"><div class="acc"></div><h2>Caso de Sucesso: Instituto Visão Perfeita</h2></div>
@@ -289,19 +311,48 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
     </div>
   </div>
 </section>
-
 <section class="block" id="conversao">
   <div class="wrap reveal">
-    <div class="sec-head"><div class="acc"></div><h2>Aumento de Conversão com a Connecting</h2></div>
-    <div class="bars">
-      <div class="bar-row"><div class="name">Call Center Comum</div><div class="bar-track"><div class="bar-fill bar-grey" style="--w:35%">35% de Contato Útil</div></div></div>
-      <div class="bar-row"><div class="name">Operação de Vendas Tradicional</div><div class="bar-track"><div class="bar-fill bar-grey" style="--w:55%">55% de Agendamentos</div></div></div>
-      <div class="bar-row"><div class="name">Connecting Sales</div><div class="bar-track"><div class="bar-fill bar-gold" style="--w:95%">95% Conversão &amp; Alta Performance</div></div></div>
+    <div class="sec-head"><div class="acc"></div><h2>A Visão Perfeita do Processo</h2></div>
+    <div class="flow-intro">
+      <div class="lead">Do primeiro contato ao fechamento</div>
+      <p>A Connecting acompanha o cliente do começo ao fim: cada lead que entra é conduzido por um processo completo, sem perder ninguém pelo caminho.</p>
     </div>
-    <p class="cap">A nossa metodologia exclusiva com discagem preditiva e treinamento voltado para persuasão por telefone garante até 3x mais fechamentos que operações internas convencionais.</p>
+    <div class="flow">
+      <div class="flow-step s-leads">
+        <div class="fi">📥</div>
+        <div class="ft">Leads Recebidos</div>
+        <div class="fd">A entrada de cada contato</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-pair">
+        <div class="flow-mini m-agend">
+          <span class="fmi">📅</span>
+          <div class="fmt">Agendamento</div>
+          <div class="fmd">Do projeto</div>
+        </div>
+        <div class="flow-mini m-triagem">
+          <span class="fmi">🩺</span>
+          <div class="fmt">Triagem</div>
+          <div class="fmd">Pacientes com patologia</div>
+        </div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step s-comp">
+        <div class="fi">✅</div>
+        <div class="ft">Comparecimento</div>
+        <div class="fd">Confirmação de presença</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step s-vendas">
+        <div class="fi">🏆</div>
+        <div class="ft">Vendas</div>
+        <div class="fd">O fechamento do processo</div>
+      </div>
+    </div>
+    <p class="cap">Um fluxo único e integrado: leads viram agendamentos, a triagem cuida dos pacientes com patologia, o comparecimento é acompanhado de perto e tudo se converte em vendas — o cliente acompanhado do começo ao fim.</p>
   </div>
 </section>
-
 <section class="block" id="presenca">
   <div class="wrap reveal">
     <div class="sec-head"><div class="acc"></div><h2>Presença e Expansão Estratégica</h2></div>
@@ -336,7 +387,6 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
     </div>
   </div>
 </section>
-
 <section class="block" id="contato">
   <div class="wrap reveal" style="text-align:center">
     <h2 style="font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(28px,4.5vw,52px);color:var(--gold)">Trabalhe Conosco / Parcerias</h2>
@@ -360,9 +410,7 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
     </div>
   </div>
 </section>
-
 <div class="foot">© Connecting — Transformando Contato em Conexão.</div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -403,11 +451,9 @@ section.block:nth-child(even){background:rgba(11,15,26,0.70);}
   animate();
   window.addEventListener('resize', function(){ const s = wrap.clientWidth; renderer.setSize(s,s); });
 })();
-
 // Navbar scroll
 const nav = document.getElementById('nav');
 window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 40));
-
 // Reveal
 const io = new IntersectionObserver((entries) => {
   entries.forEach(e => {
@@ -420,7 +466,6 @@ const io = new IntersectionObserver((entries) => {
   });
 }, {threshold:0.12});
 document.querySelectorAll('.reveal').forEach(el => io.observe(el));
-
 // Mapa
 const UNIDADES = [
   {n:'Aug. Montenegro (Belém/PA)', lat:-1.3460849, lng:-48.452269},
