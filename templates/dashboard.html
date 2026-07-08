@@ -557,7 +557,7 @@ function renderLeaderRanking() {
   UNITS.forEach(u => leaderNames[u] = {});
 
   allAppointments.forEach(appt => {
-    const leader = appt.leader?.trim();
+    const leader = (appt.leader || '').trim().toUpperCase();
     if (!leader) return;
 
     // Determina a unidade correta da líder
