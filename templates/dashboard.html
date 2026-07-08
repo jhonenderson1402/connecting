@@ -703,7 +703,7 @@ function _buildLeaderRank(appts, leadsTmk) {
   const map = {};       // leader -> {ag, comp, unit}
   const names = {};     // leader -> Set(nomes)
   appts.forEach(appt=>{
-    const leader = appt.leader?.trim();
+    const leader = (appt.leader || '').trim().toUpperCase();
     if(!leader) return;
     const unit = employeeUnitMap[leader.toLowerCase()] || appt.unit;
     if(!map[leader]) { map[leader] = {ag:0, comp:0, unit}; names[leader] = new Set(); }
