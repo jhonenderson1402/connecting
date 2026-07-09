@@ -162,7 +162,7 @@
         a.href = '/unit/' + encodeURIComponent(u);
         a.className = 'nav-item';
         a.dataset.path = '/unit/' + encodeURIComponent(u);
-        const _uf = {'PARÁ':'PA','MANAUS':'AM','MANOA':'AM','SÃO LUIZ':'MA','FORTALEZA':'CE'}[u]; a.innerHTML = '<span class="nav-icon">' + (_uf ? '<span style="display:inline-block;width:17px;height:17px;background:currentColor;-webkit-mask:url(/static/'+_uf+'.svg) center/contain no-repeat;mask:url(/static/'+_uf+'.svg) center/contain no-repeat;vertical-align:-3px"></span>' : '') + '</span> ' + u;
+        const _uf = {'PARÁ':'PA','MANAUS':'AM','MANOA':'AM','SÃO LUIZ':'MA','FORTALEZA':'CE'}[u]; a.innerHTML = '<span class="nav-icon">' + (_uf ? '<span style="display:inline-block;width:17px;height:17px;background:currentColor;-webkit-mask:url(/static/'+_uf+'.svg) center/contain no-repeat;mask:url(/static/'+_uf+'.svg) center/contain no-repeat;vertical-align:-3px"></span>' : '🏢') + '</span> ' + u;
         container.appendChild(a);
       });
       highlightNav();
