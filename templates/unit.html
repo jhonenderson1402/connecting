@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 {% set _uf = {'PARÁ':'PA','MANAUS':'AM','MANOA':'AM','SÃO LUIZ':'MA','FORTALEZA':'CE'}.get(unit) %}
-{% if _uf %}<style>.table-card{position:relative;}.table-card::before{content:'';position:absolute;inset:0;background:url('/static/{{ _uf }}.svg') center/contain no-repeat;opacity:.13;pointer-events:none;z-index:0;}.table-wrap{position:relative;z-index:1;}#schedule-table tbody td{background:transparent !important;}#schedule-table tbody tr.row-alt td{background:rgba(255,255,255,.03) !important;}#schedule-table tbody tr:hover td{background:rgba(255,255,255,.06) !important;}</style>{% endif %}
+{% if _uf %}<style>.table-card{position:relative;}.table-card::before{content:'';position:absolute;inset:0;background:url('/static/{{ _uf }}.svg') center/contain no-repeat;opacity:.33;pointer-events:none;z-index:0;}.table-wrap{position:relative;z-index:1;}#schedule-table tbody td{background:rgba(20,20,20,.6) !important;}#schedule-table tbody tr.row-alt td{background:rgba(26,26,26,.6) !important;}#schedule-table tbody tr:hover td{background:rgba(34,34,34,.72) !important;}</style>{% endif %}
 
 <style>
 /* ─────────────────────────────────────────────────────────────────
