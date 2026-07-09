@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
+{% set _uf = {'PARÁ':'PA','MANAUS':'AM','MANOA':'AM','SÃO LUIZ':'MA','FORTALEZA':'CE'}.get(unit) %}
+{% if _uf %}<style>.uf-watermark{position:fixed;top:0;left:var(--sidebar-w);right:0;bottom:0;background-image:url('/static/{{ _uf }}.svg');background-repeat:no-repeat;background-position:center;background-size:min(58vh,500px);opacity:.06;pointer-events:none;z-index:0;}.page-content{position:relative;z-index:1;}</style><div class="uf-watermark" aria-hidden="true"></div>{% endif %}
 
 <style>
 /* ─────────────────────────────────────────────────────────────────
