@@ -691,7 +691,7 @@ function renderTable() {
       <td>${dateStr}</td>
       <td>
         <input class="cell-input" style="font-size:10px;text-transform:uppercase"
-          value="${escapeHtml(row.leader||leader||'')}"
+          value="${escapeHtml(row.leader||'')}"
           placeholder="—"
           onchange="rowLeaderChange(${i}, this.value)"
           title="Líder desta linha"/>
