@@ -454,7 +454,7 @@ function renderUnitsGrid() {
 
     const card = document.createElement('a');
     card.href = '/unit/' + encodeURIComponent(unit);
-    card.className = 'unit-card';
+    const _uf = {'PARÁ':'PA','MANAUS':'AM','MANOA':'AM','SÃO LUIZ':'MA','FORTALEZA':'CE'}[unit];
     card.innerHTML = `
       <div class="unit-card-header">
         <div class="unit-icon-wrap">${_uf ? '<span style="display:inline-block;width:20px;height:20px;background:var(--primary);-webkit-mask:url(/static/'+_uf+'.svg) center/contain no-repeat;mask:url(/static/'+_uf+'.svg) center/contain no-repeat"></span>' : '<span>🏢</span>'}</div>
