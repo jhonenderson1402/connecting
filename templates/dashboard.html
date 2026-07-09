@@ -457,7 +457,7 @@ function renderUnitsGrid() {
     card.className = 'unit-card';
     card.innerHTML = `
       <div class="unit-card-header">
-        <div class="unit-icon-wrap"><span>🏢</span></div>
+        <div class="unit-icon-wrap">${_uf ? '<span style="display:inline-block;width:20px;height:20px;background:var(--primary);-webkit-mask:url(/static/'+_uf+'.svg) center/contain no-repeat;mask:url(/static/'+_uf+'.svg) center/contain no-repeat"></span>' : '<span>🏢</span>'}</div>
         <div>
           <div class="unit-name">${unit}</div>
           ${leader?`<div class="unit-leader">Líder: ${leader}</div>`:''}
