@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
+<script>
+(function(){
+  function saveInFlight(){ var b=document.getElementById("saving-badge"); if(!b) return false; return getComputedStyle(b).display!=="none"; }
+  function editing(){ var a=document.activeElement; return a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && a.closest && a.closest("#schedule-table"); }
+  function ddOpen(){ return !!document.querySelector(".name-dd-menu.open"); }
+  function tick(){ if(typeof loadAppointment!=="function") return; if(document.hidden) return; if(editing()||saveInFlight()||ddOpen()) return; try{ loadAppointment(); }catch(e){} }
+  setInterval(tick, 5000);
+})();
+</script>
+
 {% set _uf = {'PARÁ':'PA','MANAUS':'AM','MANOA':'AM','SÃO LUIZ':'MA','FORTALEZA':'CE'}.get(unit) %}
 {% if _uf %}<style>.table-card{position:relative;}.table-card::before{content:'';position:fixed;top:0;left:var(--sidebar-w);right:0;bottom:0;background-image:url('/static/{{ _uf }}.svg');background-repeat:no-repeat;background-position:center;background-size:auto 300px;opacity:.3;pointer-events:none;z-index:0;}.table-wrap{position:relative;z-index:1;background:transparent !important;}#schedule-table{background:transparent !important;}#schedule-table tbody td{background:rgba(20,20,20,.46) !important;}#schedule-table tbody tr.row-alt td{background:rgba(26,26,26,.46) !important;}#schedule-table tbody tr:hover td{background:rgba(34,34,34,.6) !important;}</style>{% endif %}
 
