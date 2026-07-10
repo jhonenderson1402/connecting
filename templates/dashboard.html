@@ -2,6 +2,25 @@
 {% block content %}
 <script>
 (function(){
+  var MED=["🥇","🥈","🥉"];
+  function buildGeral(){
+    var apps=(typeof allAppointments!=="undefined"?allAppointments:[]);
+    var lm=(typeof leadsPorTmkDash!=="undefined"?leadsPorTmkDash:{});
+    var pm={};
+    apps.forEach(function(a){ (a.rows||[]).forEach(function(r){ var nm=(r.name||"").trim(); if(!nm) return; if(!pm[nm])pm[nm]={ag:0,comp:0}; pm[nm].ag+=Object.values(r.slots||{}).reduce(function(s,v){return s+(Number(v)||0);},0); }); var cd=a.comparecimento_data||{}; Object.keys(cd).forEach(function(nm){ if(nm==="__bairros__") return; if(!pm[nm])pm[nm]={ag:0,comp:0}; pm[nm].comp+=Number(cd[nm])||0; }); });
+    var ranked=Object.keys(pm).map(function(nm){ return {name:nm, leads:Number(lm[nm])||0, ag:pm[nm].ag, comp:pm[nm].comp}; }).sort(function(a,b){return b.ag-a.ag;});
+    var rows=ranked.map(function(p,i){ var conv=p.ag>0?Math.round((p.comp/p.ag)*100):0; return "<div class=\"rank-row\"><span class=\"rank-pos\">"+(i<3?MED[i]:(i+1)+"\u00ba")+"</span><span class=\"rank-name\">"+p.name+"</span><span class=\"rank-leads blue\">"+p.leads+"</span><span class=\"rank-ag primary\">"+p.ag+"</span><span class=\"rank-comp green\">"+p.comp+"</span><span class=\"rank-conv yellow\">"+conv+"%</span></div>"; }).join("");
+    var inner=ranked.length===0?"<p class=\"no-data\">Sem dados</p>":"<div class=\"rank-header-row\"><span>NOME</span><span>LEADS</span><span>AGEND.</span><span>COMP.</span><span>CONV.%</span></div>"+rows;
+    return "<div class=\"rank-unit-box\" id=\"rank-geral-box\" style=\"grid-column:1/-1;border:1px solid rgba(251,191,36,.4)\"><div class=\"rank-unit-title\" style=\"color:#fbbf24\">\ud83c\udfc6 RANK GERAL \u2014 TODAS AS UNIDADES</div>"+inner+"</div>";
+  }
+  function ensure(){ var g=document.getElementById("ranking-grid"); if(!g) return; if(g.querySelector("#rank-geral-box")) return; if(!g.children.length) return; g.insertAdjacentHTML("afterbegin", buildGeral()); }
+  function init(){ var g=document.getElementById("ranking-grid"); if(!g){ setTimeout(init,500); return; } new MutationObserver(function(){ ensure(); }).observe(g,{childList:true}); ensure(); }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init); else init();
+})();
+</script>
+
+<script>
+(function(){
 function metasAnoMes(){ var now=new Date(); return {ano:now.getFullYear(), mes:parseInt(document.getElementById("filter-month").value)+1}; }
 function realizadoComp(list){ var arr=list||(typeof allAppointments!=="undefined"?allAppointments:[]); var un={}, ba={}, ea={}, ec={}; arr.forEach(function(a){ var cd=a.comparecimento_data||{}; var c=0; Object.keys(cd).forEach(function(k){ if(k==="__bairros__") return; c+=Number(cd[k])||0; ec[k]=(ec[k]||0)+(Number(cd[k])||0); }); un[a.unit]=(un[a.unit]||0)+c; var bd=cd.__bairros__||{}; Object.keys(bd).forEach(function(nm){ ba[nm]=(ba[nm]||0)+(Number(bd[nm]&&bd[nm].comp)||0); }); (a.rows||[]).forEach(function(row){ var nm=(row.name||"").trim(); if(!nm) return; var ag=0, sl=row.slots||{}; Object.keys(sl).forEach(function(h){ ag+=Number(sl[h])||0; }); ea[nm]=(ea[nm]||0)+ag; }); }); return {un:un, ba:ba, ea:ea, ec:ec}; }
 function metaRowHtml(label,key,meta,done,isUnit){ var pct=meta>0?Math.round((done/meta)*100):0; var col=pct>=100?"#22c55e":(pct>=60?"#fbbf24":"#ef4444"); var bg=isUnit?"background:rgba(255,255,255,0.02);font-weight:600":""; var lc=isUnit?"#e4e4e7":"#a1a1aa"; return "<div style=\"display:grid;grid-template-columns:1fr 84px 84px 56px;gap:6px;align-items:center;padding:5px 8px;border-bottom:1px solid #1a1a1a;"+bg+"\"><span style=\"font-size:12px;color:"+lc+";overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">"+label+"</span><input type=\"number\" min=\"0\" class=\"input meta-input\" data-key=\""+key+"\" data-field=\"comp\" value=\""+(meta||"")+"\" placeholder=\"0\" style=\"height:28px;text-align:center;font-size:12px\"/><span style=\"text-align:center;font-size:12px;font-weight:700;color:#22c55e\">"+done+"</span><span style=\"text-align:right;font-size:12px;font-weight:700;color:"+col+"\">"+pct+"%</span></div>"; }
