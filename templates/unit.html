@@ -1286,7 +1286,7 @@ function updateParaNamesTotals() {
   const totPun = compPeople.reduce((s,p)=>s+(p.pun||0),0);
   document.getElementById('comp-names-totals').style.gridTemplateColumns='1fr 120px 120px 120px';
   document.getElementById('comp-names-totals').innerHTML=
-    `<span>Total</span><span class="primary">${totAg}</span><span class="green">${totComp}</span><span style="color:#f87171;font-weight:700">${totPun}</span>`;
+    `<span>Total</span><span class="primary">${totAg}</span><span class="green">${totComp}</span><span style="color:#f87171;font-weight:700">${totPun>0?`-${totPun}`:0}</span>`;
 }
 
 function renderCompList() {
@@ -1313,7 +1313,7 @@ function updateCompTotals() {
   const totComp=compPeople.reduce((s,p)=>s+(p.comp||0),0);
   const totPun=compPeople.reduce((s,p)=>s+(p.pun||0),0);
   document.getElementById('comp-totals').innerHTML=
-    `<span>Total</span><span class="primary">${totAg}</span><span class="green">${totComp}</span><span style="color:#f87171;font-weight:700">${totPun}</span>`;
+    `<span>Total</span><span class="primary">${totAg}</span><span class="green">${totComp}</span><span style="color:#f87171;font-weight:700">${totPun>0?`-${totPun}`:0}</span>`;
 }
 
 async function saveComparecimento() {
