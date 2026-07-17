@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<style id="compact-ranks">/*COMPACT-RANKS*/.rank-header-row,.rank-header-row.leader-header{grid-template-columns:1fr 2.6rem 2.6rem 2.6rem 2.6rem !important;gap:3px !important}.rank-row{grid-template-columns:1.15rem 1fr 2.6rem 2.6rem 2.6rem 2.6rem !important;gap:3px !important}.rank-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}</style>
+<style id="compact-ranks">/*COMPACT-RANKS*/#ranking-grid .rank-header-row{grid-template-columns:1fr 2.4rem 2.4rem 2.4rem 2.6rem 2.4rem !important;gap:3px !important}#ranking-grid .rank-row{grid-template-columns:1.15rem 1fr 2.4rem 2.4rem 2.4rem 2.6rem 2.4rem !important;gap:3px !important}#leader-ranking .rank-header-row{grid-template-columns:1fr 2.6rem 2.6rem 2.6rem 2.6rem !important;gap:3px !important}#leader-ranking .rank-row{grid-template-columns:1.15rem 1fr 2.6rem 2.6rem 2.6rem 2.6rem !important;gap:3px !important}.rank-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}</style>
 <script>
 (function(){
   var MED=["🥇","🥈","🥉"];
@@ -8,9 +8,9 @@
     var apps=(typeof allAppointments!=="undefined"?allAppointments:[]);
     var lm=(typeof leadsPorTmkDash!=="undefined"?leadsPorTmkDash:{});
     var pm={};
-    apps.forEach(function(a){ (a.rows||[]).forEach(function(r){ var nm=(r.name||"").trim(); if(!nm) return; if(!pm[nm])pm[nm]={ag:0,comp:0}; pm[nm].ag+=Object.values(r.slots||{}).reduce(function(s,v){return s+(Number(v)||0);},0); }); var cd=a.comparecimento_data||{}; Object.keys(cd).forEach(function(nm){ if(nm==="__bairros__") return; if(!pm[nm])pm[nm]={ag:0,comp:0}; pm[nm].comp+=Number(cd[nm])||0; }); });
+    apps.forEach(function(a){ (a.rows||[]).forEach(function(r){ var nm=(r.name||"").trim(); if(!nm) return; if(!pm[nm])pm[nm]={ag:0,comp:0,pun:0}; pm[nm].ag+=Object.values(r.slots||{}).reduce(function(s,v){return s+(Number(v)||0);},0); }); var cd=a.comparecimento_data||{}; var cpun=cd.__punicoes__||{}; Object.keys(cd).forEach(function(nm){ if(nm==="__bairros__"||nm==="__punicoes__") return; if(!pm[nm])pm[nm]={ag:0,comp:0,pun:0}; pm[nm].comp+=Number(cd[nm])||0; }); Object.keys(cpun).forEach(function(nm){ if(!pm[nm])pm[nm]={ag:0,comp:0,pun:0}; pm[nm].pun=(pm[nm].pun||0)+(Number(cpun[nm])||0); }); });
     var ranked=Object.keys(pm).map(function(nm){ return {name:nm, leads:Number(lm[nm])||0, ag:pm[nm].ag, comp:pm[nm].comp}; }).sort(function(a,b){return b.ag-a.ag;});
-    var rows=ranked.map(function(p,i){ var conv=p.ag>0?Math.round((p.comp/p.ag)*100):0; return "<div class=\"rank-row\"><span class=\"rank-pos\">"+(i<3?MED[i]:(i+1)+"\u00ba")+"</span><span class=\"rank-name\">"+p.name+"</span><span class=\"rank-leads blue\">"+p.leads+"</span><span class=\"rank-ag primary\">"+p.ag+"</span><span class=\"rank-comp green\">"+p.comp+"</span><span class=\"rank-conv yellow\">"+conv+"%</span></div>"; }).join("");
+    var rows=ranked.map(function(p,i){ var conv=p.ag>0?Math.round((p.comp/p.ag)*100):0; return "<div class=\"rank-row\"><span class=\"rank-pos\">"+(i<3?MED[i]:(i+1)+"\u00ba")+"</span><span class=\"rank-name\">"+p.name+"</span><span class=\"rank-leads blue\">"+p.leads+"</span><span class=\"rank-ag primary\">"+p.ag+"</span><span class=\"rank-comp green\">"+p.comp+"</span><span class=\"rank-conv yellow\">"+conv+"%</span><span class=\"rank-pun\" style=\"color:#f87171;font-weight:700;text-align:center\">"+(p.pun||0)+"</span></div>"; }).join("");
     var inner=ranked.length===0?"<p class=\"no-data\">Sem dados</p>":"<div class=\"rank-header-row\"><span>NOME</span><span>LEADS</span><span>AGEND.</span><span>COMP.</span><span>CONV.%</span></div>"+rows;
     return "<div class=\"rank-unit-box\" id=\"rank-geral-box\" style=\"border:1px solid rgba(251,191,36,.4)\"><div class=\"rank-unit-title\" style=\"color:#fbbf24\">\ud83c\udfc6 RANK GERAL \u2014 TODAS AS UNIDADES</div>"+inner+"</div>";
   }
@@ -533,14 +533,19 @@ function renderRankingGrid(unitsData, leadsTmk) {
     data.forEach(appt=>{
       (appt.rows||[]).forEach(r=>{
         const name=r.name?.trim(); if(!name)return;
-        if(!personMap[name]) personMap[name]={ag:0,comp:0};
+        if(!personMap[name]) personMap[name]={ag:0,comp:0,pun:0};
         personMap[name].ag+=Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
       });
       if(appt.comparecimento_data){
+        const __puns = appt.comparecimento_data.__punicoes__ || {};
         Object.entries(appt.comparecimento_data).forEach(([name,v])=>{
-          if(name === '__bairros__') return;   // ignora o mapa de bairros (não é pessoa)
-          if(!personMap[name]) personMap[name]={ag:0,comp:0};
+          if(name === '__bairros__' || name === '__punicoes__') return;   // ignora mapas internos (não são pessoas)
+          if(!personMap[name]) personMap[name]={ag:0,comp:0,pun:0};
           personMap[name].comp+=Number(v)||0;
+        });
+        Object.entries(__puns).forEach(([name,v])=>{
+          if(!personMap[name]) personMap[name]={ag:0,comp:0,pun:0};
+          personMap[name].pun=(personMap[name].pun||0)+(Number(v)||0);
         });
       }
     });
@@ -557,6 +562,7 @@ function renderRankingGrid(unitsData, leadsTmk) {
         <span class="rank-ag primary">${p.ag}</span>
         <span class="rank-comp green">${p.comp}</span>
         <span class="rank-conv yellow">${conv}%</span>
+        <span class="rank-pun" style="color:#f87171;font-weight:700;text-align:center">${p.pun||0}</span>
       </div>`;
     }).join('');
     const box = document.createElement('div');
@@ -564,7 +570,7 @@ function renderRankingGrid(unitsData, leadsTmk) {
     box.innerHTML = `<div class="rank-unit-title">${unit}</div>
       ${ranked.length===0?'<p class="no-data">Sem dados</p>':`
       <div class="rank-header-row">
-        <span>NOME</span><span>LEADS</span><span>AGEND.</span><span>COMP.</span><span>CONV.%</span>
+        <span>NOME</span><span>LEADS</span><span>AGEND.</span><span>COMP.</span><span>CONV.%</span><span>PUN.</span>
       </div>${rows}`}`;
     grid.appendChild(box);
   });
@@ -609,7 +615,7 @@ function renderLeaderRanking() {
     });
     if (appt.comparecimento_data)
       Object.entries(appt.comparecimento_data).forEach(([nm,v]) => {
-        if (nm === '__bairros__') return;
+        if (nm === '__bairros__' || nm === '__punicoes__') return;
         unitLeaderMap[leaderUnit][leader].comp += Number(v)||0;
       });
   });
