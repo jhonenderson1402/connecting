@@ -568,7 +568,7 @@ function markDayOptions() {
   [...selDay.options].forEach(opt => {
     const d = parseInt(opt.value);
     const data = dm[d];
-    const has = data && ((data.ag||0) > 0 || (data.comp||0) > 0);
+    const has = data && (data.filled || (data.ag||0) > 0 || (data.comp||0) > 0);
     opt.style.backgroundColor = has ? 'rgba(251,191,36,0.28)' : '';
     opt.style.color = has ? '#fde68a' : '';
     opt.style.fontWeight = has ? '700' : '';
@@ -1143,13 +1143,14 @@ async function loadMonthSummary() {
     const dayMap = {};
     appts.forEach(appt => {
       const day = parseInt(appt.date.split('-')[2]);
-      if (!dayMap[day]) dayMap[day] = {ag:0, comp:0};
+      if (!dayMap[day]) dayMap[day] = {ag:0, comp:0, filled:false};
       (appt.rows||[]).forEach(r => {
-        if (r.name?.trim())
-          dayMap[day].ag += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+        const slotSum = Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+        if (r.name?.trim()) dayMap[day].ag += slotSum;
+        if (slotSum > 0) dayMap[day].filled = true;
       });
       if (appt.comparecimento_data)
-        Object.values(appt.comparecimento_data).forEach(v => { dayMap[day].comp += Number(v)||0; });
+        Object.values(appt.comparecimento_data).forEach(v => { const n = Number(v)||0; dayMap[day].comp += n; if (n > 0) dayMap[day].filled = true; });
     });
     window.__dayMap = dayMap;
     markDayOptions();
