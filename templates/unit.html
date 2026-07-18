@@ -569,9 +569,9 @@ function markDayOptions() {
     const d = parseInt(opt.value);
     const data = dm[d];
     const has = data && ((data.ag||0) > 0 || (data.comp||0) > 0);
-    opt.style.backgroundColor = has ? 'rgba(251,191,36,0.22)' : '';
-    opt.style.color = has ? '#fde68a' : '';
-    opt.style.fontWeight = has ? '700' : '';
+    opt.style.backgroundColor = has ? 'rgba(251,191,36,0.10)' : '';
+    opt.style.color = has ? '#e8c766' : '';
+    opt.style.fontWeight = '';
   });
 }
 
