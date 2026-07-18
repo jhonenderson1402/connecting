@@ -557,6 +557,22 @@ function updateDayOptions(preferDay) {
     if(d === target) opt.selected = true;
     selDay.appendChild(opt);
   }
+  markDayOptions();
+}
+
+// Pinta de amarelo suave os dias que já têm agendamento/comparecimento
+function markDayOptions() {
+  const dm = window.__dayMap || {};
+  const selDay = document.getElementById('sel-day');
+  if(!selDay) return;
+  [...selDay.options].forEach(opt => {
+    const d = parseInt(opt.value);
+    const data = dm[d];
+    const has = data && ((data.ag||0) > 0 || (data.comp||0) > 0);
+    opt.style.backgroundColor = has ? 'rgba(251,191,36,0.22)' : '';
+    opt.style.color = has ? '#fde68a' : '';
+    opt.style.fontWeight = has ? '700' : '';
+  });
 }
 
 // Dispara inicialização AGORA (script roda depois do DOM parseado neste ponto)
@@ -1133,6 +1149,8 @@ async function loadMonthSummary() {
       if (appt.comparecimento_data)
         Object.values(appt.comparecimento_data).forEach(v => { dayMap[day].comp += Number(v)||0; });
     });
+    window.__dayMap = dayMap;
+    markDayOptions();
 
     const WEEK_DAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sab'];
     let totalAg = 0, totalComp = 0;
