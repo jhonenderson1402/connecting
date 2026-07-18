@@ -178,6 +178,11 @@ def dashboard():
     if 'user_id' not in session:
         return render_template('landing.html')
     return render_template('dashboard.html')
+
+@app.route('/site')
+def site_institucional():
+    # Pagina institucional acessivel mesmo logado (botao HOME)
+    return render_template('landing.html')
 @app.route('/unit/<path:unit_name>')
 @login_required
 def unit_schedule(unit_name):
