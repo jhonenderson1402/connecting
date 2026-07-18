@@ -581,6 +581,7 @@ initDateSelectors();
 async function onConstantsLoaded() {
   // Como já inicializamos no carregamento, aqui só carrega a tabela.
   buildTableHead();
+  loadMonthSummary();   // dispara cedo (em paralelo) pra marcar os dias preenchidos rápido
   // Importante: carregar funcionários ANTES dos agendamentos,
   // senão a tabela renderiza sem o dropdown de nomes.
   await loadEmployees();
@@ -665,6 +666,7 @@ function onDateChange() {
   // Re-popula os dias do select conforme o mês/ano selecionados
   updateDayOptions();
   loadAppointment();
+  loadMonthSummary();   // atualiza a marcação amarela dos dias do mês
 }
 
 function renderTable() {
