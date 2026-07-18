@@ -129,6 +129,8 @@
   border-color: rgba(251, 191, 36, 0.45);
   color: #fbbf24;
 }
+/* Abaixo da meta por hora (5): apenas o número em vermelho */
+.slot-input.slot-below { color: #ef4444 !important; }
 
 /* Badge do total — bolinha amarela quando > 0 */
 .total-badge {
@@ -669,6 +671,13 @@ function onDateChange() {
   loadMonthSummary();   // atualiza a marcação amarela dos dias do mês
 }
 
+// Meta por hora = 5. Números abaixo de 5 ficam vermelhos (só o número).
+function slotCls(v){
+  v=(v==null?'':(''+v)).trim();
+  if(v==='') return 'slot-input';
+  var n=Number(v);
+  return 'slot-input slot-filled'+((!isNaN(n)&&n<5)?' slot-below':'');
+}
 function renderTable() {
   const tbody = document.getElementById('table-body');
   const colspan = 5 + TIME_SLOTS.length + 1; // 5 fixas + 10 slots + 1 (TOTAL+lixeira)
@@ -711,8 +720,7 @@ function renderTable() {
     }
     const slotCells = TIME_SLOTS.map(s=>{
       const val=row.slots?.[s.key]||'';
-      const hl=val.trim()!==''?' slot-filled':'';
-      return `<td><input class="slot-input${hl}" maxlength="5" value="${val}" oninput="slotChange(${i},'${s.key}',this.value);this.className='slot-input'+(this.value.trim()!==''?' slot-filled':'')"/></td>`;
+      return `<td><input class="${slotCls(val)}" maxlength="5" value="${val}" oninput="slotChange(${i},'${s.key}',this.value);this.className=slotCls(this.value)"/></td>`;
     }).join('');
     return `<tr class="${bg}">
       <td>${monthName}</td>
