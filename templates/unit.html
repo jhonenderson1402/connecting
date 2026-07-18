@@ -859,11 +859,8 @@ async function doSave() {
   document.getElementById('saving-badge').style.display='none';
   if(res.ok) {
     document.getElementById('saved-badge').style.display='';
-    // Atualiza o resumo do mês se o modal estiver aberto
-    const summaryModal = document.getElementById('modal-summary');
-    if(summaryModal && summaryModal.classList.contains('show')) {
-      loadMonthSummary();
-    }
+    // Atualiza o resumo do mês e a marcação amarela dos dias após salvar (inclui Limpar Dia)
+    loadMonthSummary();
   } else {
     const err = await res.json().catch(()=>({}));
     showToast('Erro ao salvar: ' + (err.error || res.status), 'error');
