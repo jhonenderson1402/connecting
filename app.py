@@ -183,6 +183,10 @@ def dashboard():
 def site_institucional():
     # Pagina institucional acessivel mesmo logado (botao HOME)
     return render_template('landing.html')
+
+@app.route('/google6b296435c4715c91.html')
+def google_site_verification():
+    return 'google-site-verification: google6b296435c4715c91.html', 200, {'Content-Type': 'text/html; charset=utf-8'}
 @app.route('/unit/<path:unit_name>')
 @login_required
 def unit_schedule(unit_name):
