@@ -187,6 +187,26 @@ def site_institucional():
 @app.route('/google6b296435c4715c91.html')
 def google_site_verification():
     return 'google-site-verification: google6b296435c4715c91.html', 200, {'Content-Type': 'text/html; charset=utf-8'}
+
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+           '  <url><loc>https://connectingsales.com.br/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>\n'
+           '</urlset>\n')
+    return xml, 200, {'Content-Type': 'application/xml; charset=utf-8'}
+
+@app.route('/robots.txt')
+def robots_txt():
+    txt = ('User-agent: *\n'
+           'Disallow: /api/\n'
+           'Disallow: /unit/\n'
+           'Disallow: /employees\n'
+           'Disallow: /users\n'
+           'Disallow: /login\n'
+           'Disallow: /confirmacao\n'
+           'Sitemap: https://connectingsales.com.br/sitemap.xml\n')
+    return txt, 200, {'Content-Type': 'text/plain; charset=utf-8'}
 @app.route('/unit/<path:unit_name>')
 @login_required
 def unit_schedule(unit_name):
