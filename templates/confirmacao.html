@@ -182,7 +182,7 @@
             <th>MÊS</th><th>DATA</th><th>CLIENTE</th>
             <th>TMK</th><th>UNIDADE</th><th>HORÁRIO</th>
             <th>CONTATO</th>
-            <th class="th-flag">PROCESSO DE CONFIRMAÇÃO</th>
+            <th class="th-flag">PROCESSO DE CONFIRMAÇÃO</th><th>OBSERVAÇÃO</th>
           </tr>
         </thead>
         <tbody id="conf-tbody"></tbody>
@@ -425,7 +425,7 @@ function renderTable() {
     const msg = allConf.length === 0
       ? 'Nenhum dado para este dia. Cole dados da planilha para começar.'
       : 'Nenhum resultado para os filtros aplicados.';
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:#71717a;background:#141414">${msg}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:#71717a;background:#141414">${msg}</td></tr>`;
     return;
   }
   tbody.innerHTML = filtered.map(r => {
@@ -446,7 +446,8 @@ function renderTable() {
         </select>
       </td>
       
-    </tr>`;
+    <td class="td-obs"><input type="text" value="${esc(r.observacao||'')}" placeholder="Anotação..." onchange="saveObs(${r.id}, this.value)" style="width:100%;min-width:130px;border:1px solid #d1d5db;border-radius:5px;padding:4px 6px;font-size:11px;background:#fff;color:#111"/></td>
+      </tr>`;
   }).join('');
 }
 function renderStats() {
@@ -463,6 +464,7 @@ function renderStats() {
 }
 // ── Atualizar flag ─────────────────────────────────────────────────────────
 
+function saveObs(id, val){var it=allConf.find(function(r){return r.id===id;});if(it)it.observacao=val;var f=filtered.find(function(r){return r.id===id;});if(f)f.observacao=val;fetch("/api/confirmacoes/"+id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({observacao:val})});}
 async function updateFlag(id, sel) {
   const flag = sel.value;
   sel.className = 'flag-select ' + getFlagCls(flag);
