@@ -94,7 +94,6 @@ class Confirmacao(Base):
     horario   = Column(String(20),  default='')
     contato   = Column(String(100), default='')
     flag      = Column(String(100), default='')
-    observacao = Column(Text, default='')
     created_at = Column(String(40), default=lambda: datetime.utcnow().isoformat())
     __table_args__ = (
         Index('idx_conf_mes', 'mes'),
@@ -339,7 +338,6 @@ def _conf_to_dict(c):
         'id': c.id, 'atendente': c.atendente or '', 'mes': c.mes, 'data_str': c.data_str,
         'cliente': c.cliente, 'tmk': c.tmk, 'unidade': c.unidade,
         'horario': c.horario, 'contato': c.contato, 'flag': c.flag,
-        'observacao': c.observacao or '',
         'created_at': c.created_at,
     }
 def get_confirmacoes(mes=None, data_str=None, tmk=None, atendente=None):
@@ -357,13 +355,13 @@ def get_confirmacoes(mes=None, data_str=None, tmk=None, atendente=None):
 def create_confirmacao(data):
     with SessionLocal() as s:
         c = Confirmacao(**{k: v for k, v in data.items() if k in
-            ('atendente','mes','data_str','cliente','tmk','unidade','horario','contato','flag','observacao')})
+            ('atendente','mes','data_str','cliente','tmk','unidade','horario','contato','flag')})
         s.add(c)
         s.commit()
         s.refresh(c)
         return c.id
 def update_confirmacao(cid, data):
-    allowed = ('atendente','mes','data_str','cliente','tmk','unidade','horario','contato','flag','observacao')
+    allowed = ('atendente','mes','data_str','cliente','tmk','unidade','horario','contato','flag')
     vals = {k: v for k, v in data.items() if k in allowed}
     if not vals:
         return
@@ -378,7 +376,7 @@ def bulk_insert_confirmacoes(rows):
     with SessionLocal() as s:
         for r in rows:
             c = Confirmacao(**{k: v for k, v in r.items() if k in
-                ('atendente','mes','data_str','cliente','tmk','unidade','horario','contato','flag','observacao')})
+                ('atendente','mes','data_str','cliente','tmk','unidade','horario','contato','flag')})
             s.add(c)
         s.commit()
 def clear_confirmacoes_dia(data_str, atendente=None):
