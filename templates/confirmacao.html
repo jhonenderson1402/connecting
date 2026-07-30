@@ -240,6 +240,10 @@
           <label class="filter-label">Nº RELATÓRIO</label>
           <input class="input" id="rel-num" placeholder="Ex: 2º" oninput="buildRelatorio()" style="width:90px"/>
         </div>
+        <div class="filter-group">
+          <label class="filter-label">EM ESPERA</label>
+          <input class="input" id="rel-espera" type="number" min="0" placeholder="0" oninput="buildRelatorio()" style="width:90px"/>
+        </div>
       </div>
       <!-- Campos de texto livre -->
       <div class="filter-group" style="margin-bottom:10px">
@@ -834,13 +838,15 @@ async function buildRelatorioDia() {
   });
   const unidade = (document.getElementById('rel-unidade').value || '').trim().toUpperCase();
   const num     = (document.getElementById('rel-num').value || '').trim();
+  const espera  = parseInt(document.getElementById('rel-espera').value)||0;
   const atipica = (document.getElementById('rel-atipica').value || '').trim();
   const assinatura = (document.getElementById('rel-assinatura').value || '').trim();
   let txt = '';
   txt += `📋 RELATÓRIO${unidade ? ' ' + unidade : ''}\n`;
   txt += `${num ? num + ' ' : ''}RELATÓRIO ${_periodoLabel('day')}\n\n`;
   txt += `📌 INDICADORES DO PERÍODO\n`;
-  txt += `• Total: ${total}\n`;
+  txt += `• Agendados: ${total}\n`;
+  txt += `• Em espera: ${espera}\n`;
   txt += `• Confirmados: ${conf}\n`;
   txt += `• Cancelados: ${canc}\n`;
   txt += `• Sem retorno: ${semret}\n`;
@@ -906,11 +912,13 @@ async function buildRelatorioCompleto(periodo) {
   const unidade = (document.getElementById('rel-unidade').value || '').trim().toUpperCase();
   const atipica = (document.getElementById('rel-atipica').value || '').trim();
   const assinatura = (document.getElementById('rel-assinatura').value || '').trim();
+  const espera = parseInt(document.getElementById('rel-espera').value)||0;
   // ── Monta o texto ──
   let txt = '';
   txt += `📋 RELATÓRIO – ${unidade || 'UNIDADE'} ${_periodoLabel(periodo)} CONFIRMAÇÃO\n\n`;
   txt += `📊 INDICADORES DO PERÍODO\n`;
   txt += `• Agendados: ${total}\n`;
+  txt += `• Em espera: ${espera}\n`;
   txt += `• Confirmados: ${conf}\n`;
   txt += `• Cancelados: ${canc}\n`;
   txt += `• Sem retorno: ${semret}\n`;
