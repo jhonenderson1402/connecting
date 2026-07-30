@@ -11,6 +11,18 @@ from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 import database as db
 app = Flask(__name__)
+
+@app.after_request
+def _no_cache_html(response):
+    try:
+        if 'text/html' in response.headers.get('Content-Type',''):
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+    except Exception:
+        pass
+    return response
+
 # ── Rate Limiting & Cache ─────────────────────────────────────────────────────
 limiter = Limiter(
     app=app,
