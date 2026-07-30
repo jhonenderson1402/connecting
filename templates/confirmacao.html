@@ -57,6 +57,7 @@
 .flag-NAO-AGENDADO    { background:#7c3aed; color:#fff; }
 .flag-UNIDADE-ERRADA  { background:#2563eb; color:#fff; }
 .flag-HORARIO-ERRADO  { background:#3b82f6; color:#fff; }
+.flag-DATA-ERRADA     { background:#0891b2; color:#fff; }
 .flag-MULTIPLOS       { background:#ea580c; color:#fff; }
 .flag-REAGENDOU       { background:#9333ea; color:#fff; }
 .flag-EXAME-REALIZADO { background:#15803d; color:#fff; }
@@ -345,6 +346,7 @@ const FLAGS = [
   {key:'NÃO AGENDADO',     label:'NÃO AGENDADO',        cls:'flag-NAO-AGENDADO',     bg:'#7c3aed', color:'#fff'},
   {key:'UNIDADE ERRADA',   label:'UNIDADE ERRADA',       cls:'flag-UNIDADE-ERRADA',   bg:'#2563eb', color:'#fff'},
   {key:'HORÁRIO ERRADO',   label:'HORÁRIO ERRADO',       cls:'flag-HORARIO-ERRADO',   bg:'#3b82f6', color:'#fff'},
+  {key:'DATA ERRADA',      label:'DATA ERRADA',          cls:'flag-DATA-ERRADA',      bg:'#0891b2', color:'#fff'},
   {key:'ERRO DO CONSULTOR', label:'ERRO DO CONSULTOR',     cls:'flag-MULTIPLOS',        bg:'#ea580c', color:'#fff'},
   {key:'REAGENDOU',        label:'REAGENDOU',            cls:'flag-REAGENDOU',        bg:'#9333ea', color:'#fff'},
   {key:'EXAME REALIZADO',  label:'EXAME REALIZADO',      cls:'flag-EXAME-REALIZADO',  bg:'#15803d', color:'#fff'},
@@ -513,14 +515,14 @@ function openResumoModal() {
   const flagColors = {
     'CONFIRMADO':'#22c55e','SEM RETORNO':'#ca8a04','CANCELADO':'#dc2626',
     'DUPLICADO':'#db2777','NÚMERO INVÁLIDO':'#71717a','NÃO AGENDADO':'#7c3aed',
-    'UNIDADE ERRADA':'#2563eb','HORÁRIO ERRADO':'#3b82f6','ERRO DO CONSULTOR':'#ea580c',
+    'UNIDADE ERRADA':'#2563eb','HORÁRIO ERRADO':'#3b82f6','DATA ERRADA':'#0891b2','ERRO DO CONSULTOR':'#ea580c',
     'REAGENDOU':'#9333ea','EXAME REALIZADO':'#15803d','NÃO PODE REALIZAR':'#166534',
     'PATOLOGIA':'#991b1b','DESISTÊNCIA':'#b91c1c'
   };
   const flagEmojis = {
     'CONFIRMADO':'🟢','SEM RETORNO':'🟡','CANCELADO':'🔴','DUPLICADO':'🟣',
     'NÚMERO INVÁLIDO':'⚪','NÃO AGENDADO':'🟣','UNIDADE ERRADA':'🔵',
-    'HORÁRIO ERRADO':'🔵','ERRO DO CONSULTOR':'🟠','REAGENDOU':'🟣',
+    'HORÁRIO ERRADO':'🔵','DATA ERRADA':'🔵','ERRO DO CONSULTOR':'🟠','REAGENDOU':'🟣',
     'EXAME REALIZADO':'🟢','NÃO PODE REALIZAR':'🟢','PATOLOGIA':'🔴','DESISTÊNCIA':'🔴'
   };
   const html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' + FLAGS.map(f => {
