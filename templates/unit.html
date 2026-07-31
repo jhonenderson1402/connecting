@@ -1298,6 +1298,7 @@ function renderBairrosList() {
           onchange="compPeople[${i}].comp=Number(this.value);updateParaNamesTotals()"/>
         <input class="comp-input pun-input" type="number" min="0" value="${p.pun||0}"
           onchange="compPeople[${i}].pun=Number(this.value);updateParaNamesTotals()"/>
+              <input class="comp-input" type="number" min="0" value="${p.vendas||0}" onchange="compPeople[${i}].vendas=Number(this.value);updateParaNamesTotals()"/>
       </div>`
     ).join('');
     updateParaNamesTotals();
