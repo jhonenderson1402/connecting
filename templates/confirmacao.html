@@ -875,6 +875,7 @@ async function buildRelatorioDia() {
     txt += `\n🚫 CANCELAMENTOS\nTMK\n`;
     cancEntries.forEach(([t,c]) => { txt += `• ${t}: ${c}\n`; });
   }
+  var __erroTipos=['ERRO DO CONSULTOR','DUPLICADO','NÃO AGENDADO','NÃO PODE REALIZAR'];var __errLines=[];__erroTipos.forEach(function(ef){var nomes={};data.forEach(function(r){if(r.flag===ef){var n=(r.tmk||'').trim()||'-';nomes[n]=(nomes[n]||0)+1;}});var ks=Object.keys(nomes);if(ks.length){var parts=ks.map(function(n){return nomes[n]>1?(n+' ('+nomes[n]+')'):n;});__errLines.push('• '+ef+': '+parts.join(', '));}});if(__errLines.length){txt+='\n⚠️ ERROS\n'+__errLines.join('\n')+'\n';}
   if(assinatura) {
     txt += `\n-\n${assinatura}\n`;
   }
@@ -993,6 +994,7 @@ async function buildRelatorioCompleto(periodo) {
       txt += `${cli || tmk || '—'}\n`;
     });
   }
+  var __erroTipos=['ERRO DO CONSULTOR','DUPLICADO','NÃO AGENDADO','NÃO PODE REALIZAR'];var __errLines=[];__erroTipos.forEach(function(ef){var nomes={};data.forEach(function(r){if(r.flag===ef){var n=(r.tmk||'').trim()||'-';nomes[n]=(nomes[n]||0)+1;}});var ks=Object.keys(nomes);if(ks.length){var parts=ks.map(function(n){return nomes[n]>1?(n+' ('+nomes[n]+')'):n;});__errLines.push('• '+ef+': '+parts.join(', '));}});if(__errLines.length){txt+='\n⚠️ ERROS\n'+__errLines.join('\n')+'\n';}
   if(assinatura) {
     txt += `\n-\n${assinatura}\n`;
   }
