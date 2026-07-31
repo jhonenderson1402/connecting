@@ -63,6 +63,7 @@
 .flag-NAO-PODE        { background:#166534; color:#fff; }
 .flag-PATOLOGIA       { background:#991b1b; color:#fff; }
 .flag-DESISTENCIA     { background:#b91c1c; color:#fff; }
+.flag-ERRO-CONSULTOR  { background:#0d9488; color:#fff; }
 .flag-vazio           { background:#e2e8f0; color:#64748b; }
 .conf-stats { display:flex; gap:10px; flex-wrap:wrap; }
 .conf-stat-chip {
@@ -351,6 +352,7 @@ const FLAGS = [
   {key:'NÃO PODE REALIZAR',label:'NÃO PODE REALIZAR',   cls:'flag-NAO-PODE',         bg:'#166534', color:'#fff'},
   {key:'PATOLOGIA',        label:'PATOLOGIA',            cls:'flag-PATOLOGIA',        bg:'#991b1b', color:'#fff'},
   {key:'DESISTÊNCIA',      label:'DESISTÊNCIA',          cls:'flag-DESISTENCIA',      bg:'#b91c1c', color:'#fff'},
+  {key:'ERRO DO CONSULTOR', label:'ERRO DO CONSULTOR',   cls:'flag-ERRO-CONSULTOR', bg:'#0d9488', color:'#fff'},
 ];
 let allConf = [];
 let filtered = [];
@@ -519,13 +521,13 @@ function openResumoModal() {
     'DUPLICADO':'#db2777','NÚMERO INVÁLIDO':'#71717a','NÃO AGENDADO':'#7c3aed',
     'UNIDADE ERRADA':'#2563eb','HORÁRIO ERRADO':'#3b82f6','MÚLTIPLOS AGEND.':'#ea580c',
     'REAGENDOU':'#9333ea','EXAME REALIZADO':'#15803d','NÃO PODE REALIZAR':'#166534',
-    'PATOLOGIA':'#991b1b','DESISTÊNCIA':'#b91c1c'
+    'PATOLOGIA':'#991b1b','DESISTÊNCIA':'#b91c1c','ERRO DO CONSULTOR':'#0d9488'
   };
   const flagEmojis = {
     'CONFIRMADO':'🟢','SEM RETORNO':'🟡','CANCELADO':'🔴','DUPLICADO':'🟣',
     'NÚMERO INVÁLIDO':'⚪','NÃO AGENDADO':'🟣','UNIDADE ERRADA':'🔵',
     'HORÁRIO ERRADO':'🔵','MÚLTIPLOS AGEND.':'🟠','REAGENDOU':'🟣',
-    'EXAME REALIZADO':'🟢','NÃO PODE REALIZAR':'🟢','PATOLOGIA':'🔴','DESISTÊNCIA':'🔴'
+    'EXAME REALIZADO':'🟢','NÃO PODE REALIZAR':'🟢','PATOLOGIA':'🔴','DESISTÊNCIA':'🔴','ERRO DO CONSULTOR':'🟦'
   };
   const html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' + FLAGS.map(f => {
     const cnt = flagCount[f.key]||0;
