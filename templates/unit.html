@@ -430,7 +430,7 @@
 
       <!-- Seção de nomes (apenas PARÁ) -->
       <div id="comp-names-section" style="display:none;margin-top:20px">
-        <div class="comp-header-row" id="comp-names-header" style="grid-template-columns:1fr 120px 120px 120px 120px">
+        <div class="comp-header-row" id="comp-names-header" style="grid-template-columns:1fr 92px 92px 92px 92px">
           <span>NOME</span><span>AGENDAMENTO</span><span>COMPARECIMENTO</span><span>PUNIÇÕES</span><span>VENDAS</span>
         </div>
         <div id="comp-names-list"></div>
@@ -1290,7 +1290,7 @@ function renderBairrosList() {
   if(compPeople.length > 0) {
     namesSection.style.display = '';
     document.getElementById('comp-names-list').innerHTML = compPeople.map((p,i) =>
-      `<div class="comp-row" style="grid-template-columns:1fr 120px 120px 120px 120px">
+      `<div class="comp-row" style="grid-template-columns:1fr 92px 92px 92px 92px">
         <div class="comp-name"><div class="comp-avatar">${p.name[0].toUpperCase()}</div>${p.name}</div>
         <input class="comp-input primary-input" type="number" min="0" value="${p.ag}"
           onchange="compPeople[${i}].ag=Number(this.value);updateParaNamesTotals()"/>
@@ -1311,7 +1311,7 @@ function updateParaNamesTotals() {
   const totAg  = compPeople.reduce((s,p)=>s+(p.ag||0),0);
   const totComp= compPeople.reduce((s,p)=>s+(p.comp||0),0);
   const totPun = compPeople.reduce((s,p)=>s+(p.pun||0),0); const totVendas = compPeople.reduce((s,p)=>s+(p.vendas||0),0);
-  document.getElementById('comp-names-totals').style.gridTemplateColumns='1fr 120px 120px 120px 120px';
+  document.getElementById('comp-names-totals').style.gridTemplateColumns='1fr 92px 92px 92px 92px';
   document.getElementById('comp-names-totals').innerHTML=
     `<span>Total</span><span class="primary">${totAg}</span><span class="green">${totComp}</span><span style="color:#f87171;font-weight:700">${totPun>0?`-${totPun}`:0}</span><span class="primary">${totVendas}</span>`;
 }
@@ -1319,10 +1319,10 @@ function updateParaNamesTotals() {
 function renderCompList() {
   document.getElementById('comp-header').innerHTML =
     '<span>NOME</span><span>AGENDAMENTO</span><span>COMPARECIMENTO</span><span>PUNIÇÕES</span><span>VENDAS</span>';
-  document.getElementById('comp-header').style.gridTemplateColumns='1fr 120px 120px 120px 120px';
-  document.getElementById('comp-totals').style.gridTemplateColumns='1fr 120px 120px 120px 120px';
+  document.getElementById('comp-header').style.gridTemplateColumns='1fr 92px 92px 92px 92px';
+  document.getElementById('comp-totals').style.gridTemplateColumns='1fr 92px 92px 92px 92px';
   document.getElementById('comp-list').innerHTML=compPeople.map((p,i)=>
-    `<div class="comp-row" style="grid-template-columns:1fr 120px 120px 120px 120px">
+    `<div class="comp-row" style="grid-template-columns:1fr 92px 92px 92px 92px">
       <div class="comp-name"><div class="comp-avatar">${p.name[0].toUpperCase()}</div>${p.name}</div>
       <input class="comp-input primary-input" type="number" min="0" value="${p.ag}"
         onchange="compPeople[${i}].ag=Number(this.value);updateCompTotals()"/>
