@@ -875,8 +875,7 @@ async function buildRelatorioDia() {
     txt += `\n🚫 CANCELAMENTOS\nTMK\n`;
     cancEntries.forEach(([t,c]) => { txt += `• ${t}: ${c}\n`; });
   }
-  var __erroTipos=['ERRO DO CONSULTOR','DUPLICADO','NÃO AGENDADO','NÃO PODE REALIZAR'];var __errLines=[];__erroTipos.forEach(function(ef){var nomes={};data.forEach(function(r){if(r.flag===ef){var n=(r.tmk||'').trim()||'-';nomes[n]=(nomes[n]||0)+1;}});var ks=Object.keys(nomes);if(ks.length){var parts=ks.map(function(n){return nomes[n]>1?(n+' ('+nomes[n]+')'):n;});__errLines.push('• '+ef+': '+parts.join(', '));}});if(__errLines.length){txt+='\n⚠️ ERROS\n'+__errLines.join('\n')+'\n';}
-  if(assinatura) {
+  var __erroTipos=['ERRO DO CONSULTOR','DUPLICADO','NÃO AGENDADO','NÃO PODE REALIZAR'];var __errBlocks=[];__erroTipos.forEach(function(ef){var rows=data.filter(function(r){return r.flag===ef;});if(rows.length){var lines='- '+ef+':\n';rows.forEach(function(r){var nome=(r.tmk||'').trim()||'-';var motivo=(r.observacao||'').trim();lines+=nome+':\n"'+motivo+'"\n';});__errBlocks.push(lines);}});if(__errBlocks.length){txt+='\n⚠️ ERROS GERAL\n\n'+__errBlocks.join('\n')+'\n';} if(assinatura) {
     txt += `\n-\n${assinatura}\n`;
   }
   document.getElementById('rel-preview').value = txt;
@@ -994,8 +993,7 @@ async function buildRelatorioCompleto(periodo) {
       txt += `${cli || tmk || '—'}\n`;
     });
   }
-  var __erroTipos=['ERRO DO CONSULTOR','DUPLICADO','NÃO AGENDADO','NÃO PODE REALIZAR'];var __errLines=[];__erroTipos.forEach(function(ef){var nomes={};data.forEach(function(r){if(r.flag===ef){var n=(r.tmk||'').trim()||'-';nomes[n]=(nomes[n]||0)+1;}});var ks=Object.keys(nomes);if(ks.length){var parts=ks.map(function(n){return nomes[n]>1?(n+' ('+nomes[n]+')'):n;});__errLines.push('• '+ef+': '+parts.join(', '));}});if(__errLines.length){txt+='\n⚠️ ERROS\n'+__errLines.join('\n')+'\n';}
-  if(assinatura) {
+  var __erroTipos=['ERRO DO CONSULTOR','DUPLICADO','NÃO AGENDADO','NÃO PODE REALIZAR'];var __errBlocks=[];__erroTipos.forEach(function(ef){var rows=data.filter(function(r){return r.flag===ef;});if(rows.length){var lines='- '+ef+':\n';rows.forEach(function(r){var nome=(r.tmk||'').trim()||'-';var motivo=(r.observacao||'').trim();lines+=nome+':\n"'+motivo+'"\n';});__errBlocks.push(lines);}});if(__errBlocks.length){txt+='\n⚠️ ERROS GERAL\n\n'+__errBlocks.join('\n')+'\n';} if(assinatura) {
     txt += `\n-\n${assinatura}\n`;
   }
   document.getElementById('rel-preview').value = txt;
