@@ -430,8 +430,8 @@
 
       <!-- Seção de nomes (apenas PARÁ) -->
       <div id="comp-names-section" style="display:none;margin-top:20px">
-        <div class="comp-header-row" id="comp-names-header" style="grid-template-columns:1fr 120px 120px 120px">
-          <span>NOME</span><span>AGENDAMENTO</span><span>COMPARECIMENTO</span><span>PUNIÇÕES</span>
+        <div class="comp-header-row" id="comp-names-header" style="grid-template-columns:1fr 120px 120px 120px 120px">
+          <span>NOME</span><span>AGENDAMENTO</span><span>COMPARECIMENTO</span><span>PUNIÇÕES</span><span>VENDAS</span>
         </div>
         <div id="comp-names-list"></div>
         <div class="comp-footer" id="comp-names-totals"></div>
@@ -1232,8 +1232,8 @@ function openComparecimento() {
           .sort((a,b) => b[1].ag - a[1].ag)
           .map(([name,d]) => ({name, ag:d.ag, comp:d.comp}));
         if(appt.comparecimento_data) {
-          const __puns = appt.comparecimento_data.__punicoes__ || {};
-          compPeople.forEach(p => { p.comp = appt.comparecimento_data[p.name] || 0; p.pun = Number(__puns[p.name]) || 0; });
+          const __puns = appt.comparecimento_data.__punicoes__ || {}; const __vnds = appt.comparecimento_data.__vendas__ || {};
+          compPeople.forEach(p => { p.comp = appt.comparecimento_data[p.name] || 0; p.pun = Number(__puns[p.name]) || 0; p.vendas = Number(__vnds[p.name]) || 0; });
         }
 
         renderBairrosList();
@@ -1290,7 +1290,7 @@ function renderBairrosList() {
   if(compPeople.length > 0) {
     namesSection.style.display = '';
     document.getElementById('comp-names-list').innerHTML = compPeople.map((p,i) =>
-      `<div class="comp-row" style="grid-template-columns:1fr 120px 120px 120px">
+      `<div class="comp-row" style="grid-template-columns:1fr 120px 120px 120px 120px">
         <div class="comp-name"><div class="comp-avatar">${p.name[0].toUpperCase()}</div>${p.name}</div>
         <input class="comp-input primary-input" type="number" min="0" value="${p.ag}"
           onchange="compPeople[${i}].ag=Number(this.value);updateParaNamesTotals()"/>
@@ -1309,19 +1309,19 @@ function renderBairrosList() {
 function updateParaNamesTotals() {
   const totAg  = compPeople.reduce((s,p)=>s+(p.ag||0),0);
   const totComp= compPeople.reduce((s,p)=>s+(p.comp||0),0);
-  const totPun = compPeople.reduce((s,p)=>s+(p.pun||0),0);
-  document.getElementById('comp-names-totals').style.gridTemplateColumns='1fr 120px 120px 120px';
+  const totPun = compPeople.reduce((s,p)=>s+(p.pun||0),0); const totVendas = compPeople.reduce((s,p)=>s+(p.vendas||0),0);
+  document.getElementById('comp-names-totals').style.gridTemplateColumns='1fr 120px 120px 120px 120px';
   document.getElementById('comp-names-totals').innerHTML=
-    `<span>Total</span><span class="primary">${totAg}</span><span class="green">${totComp}</span><span style="color:#f87171;font-weight:700">${totPun>0?`-${totPun}`:0}</span>`;
+    `<span>Total</span><span class="primary">${totAg}</span><span class="green">${totComp}</span><span style="color:#f87171;font-weight:700">${totPun>0?`-${totPun}`:0}</span><span class="primary">${totVendas}</span>`;
 }
 
 function renderCompList() {
   document.getElementById('comp-header').innerHTML =
-    '<span>NOME</span><span>AGENDAMENTO</span><span>COMPARECIMENTO</span><span>PUNIÇÕES</span>';
-  document.getElementById('comp-header').style.gridTemplateColumns='1fr 120px 120px 120px';
-  document.getElementById('comp-totals').style.gridTemplateColumns='1fr 120px 120px 120px';
+    '<span>NOME</span><span>AGENDAMENTO</span><span>COMPARECIMENTO</span><span>PUNIÇÕES</span><span>VENDAS</span>';
+  document.getElementById('comp-header').style.gridTemplateColumns='1fr 120px 120px 120px 120px';
+  document.getElementById('comp-totals').style.gridTemplateColumns='1fr 120px 120px 120px 120px';
   document.getElementById('comp-list').innerHTML=compPeople.map((p,i)=>
-    `<div class="comp-row" style="grid-template-columns:1fr 120px 120px 120px">
+    `<div class="comp-row" style="grid-template-columns:1fr 120px 120px 120px 120px">
       <div class="comp-name"><div class="comp-avatar">${p.name[0].toUpperCase()}</div>${p.name}</div>
       <input class="comp-input primary-input" type="number" min="0" value="${p.ag}"
         onchange="compPeople[${i}].ag=Number(this.value);updateCompTotals()"/>
@@ -1329,6 +1329,7 @@ function renderCompList() {
         onchange="compPeople[${i}].comp=Number(this.value);updateCompTotals()"/>
       <input class="comp-input pun-input" type="number" min="0" value="${p.pun||0}"
         onchange="compPeople[${i}].pun=Number(this.value);updateCompTotals()"/>
+      <input class="comp-input" type="number" min="0" value="${p.vendas||0}" onchange="compPeople[${i}].vendas=Number(this.value);updateCompTotals()"/>
     </div>`
   ).join('') || '<p class="no-data">Nenhum dado.</p>';
   updateCompTotals();
@@ -1350,11 +1351,11 @@ async function saveComparecimento() {
     const bairros = {};
     bairrosData.forEach(b => { bairros[b.nome] = { ag: b.ag||0, comp: b.comp||0 }; });
     const namesData = {};
-    const punicoes = {};
-    compPeople.forEach(p => { namesData[p.name] = p.comp||0; punicoes[p.name] = p.pun||0; });
+    const punicoes = {}; const vendas = {};
+    compPeople.forEach(p => { namesData[p.name] = p.comp||0; punicoes[p.name] = p.pun||0; vendas[p.name] = p.vendas||0; });
     await fetch(`/api/appointments/${encodeURIComponent(UNIT)}/${getDateKey()}/comparecimento`,{
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({comparecimento_data:{ __bairros__: bairros, __punicoes__: punicoes, ...namesData }})
+      body:JSON.stringify({comparecimento_data:{ __bairros__: bairros, __punicoes__: punicoes, __vendas__: vendas, ...namesData }})
     });
     closeModal('modal-comp');
     showToast('Comparecimento salvo!');
