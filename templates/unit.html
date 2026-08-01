@@ -379,7 +379,7 @@
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
       <span>🕐 Resumo do Dia — <span id="sum-unit"></span></span>
-      <button class="modal-close" onclick="closeModal('modal-summary')">✕</button>
+      <button onclick="relatorioHoraHora()" style="background:#22c55e;color:#052e16;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-right:8px">📲 Relatório WhatsApp</button><button class="modal-close" onclick="closeModal('modal-summary')">✕</button>
     </div>
     <div class="modal-body" style="overflow-x:hidden">
       <div class="stats-grid" style="margin-bottom:16px;grid-template-columns:repeat(3,1fr)">
@@ -1063,6 +1063,28 @@ async function runExport() {
 }
 
 // Summary Modal
+async function relatorioHoraHora(){
+  try{
+    var NL=String.fromCharCode(10);
+    var dk=getDateKey(); var p=dk.split("-"); var ano=p[0], mes=parseInt(p[1],10); var dataStr=p[2]+"/"+p[1];
+    var totalAg=(rows||[]).reduce(function(s,r){return s+Object.values(r.slots||{}).reduce(function(ss,v){return ss+(Number(v)||0);},0);},0);
+    var lines=(TIME_SLOTS||[]).map(function(sl){return {label:sl.label, cnt:(rows||[]).reduce(function(a,r){return a+(Number((r.slots||{})[sl.key])||0);},0)};}).filter(function(x){return x.cnt>0;});
+    var metaDia=0;
+    try{ var metas=await fetch("/api/metas?ano="+ano+"&mes="+mes).then(function(r){return r.json();}); var mm=(metas||[]).find(function(x){return (x.unidade||"")===UNIT && !(x.bairro||"");}); if(mm) metaDia=Number(mm.meta_dia)||0; }catch(e){}
+    var falta=Math.max(0, metaDia-totalAg);
+    var L=["Hora a Hora "+UNIT+" - "+dataStr,""];
+    lines.forEach(function(x){ L.push(x.label.split("-")[0]+"- "+x.cnt+" Ags"); });
+    L.push(""); L.push("Total - "+totalAg+" Ags"); L.push(""); L.push("META - "+metaDia); L.push("Falta: "+falta);
+    var txt=L.join(NL);
+    var ov=document.createElement("div"); ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px"; ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+    var box=document.createElement("div"); box.style.cssText="background:#141414;border:1px solid #1f1f1f;border-radius:12px;max-width:360px;width:100%;padding:16px;display:flex;flex-direction:column;gap:10px"; box.onclick=function(e){e.stopPropagation();};
+    var ttl=document.createElement("div"); ttl.textContent="Relatório Hora a Hora"; ttl.style.cssText="font-size:13px;font-weight:600;color:#22c55e";
+    var ta=document.createElement("textarea"); ta.value=txt; ta.style.cssText="width:100%;height:240px;background:#0f0f0f;color:#e4e4e7;border:1px solid #2a2a2a;border-radius:8px;padding:10px;font-size:13px;font-family:monospace;resize:none";
+    var btn=document.createElement("button"); btn.textContent="Copiar para WhatsApp"; btn.style.cssText="background:#22c55e;color:#052e16;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer";
+    btn.onclick=function(){ ta.select(); try{ navigator.clipboard.writeText(txt); }catch(e){ try{document.execCommand("copy");}catch(e2){} } if(typeof showToast!=="undefined")showToast("Relatório copiado!","success"); ov.remove(); };
+    box.appendChild(ttl); box.appendChild(ta); box.appendChild(btn); ov.appendChild(box); document.body.appendChild(ov);
+  }catch(e){ if(typeof showToast!=="undefined")showToast("Erro ao gerar relatório","error"); }
+}
 async function openSummary() {
   const totalPeople = rows.filter(r=>r.name?.trim()).length;
   const totalAg = rows.reduce((s,r)=>s+Object.values(r.slots||{}).reduce((ss,v)=>ss+(Number(v)||0),0),0);
