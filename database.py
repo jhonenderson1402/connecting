@@ -12,6 +12,7 @@ import os
 import re
 import json
 from datetime import datetime
+from sqlalchemy import Float
 from sqlalchemy import (
     create_engine, Column, Integer, String, Text, UniqueConstraint, Index,
     select, insert, update, delete, func, and_, text,
@@ -110,6 +111,8 @@ class Meta(Base):
     bairro     = Column(String(120), default='')          # só para a PARÁ; vazio nas demais
     meta_agend = Column(Integer, default=0)
     meta_comp  = Column(Integer, default=0)
+    meta_dia   = Column(Float, default=0)
+    meta_hora  = Column(Float, default=0)
     meta_conv  = Column(Integer, default=0)               # porcentagem 0-100
     updated_at = Column(String(40), default='')
     __table_args__ = (
@@ -136,6 +139,12 @@ def init_db():
 def _run_migrations():
     """Aplica migrações incrementais no banco existente (idempotente)."""
     with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE metas ADD COLUMN IF NOT EXISTS meta_dia DOUBLE PRECISION DEFAULT 0"))
+            conn.execute(text("ALTER TABLE metas ADD COLUMN IF NOT EXISTS meta_hora DOUBLE PRECISION DEFAULT 0"))
+            conn.commit()
+        except Exception as e:
+            print("[migration] meta_dia/hora:", e)
         # Migração 1: adiciona coluna 'role' na tabela users se não existir
         try:
             conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT 'all'"))
@@ -395,6 +404,8 @@ def _meta_to_dict(m):
         'unidade': m.unidade, 'bairro': m.bairro or '',
         'meta_agend': m.meta_agend or 0,
         'meta_comp': m.meta_comp or 0,
+        'meta_dia': m.meta_dia or 0,
+        'meta_hora': m.meta_hora or 0,
         'meta_conv': m.meta_conv or 0,
         'updated_at': m.updated_at or '',
     }
@@ -439,6 +450,8 @@ def bulk_upsert_metas(ano, mes, metas_list):
                 continue
             ag   = int(m.get('meta_agend') or 0)
             comp = int(m.get('meta_comp') or 0)
+            dia  = float(m.get('meta_dia') or 0)
+            hora = float(m.get('meta_hora') or 0)
             conv = int(m.get('meta_conv') or 0)
             existing = s.scalar(select(Meta).where(and_(
                 Meta.ano == ano, Meta.mes == mes,
@@ -447,13 +460,13 @@ def bulk_upsert_metas(ano, mes, metas_list):
             if existing:
                 s.execute(
                     update(Meta).where(Meta.id == existing.id).values(
-                        meta_agend=ag, meta_comp=comp, meta_conv=conv, updated_at=now
+                        meta_agend=ag, meta_comp=comp, meta_dia=dia, meta_hora=hora, meta_conv=conv, updated_at=now
                     )
                 )
             else:
                 s.add(Meta(
                     ano=ano, mes=mes, unidade=unidade, bairro=bairro,
-                    meta_agend=ag, meta_comp=comp, meta_conv=conv, updated_at=now
+                    meta_agend=ag, meta_comp=comp, meta_dia=dia, meta_hora=hora, meta_conv=conv, updated_at=now
                 ))
         s.commit()
 # ---- Estatísticas públicas (para a landing) ---------------------------------
