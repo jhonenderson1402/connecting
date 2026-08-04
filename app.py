@@ -662,6 +662,92 @@ def api_save_metas():
             return _err(f'Unidade inválida nas metas: {u}')
     db.bulk_upsert_metas(ano, mes, metas)
     return jsonify({'ok': True, 'count': len(metas)})
+
+# -- API Externa (relatorios so-leitura, protegida por X-API-Key) --
+def _ext_auth_ok():
+    key = os.environ.get('EXTERNAL_API_KEY', '')
+    return bool(key) and request.headers.get('X-API-Key', '') == key
+
+@app.route('/api/externo/hora-a-hora', methods=['GET'])
+@limiter.limit("60 per minute")
+def api_ext_hora():
+    if not _ext_auth_ok():
+        return jsonify({'error': 'unauthorized'}), 401
+    unidade = (request.args.get('unidade') or '').strip()
+    data = (request.args.get('data') or '').strip()
+    if not unidade or not data:
+        return jsonify({'error': 'parametros unidade e data (YYYY-MM-DD) obrigatorios'}), 400
+    appt = db.get_appointment(unidade, data) or {}
+    horas = {}
+    for r in (appt.get('rows') or []):
+        for k, v in (r.get('slots') or {}).items():
+            try:
+                horas[k] = horas.get(k, 0) + int(float(v or 0))
+            except Exception:
+                pass
+    total = sum(horas.values())
+    meta_dia = 0
+    try:
+        ano = int(data[0:4]); mes = int(data[5:7])
+        for m in (db.get_metas(ano, mes) or []):
+            if (m.get('unidade') or '') == unidade and not (m.get('bairro') or ''):
+                meta_dia = m.get('meta_dia') or 0
+                break
+    except Exception:
+        pass
+    lista = [{'hora': k, 'ags': horas[k]} for k in sorted(horas.keys()) if horas[k] > 0]
+    return jsonify({'unidade': unidade, 'data': data, 'horas': lista, 'total': total, 'meta_dia': meta_dia, 'falta': max(0, (meta_dia or 0) - total)})
+
+@app.route('/api/externo/metas', methods=['GET'])
+@limiter.limit("60 per minute")
+def api_ext_metas_pub():
+    if not _ext_auth_ok():
+        return jsonify({'error': 'unauthorized'}), 401
+    try:
+        ano = int(request.args.get('ano')); mes = int(request.args.get('mes'))
+    except Exception:
+        return jsonify({'error': 'parametros ano e mes obrigatorios'}), 400
+    metas = db.get_metas(ano, mes) or []
+    real_unit = {}
+    real_bairro = {}
+    for appt in (db.get_appointments_by_month(ano, mes) or []):
+        u = appt.get('unit') or ''
+        cd = appt.get('comparecimento_data') or {}
+        for nm, v in cd.items():
+            if nm == '__bairros__':
+                for b, obj in (v or {}).items():
+                    try:
+                        real_bairro[(u, b)] = real_bairro.get((u, b), 0) + int((obj or {}).get('comp') or 0)
+                    except Exception:
+                        pass
+                continue
+            if nm in ('__punicoes__', '__vendas__'):
+                continue
+            try:
+                real_unit[u] = real_unit.get(u, 0) + int(float(v or 0))
+            except Exception:
+                pass
+    out = []
+    for m in metas:
+        u = m.get('unidade') or ''
+        b = m.get('bairro') or ''
+        real = real_bairro.get((u, b), 0) if b else real_unit.get(u, 0)
+        meta_mes = m.get('meta_comp') or 0
+        out.append({'unidade': u, 'bairro': b, 'meta_mes': meta_mes, 'meta_dia': m.get('meta_dia') or 0, 'meta_hora': m.get('meta_hora') or 0, 'realizado': real, 'pct': round((real / meta_mes) * 100) if meta_mes else 0})
+    return jsonify({'ano': ano, 'mes': mes, 'metas': out})
+
+@app.route('/api/externo/confirmacoes', methods=['GET'])
+@limiter.limit("60 per minute")
+def api_ext_confs():
+    if not _ext_auth_ok():
+        return jsonify({'error': 'unauthorized'}), 401
+    data_str = (request.args.get('data') or '').strip()
+    atendente = (request.args.get('atendente') or '').strip() or None
+    if not data_str:
+        return jsonify({'error': 'parametro data (DD/MM/YYYY) obrigatorio'}), 400
+    confs = db.get_confirmacoes(data_str=data_str, atendente=atendente) or []
+    return jsonify({'data': data_str, 'atendente': atendente, 'total': len(confs), 'confirmacoes': confs})
+
 @app.route('/api/users/<int:uid>/role', methods=['POST'])
 @admin_required
 def api_set_user_role(uid):
