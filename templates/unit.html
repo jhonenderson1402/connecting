@@ -1314,7 +1314,7 @@ function renderBairrosList() {
     document.getElementById('comp-names-list').innerHTML = compPeople.map((p,i) =>
       `<div class="comp-row" style="grid-template-columns:1fr 120px 120px 120px 120px">
         <div class="comp-name"><div class="comp-avatar">${p.name[0].toUpperCase()}</div>${p.name}</div>
-        <input class="comp-input primary-input" type="number" value="${p.ag}" readonly tabindex="-1" title="Automático: vem do Hora a Hora" style="cursor:default;opacity:.7;pointer-events:none"/>
+        <div style="display:flex;align-items:center;justify-content:center;font-weight:700;color:#fbbf24;font-size:14px" title="Vem do Hora a Hora (fixo)">${p.ag}</div>
         <input class="comp-input green-input" type="number" min="0" value="${p.comp}"
           onchange="compPeople[${i}].comp=Number(this.value);updateParaNamesTotals()"/>
         <input class="comp-input pun-input" type="number" min="0" value="${p.pun||0}"
@@ -1345,7 +1345,7 @@ function renderCompList() {
   document.getElementById('comp-list').innerHTML=compPeople.map((p,i)=>
     `<div class="comp-row" style="grid-template-columns:1fr 120px 120px 120px 120px">
       <div class="comp-name"><div class="comp-avatar">${p.name[0].toUpperCase()}</div>${p.name}</div>
-      <input class="comp-input primary-input" type="number" value="${p.ag}" readonly tabindex="-1" title="Automático: vem do Hora a Hora" style="cursor:default;opacity:.7;pointer-events:none"/>
+      <div style="display:flex;align-items:center;justify-content:center;font-weight:700;color:#fbbf24;font-size:14px" title="Vem do Hora a Hora (fixo)">${p.ag}</div>
       <input class="comp-input green-input" type="number" min="0" value="${p.comp}"
         onchange="compPeople[${i}].comp=Number(this.value);updateCompTotals()"/>
       <input class="comp-input pun-input" type="number" min="0" value="${p.pun||0}"
