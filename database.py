@@ -158,14 +158,14 @@ def _run_migrations():
             conn.commit()
             print("[migration] Coluna 'role' adicionada à tabela users.")
         except Exception:
-            pass  # Coluna já existe, ignora
+            conn.rollback()  # Coluna já existe, ignora
         # Migração 2: adiciona coluna 'atendente' na tabela confirmacoes se não existir
         try:
             conn.execute(text("ALTER TABLE confirmacoes ADD COLUMN atendente VARCHAR(200) DEFAULT ''"))
             conn.commit()
             print("[migration] Coluna 'atendente' adicionada à tabela confirmacoes.")
         except Exception:
-            pass  # Coluna já existe, ignora
+            conn.rollback()  # Coluna já existe, ignora
         # Migração: adiciona coluna 'funcao' na tabela employees se não existir
         try:
             conn.execute(text("ALTER TABLE employees ADD COLUMN funcao VARCHAR DEFAULT 'ATENDENTE'"))
