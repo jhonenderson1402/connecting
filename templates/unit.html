@@ -692,14 +692,16 @@ function renderTable() {
   const monthName = isNaN(monthIdx) ? '—' : MONTHS[monthIdx];
   const year = document.getElementById('sel-year').value;
 
+  const attendants = employees.filter(e => (e.funcao||'ATENDENTE')==='ATENDENTE');
+  const leaders = employees.filter(e => e.funcao==='LIDER');
   tbody.innerHTML = rows.map((row,i)=>{
     const total = Object.values(row.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
     const bg = i%2===0?'':'row-alt';
     let nameCell;
-    if(employees.length>0){
+    if(attendants.length>0){
       const display = row.name ? escapeHtml(row.name) : 'Selecionar...';
       const emptyClass = row.name ? '' : ' empty';
-      const opts = employees.map(e => {
+      const opts = attendants.map(e => {
         const sel = e.name === row.name ? ' selected' : '';
         return `<div class="name-dd-option${sel}" onclick="selectName(${i}, '${escapeJs(e.name)}', event)">${escapeHtml(e.name)}</div>`;
       }).join('');
@@ -718,6 +720,25 @@ function renderTable() {
         onchange="rowNameChange(${i},this.value)"
         title="Cadastre funcionários na página '👥 Funcionários' para selecioná-los aqui."/>`;
     }
+    let leaderCell;
+    if(leaders.length>0){
+      const ldisplay = row.leader ? escapeHtml(row.leader) : 'Selecionar...';
+      const lempty = row.leader ? '' : ' empty';
+      const lopts = leaders.map(e => {
+        const sel = e.name === row.leader ? ' selected' : '';
+        return `<div class="name-dd-option${sel}" onclick="selectLeader(${i}, '${escapeJs(e.name)}', event)">${escapeHtml(e.name)}</div>`;
+      }).join('');
+      leaderCell = `
+        <div class="leader-dd" data-row="${i}">
+          <button type="button" class="name-dd-trigger${lempty}" onclick="toggleLeaderDropdown(${i}, event)">${ldisplay}</button>
+          <div class="name-dd-menu">
+            <div class="name-dd-option placeholder" onclick="selectLeader(${i}, '', event)">Selecionar...</div>
+            ${lopts}
+          </div>
+        </div>`;
+    } else {
+      leaderCell = `<input class="cell-input" style="font-size:10px;text-transform:uppercase" value="${escapeHtml(row.leader||'')}" placeholder="—" onchange="rowLeaderChange(${i}, this.value)" title="Líder desta linha"/>`;
+    }
     const slotCells = TIME_SLOTS.map(s=>{
       const val=row.slots?.[s.key]||'';
       return `<td><input class="${slotCls(val)}" maxlength="5" value="${val}" oninput="slotChange(${i},'${s.key}',this.value);this.className=slotCls(this.value)"/></td>`;
@@ -726,13 +747,7 @@ function renderTable() {
       <td>${monthName}</td>
       <td>${year}</td>
       <td>${dateStr}</td>
-      <td>
-        <input class="cell-input" style="font-size:10px;text-transform:uppercase"
-          value="${escapeHtml(row.leader||'')}"
-          placeholder="—"
-          onchange="rowLeaderChange(${i}, this.value)"
-          title="Líder desta linha"/>
-      </td>
+      <td>${leaderCell}</td>
       <td>${nameCell}</td>
       ${slotCells}
       <td class="total-cell">
@@ -814,8 +829,40 @@ function selectName(i, name, event) {
 }
 
 // Fechar ao clicar fora de qualquer dropdown
+function toggleLeaderDropdown(i, event){
+  event.stopPropagation();
+  const dd=document.querySelector(`.leader-dd[data-row="${i}"]`);
+  if(!dd) return;
+  const menu=dd.querySelector('.name-dd-menu');
+  const wasOpen=menu.classList.contains('open');
+  closeAllNameDropdowns();
+  if(!wasOpen){
+    const trigger=dd.querySelector('.name-dd-trigger');
+    const rect=trigger.getBoundingClientRect();
+    const menuWidth=Math.max(rect.width,180);
+    menu.style.top=(rect.bottom+4)+'px';
+    menu.style.left=rect.left+'px';
+    menu.style.width=menuWidth+'px';
+    menu.classList.add('open');
+    trigger.classList.add('open');
+  }
+}
+function selectLeader(i, name, event){
+  event.stopPropagation();
+  rows[i].leader=name;
+  closeAllNameDropdowns();
+  const dd=document.querySelector(`.leader-dd[data-row="${i}"]`);
+  if(dd){
+    const trig=dd.querySelector('.name-dd-trigger');
+    trig.textContent=name||'Selecionar...';
+    trig.classList.toggle('empty', !name);
+    dd.querySelectorAll('.name-dd-option').forEach(opt=>opt.classList.remove('selected'));
+    dd.querySelectorAll('.name-dd-option').forEach(opt=>{ if((opt.textContent.trim()===name)&&!opt.classList.contains('placeholder')) opt.classList.add('selected'); });
+  }
+  scheduleSave();
+}
 document.addEventListener('click', (e) => {
-  if(!e.target.closest('.name-dd')) closeAllNameDropdowns();
+  if(!e.target.closest('.name-dd') && !e.target.closest('.leader-dd')) closeAllNameDropdowns();
 });
 
 function slotChange(i, key, val) {
