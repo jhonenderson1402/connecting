@@ -304,12 +304,15 @@ def api_create_employee():
     name = (data.get('name') or '').strip()
     unit = data.get('unit')
     active = bool(data.get('active', True))
+    funcao = (data.get('funcao') or 'ATENDENTE').strip().upper()
+    if funcao not in ('ATENDENTE', 'LIDER'):
+        funcao = 'ATENDENTE'
     if not name:
         return _err('Campo "name" é obrigatório')
     if not _valid_unit(unit):
         return _err(f'Campo "unit" inválido. Use um de: {UNITS}')
-    eid = db.create_employee(name, unit, active)
-    return jsonify({'id': eid, 'name': name, 'unit': unit, 'active': active}), 201
+    eid = db.create_employee(name, unit, active, funcao=funcao)
+    return jsonify({'id': eid, 'name': name, 'unit': unit, 'active': active, 'funcao': funcao}), 201
 @app.route('/api/employees/<int:eid>', methods=['DELETE'])
 @login_required
 def api_delete_employee(eid):
