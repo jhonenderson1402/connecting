@@ -140,11 +140,17 @@ def _run_migrations():
     """Aplica migrações incrementais no banco existente (idempotente)."""
     with engine.connect() as conn:
         try:
-            conn.execute(text("ALTER TABLE metas ADD COLUMN IF NOT EXISTS meta_dia DOUBLE PRECISION DEFAULT 0"))
-            conn.execute(text("ALTER TABLE metas ADD COLUMN IF NOT EXISTS meta_hora DOUBLE PRECISION DEFAULT 0"))
+            conn.execute(text("ALTER TABLE metas ADD COLUMN meta_dia DOUBLE PRECISION DEFAULT 0"))
             conn.commit()
-        except Exception as e:
-            print("[migration] meta_dia/hora:", e)
+            print("[migration] Coluna 'meta_dia' adicionada à tabela metas.")
+        except Exception:
+            conn.rollback()  # Coluna já existe, ignora
+        try:
+            conn.execute(text("ALTER TABLE metas ADD COLUMN meta_hora DOUBLE PRECISION DEFAULT 0"))
+            conn.commit()
+            print("[migration] Coluna 'meta_hora' adicionada à tabela metas.")
+        except Exception:
+            conn.rollback()  # Coluna já existe, ignora
         # Migração 1: adiciona coluna 'role' na tabela users se não existir
         try:
             conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT 'all'"))
