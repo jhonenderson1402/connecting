@@ -57,6 +57,7 @@ class Employee(Base):
     name   = Column(String(200), nullable=False)
     unit   = Column(String(100), nullable=False)
     active = Column(Integer, default=1)
+    funcao = Column(String(20), default='ATENDENTE')
     __table_args__ = (
         Index('idx_emp_unit_active', 'unit', 'active'),
     )
@@ -165,6 +166,13 @@ def _run_migrations():
             print("[migration] Coluna 'atendente' adicionada à tabela confirmacoes.")
         except Exception:
             pass  # Coluna já existe, ignora
+        # Migração: adiciona coluna 'funcao' na tabela employees se não existir
+        try:
+            conn.execute(text("ALTER TABLE employees ADD COLUMN funcao VARCHAR DEFAULT 'ATENDENTE'"))
+            conn.commit()
+            print("[migration] Coluna 'funcao' adicionada à tabela employees.")
+        except Exception:
+            conn.rollback()  # Coluna já existe, ignora
         # Migração 3: cria a tabela 'metas' se não existir (Base.metadata.create_all já cobre,
         # mas garantimos aqui para bancos que rodaram create_all antes deste modelo existir).
         # Nada a fazer além do create_all; deixado como marcador.
@@ -270,10 +278,10 @@ def get_employees(unit=None, active=None):
             q = q.where(Employee.active == (1 if active else 0))
         q = q.order_by(Employee.name)
         rows = s.scalars(q).all()
-        return [{'id': r.id, 'name': r.name, 'unit': r.unit, 'active': r.active} for r in rows]
-def create_employee(name, unit, active=True):
+        return [{'id': r.id, 'name': r.name, 'unit': r.unit, 'active': r.active, 'funcao': (r.funcao or 'ATENDENTE')} for r in rows]
+def create_employee(name, unit, active=True, funcao='ATENDENTE'):
     with SessionLocal() as s:
-        e = Employee(name=name, unit=unit, active=1 if active else 0)
+        e = Employee(name=name, unit=unit, active=1 if active else 0, funcao=funcao)
         s.add(e)
         s.commit()
         s.refresh(e)
