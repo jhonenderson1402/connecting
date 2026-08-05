@@ -1117,4 +1117,33 @@ document.addEventListener('click', e=>{
   if(e.target && e.target.id === 'extract-modal') closeExtract();
 });
 </script>
+<script>
+(function(){
+  var target=null, mo=null;
+  function restyleMetas(){
+    var body=document.getElementById('metas-body'); if(!body) return;
+    var kids=[].slice.call(body.children);
+    if(kids.length===2 && kids[0].classList && kids[0].classList.contains('metas-col-wrap') && kids[1].classList && kids[1].classList.contains('metas-col-wrap')) return;
+    var splitIdx=-1;
+    for(var i=0;i<kids.length;i++){ if(/FUNCION/i.test(kids[i].textContent||'')){ splitIdx=i; break; } }
+    if(splitIdx<=0) return;
+    var colU=document.createElement('div'); colU.className='metas-col-wrap'; colU.style.cssText='flex:1 1 0;min-width:0';
+    var colF=document.createElement('div'); colF.className='metas-col-wrap'; colF.style.cssText='flex:1 1 0;min-width:0';
+    for(var j=0;j<kids.length;j++){ (j<splitIdx?colU:colF).appendChild(kids[j]); }
+    body.style.display='flex'; body.style.gap='20px'; body.style.alignItems='flex-start';
+    body.appendChild(colU); body.appendChild(colF);
+    var modal=body.closest ? body.closest('.modal') : null;
+    if(modal){ modal.style.maxWidth='920px'; modal.style.width='94vw'; }
+  }
+  function safe(){ if(mo) mo.disconnect(); try{ restyleMetas(); } catch(e){} finally { if(mo && target) mo.observe(target,{childList:true}); } }
+  function attach(){
+    target=document.getElementById('metas-body');
+    if(!target){ return setTimeout(attach,300); }
+    mo=new MutationObserver(safe);
+    mo.observe(target,{childList:true});
+    safe();
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',attach); } else { attach(); }
+})();
+</script>
 {% endblock %}
