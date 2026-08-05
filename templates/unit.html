@@ -597,7 +597,7 @@ function buildTableHead() {
   // Colunas: MÊS, ANO, DATA, LÍDER, NOME, 13 slots, TOTAL+lixeira
   // Total: 3.5 + 2.5 + 5.5 + 4 + 10 + 13*4.5 + 11 = 95% (sobra 5% pra paddings/bordas)
   const colgroup = document.createElement('colgroup');
-  const widths = ['3.5%', '2.5%', '5.5%', '4%', '10%'];   // MÊS, ANO, DATA, LÍDER, NOME
+  const widths = ['3.5%', '2.5%', '5.5%', '9%', '10%'];   // MÊS, ANO, DATA, LÍDER, NOME
   TIME_SLOTS.forEach(() => widths.push('4.5%'));          // N slots × 4.5%
   widths.push('11%');                                     // TOTAL + lixeira juntos
   widths.forEach(w => {
