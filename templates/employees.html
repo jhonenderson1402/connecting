@@ -129,7 +129,7 @@ async function deleteEmployee(id) {
 <script>
 (function(){
   function renderByUnit(){
-    var grid=document.getElementById('emp-grid'); if(!grid) return;
+    var grid=document.getElementById('emp-grid'); if(!grid) return; grid.style.display='block';
     var fuEl=document.getElementById('filter-unit'); var fUnit=fuEl?fuEl.value:'ALL';
     var all=(typeof allEmployees!=='undefined'&&allEmployees)?allEmployees:[];
     var units=(typeof UNITS!=='undefined')?UNITS.slice():[];
