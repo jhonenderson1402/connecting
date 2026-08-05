@@ -1122,33 +1122,24 @@ document.addEventListener('click', e=>{
   var target=null, mo=null;
   function recomputeTotal(){
     var body=document.getElementById('metas-body'); if(!body) return;
-    var colU=body.querySelector('.metas-col-wrap'); if(!colU) colU=body;
-    var rows=[].slice.call(colU.children);
-    var totalRow=null, tM=0,tD=0,tH=0;
-    rows.forEach(function(row){
-      var txt=(row.textContent||'').trim();
-      if(/^TOTAL/.test(txt)){ totalRow=row; return; }
-      if(/UNIDADE/i.test(txt)) return;
-      var label=((row.children[0]&&row.children[0].textContent)||'').trim();
-      if(label.charAt(0)==='-') return;
-      var inps=row.querySelectorAll('input');
-      if(inps.length>=3){ tM+=parseFloat(inps[0].value)||0; tD+=parseFloat(inps[1].value)||0; tH+=parseFloat(inps[2].value)||0; }
+    var tM=0,tD=0,tH=0,fA=0,fC=0;
+    var inps=[].slice.call(body.querySelectorAll('input.meta-input'));
+    inps.forEach(function(inp){
+      var k=inp.getAttribute('data-key')||''; var f=inp.getAttribute('data-field')||''; var v=parseFloat(inp.value)||0;
+      if(k.indexOf('@f:')>=0){ if(f==='agend') fA+=v; else if(f==='comp') fC+=v; }
+      else if(k.slice(-2)==='||'){ if(f==='comp') tM+=v; else if(f==='dia') tD+=v; else if(f==='hora') tH+=v; }
     });
-    if(totalRow){
-      var spans=totalRow.querySelectorAll('span');
-      if(spans.length>=6){
-        spans[1].textContent=tM; spans[2].textContent=tD; spans[3].textContent=tH;
-        var tR=parseFloat((spans[4].textContent||'0').replace(/[^0-9.-]/g,''))||0;
-        spans[5].textContent=(tM>0?Math.round(tR/tM*100):0)+'%';
-      }
-    }
-    var cols=body.querySelectorAll('.metas-col-wrap');
-    if(cols[1]){ var colF=cols[1]; var rows2=[].slice.call(colF.children); var tr2=null,fA=0,fC=0; rows2.forEach(function(row){ var t2=(row.textContent||'').trim(); if(/^TOTAL/.test(t2)){tr2=row;return;} var inps2=row.querySelectorAll('input'); if(inps2.length>=2){ fA+=parseFloat(inps2[0].value)||0; fC+=parseFloat(inps2[1].value)||0; } }); if(tr2){ var sp2=tr2.querySelectorAll('span'); if(sp2.length>=2) sp2[1].textContent=fA; if(sp2.length>=4) sp2[3].textContent=fC; } }
+    function findTotal(c){ if(!c) return null; var ch=c.children; for(var i=0;i<ch.length;i++){ if(/^TOTAL/.test((ch[i].textContent||'').trim())) return ch[i]; } return null; }
+    var wraps=body.querySelectorAll('.metas-col-wrap');
+    var uT=findTotal(wraps[0]||body);
+    if(uT){ var s=uT.querySelectorAll('span'); if(s.length>=6){ s[1].textContent=tM; s[2].textContent=tD; s[3].textContent=tH; var tR=parseFloat((s[4].textContent||'0').replace(/[^0-9.-]/g,''))||0; s[5].textContent=(tM>0?Math.round(tR/tM*100):0)+'%'; } }
+    var fT=findTotal(wraps[1]);
+    if(fT){ var s2=fT.querySelectorAll('span'); if(s2.length>=4){ s2[1].textContent=fA; s2[3].textContent=fC; } }
   }
   function restyleMetas(){
     var body=document.getElementById('metas-body'); if(!body) return;
     var kids=[].slice.call(body.children);
-    if(kids.length===2 && kids[0].classList && kids[0].classList.contains('metas-col-wrap') && kids[1].classList && kids[1].classList.contains('metas-col-wrap')) return;
+    if(kids.length===2 && kids[0].classList && kids[0].classList.contains('metas-col-wrap') && kids[1].classList && kids[1].classList.contains('metas-col-wrap')){ recomputeTotal(); return; }
     var splitIdx=-1;
     for(var i=0;i<kids.length;i++){ if(/FUNCION/i.test(kids[i].textContent||'')){ splitIdx=i; break; } }
     if(splitIdx<=0) return;
@@ -1161,6 +1152,7 @@ document.addEventListener('click', e=>{
     for(var k=0;k<8 && a; k++){ var p=a.parentElement; if(p){ var cs=getComputedStyle(p); if(cs.position==='fixed'||cs.position==='absolute'){ box=a; break; } } a=p; }
     if(!box && body.closest){ box=body.closest('.modal'); }
     if(box){ box.style.maxWidth='1040px'; box.style.width='96vw'; }
+    recomputeTotal();
   }
   function safe(){ if(mo) mo.disconnect(); try{ restyleMetas(); } catch(e){} finally { if(mo && target) mo.observe(target,{childList:true}); } }
   function attach(){
@@ -1168,7 +1160,7 @@ document.addEventListener('click', e=>{
     if(!target){ return setTimeout(attach,300); }
     mo=new MutationObserver(safe);
     mo.observe(target,{childList:true});
-    target.addEventListener('input', recomputeTotal);
+    document.addEventListener('input', function(e){ var mb=document.getElementById('metas-body'); if(mb && e.target && mb.contains(e.target) && e.target.classList && e.target.classList.contains('meta-input')) recomputeTotal(); });
     safe();
   }
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',attach); } else { attach(); }
