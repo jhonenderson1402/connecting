@@ -128,38 +128,49 @@ async function deleteEmployee(id) {
 </script>
 <script>
 (function(){
+  window.openAddUnit=function(btn){
+    var name=btn.getAttribute('data-name')||'';
+    var all=(typeof allEmployees!=='undefined'&&allEmployees)?allEmployees:[];
+    var units=(typeof UNITS!=='undefined')?UNITS.slice():[];
+    var mine=all.filter(function(e){return e.name===name;});
+    var has=mine.map(function(e){return e.unit;});
+    var funcao=(mine[0]&&mine[0].funcao)||'ATENDENTE';
+    var avail=units.filter(function(u){return has.indexOf(u)<0;});
+    if(!avail.length){ if(typeof showToast==='function') showToast('Já está em todas as unidades.','error'); return; }
+    var ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML='<div style="background:#141414;border:1px solid #333;border-radius:12px;padding:18px;min-width:260px"><div style="color:#fbbf24;font-weight:600;margin-bottom:12px">Adicionar unidade a '+name+'</div><div style="display:flex;flex-direction:column;gap:8px">'+avail.map(function(u){return '<button class="btn" style="width:100%" data-u="'+u+'">&#127970; '+u+'</button>';}).join('')+'</div><button class="btn" style="margin-top:12px;width:100%" data-cancel="1">Cancelar</button></div>';
+    ov.addEventListener('click',function(ev){ var t=ev.target; if(t===ov||t.getAttribute('data-cancel')){ ov.remove(); return; } var u=t.getAttribute('data-u'); if(u){ t.disabled=true; fetch('/api/employees',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,unit:u,active:true,funcao:funcao})}).then(function(){ ov.remove(); if(typeof loadEmployees==='function') loadEmployees(); if(typeof showToast==='function') showToast('Unidade adicionada!'); }); } });
+    document.body.appendChild(ov);
+  };
   function renderByUnit(){
     var grid=document.getElementById('emp-grid'); if(!grid) return; grid.style.display='block';
     var fuEl=document.getElementById('filter-unit'); var fUnit=fuEl?fuEl.value:'ALL';
     var all=(typeof allEmployees!=='undefined'&&allEmployees)?allEmployees:[];
     var units=(typeof UNITS!=='undefined')?UNITS.slice():[];
     all.forEach(function(e){ if(units.indexOf(e.unit)<0) units.push(e.unit); });
-    var byUnit={};
-    all.forEach(function(e){ (byUnit[e.unit]=byUnit[e.unit]||[]).push(e); });
+    var byUnit={}; all.forEach(function(e){ (byUnit[e.unit]=byUnit[e.unit]||[]).push(e); });
+    var unitsByName={}; all.forEach(function(e){ (unitsByName[e.name]=unitsByName[e.name]||[]).push(e.unit); });
     var showUnits = (fUnit!=='ALL') ? [fUnit] : units.filter(function(u){ return (byUnit[u]||[]).length>0; });
     if(!showUnits.length){ grid.innerHTML='<div class="empty-state"><p>Nenhum funcionário encontrado.</p></div>'; return; }
     var cols = showUnits.map(function(u){
       var emps=(byUnit[u]||[]).slice().sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); });
       var cards = emps.length ? emps.map(function(e){
         var av=(String(e.name)[0]||'?').toUpperCase();
-        var isLider=(e.funcao==='LIDER');
-        var func=isLider?'LÍDER':'ATENDENTE';
-        var col=isLider?'#fbbf24':'#a1a1aa';
-        return '<div class="emp-card" style="margin-bottom:8px"><div class="emp-avatar">'+av+'</div><div class="emp-info"><div class="emp-name">'+e.name+' <span style="font-size:11px;font-weight:700;margin-left:4px;color:'+col+'">— '+func+'</span></div></div><button class="del-btn emp-del" title="Remover desta unidade" onclick="removeUnitRow('+e.id+')">&#128465;</button></div>';
+        var isLider=(e.funcao==='LIDER'); var func=isLider?'LÍDER':'ATENDENTE'; var col=isLider?'#fbbf24':'#a1a1aa';
+        var others=(unitsByName[e.name]||[]).filter(function(x){ return x!==u; });
+        var othersHtml = others.length ? '<div class="emp-otherunits">também em: '+others.map(function(x){ return '<span class="emp-unit-badge-sm">&#127970; '+x+'</span>'; }).join('')+'</div>' : '';
+        var nameAttr=String(e.name).split('"').join('&quot;');
+        return '<div class="emp-card emp-card-col" style="margin-bottom:8px"><div class="emp-avatar">'+av+'</div><div class="emp-info"><div class="emp-name">'+e.name+' <span style="font-size:11px;font-weight:700;margin-left:4px;color:'+col+'">— '+func+'</span></div>'+othersHtml+'</div><div class="emp-col-actions"><button class="emp-addunit-sm" data-name="'+nameAttr+'" onclick="openAddUnit(this)">+ unidade</button><button class="del-btn emp-del" title="Remover desta unidade" onclick="removeUnitRow('+e.id+')">&#128465;</button></div></div>';
       }).join('') : '<div style="color:#52525b;font-size:12px;padding:6px 2px">Nenhum funcionário</div>';
       return '<div class="emp-unit-col"><div class="emp-unit-col-head">&#127970; '+u+' <span style="color:#71717a;font-weight:500;font-size:12px">('+emps.length+')</span></div>'+cards+'</div>';
     }).join('');
     grid.innerHTML='<div class="emp-unit-cols">'+cols+'</div>';
   }
   var st=document.createElement('style');
-  st.textContent='.emp-unit-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;align-items:start}.emp-unit-col{background:#141414;border:1px solid #262626;border-radius:12px;padding:12px}.emp-unit-col-head{color:#fbbf24;font-weight:700;font-size:13px;letter-spacing:.5px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #262626}';
+  st.textContent='.emp-unit-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;align-items:start}.emp-unit-col{background:#141414;border:1px solid #262626;border-radius:12px;padding:12px}.emp-unit-col-head{color:#fbbf24;font-weight:700;font-size:13px;letter-spacing:.5px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #262626}.emp-card-col{align-items:flex-start}.emp-otherunits{margin-top:5px;display:flex;flex-wrap:wrap;gap:4px;font-size:10px;color:#71717a;align-items:center}.emp-unit-badge-sm{display:inline-flex;align-items:center;gap:3px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.35);color:#60a5fa;font-size:10px;font-weight:600;padding:2px 6px;border-radius:999px}.emp-col-actions{display:flex;flex-direction:column;gap:5px;align-items:flex-end;margin-left:auto}.emp-addunit-sm{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.4);color:#3d82f6;font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;cursor:pointer;white-space:nowrap}';
   document.head.appendChild(st);
-  function hook(){
-    if(typeof allEmployees==='undefined'){ return setTimeout(hook,150); }
-    window.filterEmployees=renderByUnit;
-    window.renderEmployees=function(){ renderByUnit(); };
-    renderByUnit();
-  }
+  function hook(){ if(typeof allEmployees==='undefined'){ return setTimeout(hook,150); } window.filterEmployees=renderByUnit; window.renderEmployees=function(){ renderByUnit(); }; renderByUnit(); }
   setTimeout(hook,600);
 })();
 </script>
