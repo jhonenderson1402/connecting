@@ -701,10 +701,13 @@ function renderTable() {
     if(attendants.length>0){
       const display = row.name ? escapeHtml(row.name) : 'Selecionar...';
       const emptyClass = row.name ? '' : ' empty';
-      const opts = attendants.map(e => {
+      let opts = attendants.map(e => {
         const sel = e.name === row.name ? ' selected' : '';
         return `<div class="name-dd-option${sel}" onclick="selectName(${i}, '${escapeJs(e.name)}', event)">${escapeHtml(e.name)}</div>`;
       }).join('');
+      if(row.name && !attendants.some(e => e.name === row.name)){
+        opts = `<div class="name-dd-option selected" onclick="selectName(${i}, '${escapeJs(row.name)}', event)">${escapeHtml(row.name)} <span style="color:#71717a;font-size:10px">(ex)</span></div>` + opts;
+      }
       nameCell = `
         <div class="name-dd" data-row="${i}">
           <button type="button" class="name-dd-trigger${emptyClass}" onclick="toggleNameDropdown(${i}, event)">${display}</button>
@@ -724,10 +727,13 @@ function renderTable() {
     if(leaders.length>0){
       const ldisplay = row.leader ? escapeHtml(row.leader) : 'Selecionar...';
       const lempty = row.leader ? '' : ' empty';
-      const lopts = leaders.map(e => {
+      let lopts = leaders.map(e => {
         const sel = e.name === row.leader ? ' selected' : '';
         return `<div class="name-dd-option${sel}" onclick="selectLeader(${i}, '${escapeJs(e.name)}', event)">${escapeHtml(e.name)}</div>`;
       }).join('');
+      if(row.leader && !leaders.some(e => e.name === row.leader)){
+        lopts = `<div class="name-dd-option selected" onclick="selectLeader(${i}, '${escapeJs(row.leader)}', event)">${escapeHtml(row.leader)} <span style="color:#71717a;font-size:10px">(ex)</span></div>` + lopts;
+      }
       leaderCell = `
         <div class="leader-dd" data-row="${i}">
           <button type="button" class="name-dd-trigger${lempty}" onclick="toggleLeaderDropdown(${i}, event)">${ldisplay}</button>
