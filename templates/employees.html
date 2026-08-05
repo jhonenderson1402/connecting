@@ -126,4 +126,41 @@ async function deleteEmployee(id) {
   showToast('Funcionário removido.');
 }
 </script>
+<script>
+(function(){
+  function renderByUnit(){
+    var grid=document.getElementById('emp-grid'); if(!grid) return;
+    var fuEl=document.getElementById('filter-unit'); var fUnit=fuEl?fuEl.value:'ALL';
+    var all=(typeof allEmployees!=='undefined'&&allEmployees)?allEmployees:[];
+    var units=(typeof UNITS!=='undefined')?UNITS.slice():[];
+    all.forEach(function(e){ if(units.indexOf(e.unit)<0) units.push(e.unit); });
+    var byUnit={};
+    all.forEach(function(e){ (byUnit[e.unit]=byUnit[e.unit]||[]).push(e); });
+    var showUnits = (fUnit!=='ALL') ? [fUnit] : units.filter(function(u){ return (byUnit[u]||[]).length>0; });
+    if(!showUnits.length){ grid.innerHTML='<div class="empty-state"><p>Nenhum funcionário encontrado.</p></div>'; return; }
+    var cols = showUnits.map(function(u){
+      var emps=(byUnit[u]||[]).slice().sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); });
+      var cards = emps.length ? emps.map(function(e){
+        var av=(String(e.name)[0]||'?').toUpperCase();
+        var isLider=(e.funcao==='LIDER');
+        var func=isLider?'LÍDER':'ATENDENTE';
+        var col=isLider?'#fbbf24':'#a1a1aa';
+        return '<div class="emp-card" style="margin-bottom:8px"><div class="emp-avatar">'+av+'</div><div class="emp-info"><div class="emp-name">'+e.name+' <span style="font-size:11px;font-weight:700;margin-left:4px;color:'+col+'">— '+func+'</span></div></div><button class="del-btn emp-del" title="Remover desta unidade" onclick="removeUnitRow('+e.id+')">&#128465;</button></div>';
+      }).join('') : '<div style="color:#52525b;font-size:12px;padding:6px 2px">Nenhum funcionário</div>';
+      return '<div class="emp-unit-col"><div class="emp-unit-col-head">&#127970; '+u+' <span style="color:#71717a;font-weight:500;font-size:12px">('+emps.length+')</span></div>'+cards+'</div>';
+    }).join('');
+    grid.innerHTML='<div class="emp-unit-cols">'+cols+'</div>';
+  }
+  var st=document.createElement('style');
+  st.textContent='.emp-unit-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;align-items:start}.emp-unit-col{background:#141414;border:1px solid #262626;border-radius:12px;padding:12px}.emp-unit-col-head{color:#fbbf24;font-weight:700;font-size:13px;letter-spacing:.5px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #262626}';
+  document.head.appendChild(st);
+  function hook(){
+    if(typeof allEmployees==='undefined'){ return setTimeout(hook,150); }
+    window.filterEmployees=renderByUnit;
+    window.renderEmployees=function(){ renderByUnit(); };
+    renderByUnit();
+  }
+  setTimeout(hook,600);
+})();
+</script>
 {% endblock %}
