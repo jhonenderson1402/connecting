@@ -37,6 +37,13 @@
         <input class="input" id="new-name" placeholder="Nome completo" style="width:100%"
           onkeydown="if(event.key==='Enter')addEmployee()"/>
       </div>
+      <div class="filter-group" style="margin-bottom:12px">
+        <label class="filter-label">FUNÇÃO</label>
+        <select class="select" id="new-funcao" style="width:100%">
+          <option value="ATENDENTE">ATENDENTE</option>
+          <option value="LIDER">LÍDER</option>
+        </select>
+      </div>
       <div class="filter-group" style="margin-bottom:16px">
         <label class="filter-label">UNIDADE</label>
         <select class="select" id="new-unit" style="width:100%"></select>
@@ -96,15 +103,16 @@ function renderEmployees(list) {
 }
 
 function openAddModal() { document.getElementById('modal-add').classList.add('show'); document.getElementById('new-name').focus(); }
-function closeAddModal() { document.getElementById('modal-add').classList.remove('show'); document.getElementById('new-name').value=''; }
+function closeAddModal() { document.getElementById('modal-add').classList.remove('show'); document.getElementById('new-name').value=''; var f=document.getElementById('new-funcao'); if(f)f.value='ATENDENTE'; }
 
 async function addEmployee() {
   const name=document.getElementById('new-name').value.trim();
   const unit=document.getElementById('new-unit').value;
+  const funcao=document.getElementById('new-funcao').value;
   if(!name){ showToast('Digite um nome.','error'); return; }
   await fetch('/api/employees',{
     method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({name,unit,active:true})
+    body:JSON.stringify({name,unit,active:true,funcao})
   });
   closeAddModal();
   await loadEmployees();
