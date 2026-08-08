@@ -134,7 +134,7 @@ def inject_user():
 @app.before_request
 def _team_access_guard():
     role = session.get('role', 'all')
-    if role in ('all', 'admin'):
+    if role in ('all', 'admin', 'ambos'):
         return
     path = request.path or '/'
     if path.startswith('/static') or path.startswith('/login') or path == '/logout' or path.startswith('/api/stats_publicas'):
@@ -546,7 +546,7 @@ def api_leads_por_tmk():
     return jsonify(por_tmk)
 def _role_allowed(*roles):
     user_role = session.get('role', 'all')
-    return user_role == 'all' or user_role == 'admin' or user_role in roles
+    return user_role in ('all', 'admin', 'ambos') or user_role in roles
 ATENDENTES = ['VIVIANE', 'DIELLEM', 'LIVYA', 'KEILANE', 'LUANE', 'MARIA']
 UNIDADES_CONF = {
     'MANAUS': ['MANAUS'],
