@@ -130,6 +130,28 @@ def inject_user():
         'current_user_id': session.get('user_id'),
         'current_role': session.get('role', 'all'),
     }
+# ── Controle de acesso por equipe (agendamento x confirmacao) ────────────────
+@app.before_request
+def _team_access_guard():
+    role = session.get('role', 'all')
+    if role in ('all', 'admin'):
+        return
+    path = request.path or '/'
+    if path.startswith('/static') or path.startswith('/login') or path == '/logout' or path.startswith('/api/stats_publicas'):
+        return
+    if role == 'confirmacao':
+        allowed = (path.startswith('/confirmacao')
+                   or path.startswith('/api/confirmacoes')
+                   or (path.startswith('/api/appointments') and request.method == 'GET'))
+        if not allowed:
+            if _wants_json():
+                return _err('Sem permissao para esta area.', 403)
+            return redirect(url_for('confirmacao_analise'))
+    elif role == 'agendamento':
+        if path.startswith('/confirmacao') or path.startswith('/api/confirmacoes'):
+            if _wants_json():
+                return _err('Sem permissao para esta area.', 403)
+            return redirect(url_for('dashboard'))
 # ── Handlers globais de erro ──────────────────────────────────────────────────
 @app.errorhandler(404)
 def _not_found(_):
