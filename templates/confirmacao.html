@@ -1322,27 +1322,59 @@ document.addEventListener('paste', (e) => {
 <script>
 (function(){
   var st=document.createElement('style');
-  st.textContent='.conf-table tbody td:not(.td-flag){cursor:text;-webkit-user-select:text;user-select:text} .conf-table tbody td:not(.td-flag):hover{background:rgba(251,191,36,0.06)} .col-copy{background:none;border:none;color:#71717a;cursor:pointer;font-size:11px;padding:0 2px;margin-left:3px;vertical-align:middle} .col-copy:hover{color:#fbbf24}';
+  st.textContent='.conf-table tbody td:not(.td-flag){cursor:cell;-webkit-user-select:none;user-select:none} .conf-table tbody td.col-sel{background:rgba(34,197,94,0.22) !important;box-shadow:inset 0 0 0 1px rgba(34,197,94,0.7)} .col-copy{background:none;border:none;color:#71717a;cursor:pointer;font-size:11px;padding:0 2px;margin-left:3px;vertical-align:middle} .col-copy:hover{color:#fbbf24} #col-copy-fab{position:fixed;z-index:99999;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.45)}';
   document.head.appendChild(st);
   function toast(m){ if(typeof showToast==='function') showToast(m); }
   function fallback(text,msg){ var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); toast(msg||'Copiado!'); }catch(e){} ta.remove(); }
   function doCopy(text,msg){ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(function(){toast(msg||'Copiado!');}, function(){fallback(text,msg);}); } else { fallback(text,msg); } }
+  function tb(){ return document.getElementById('conf-tbody'); }
+  function rows(){ var t=tb(); return t?[].slice.call(t.children):[]; }
+  var fab=null;
+  function removeFab(){ if(fab){ fab.remove(); fab=null; } }
+  function clearSel(){ var t=tb(); if(t){ [].slice.call(t.querySelectorAll('td.col-sel')).forEach(function(td){td.classList.remove('col-sel');}); } removeFab(); }
+  function selectedCells(){ var t=tb(); return t?[].slice.call(t.querySelectorAll('td.col-sel')):[]; }
+  function copySelected(){ var cs=selectedCells(); if(!cs.length) return; var text=cs.map(function(td){return (td.textContent||'').trim();}).join('\n'); doCopy(text, cs.length+' copiados!'); }
+  var col=-1, sr=-1, er=-1, dragging=false, moved=false, startTd=null;
+  function rowIdx(td){ return rows().indexOf(td.parentElement); }
+  function applySel(){ var t=tb(); if(!t) return; [].slice.call(t.querySelectorAll('td.col-sel')).forEach(function(td){td.classList.remove('col-sel');}); if(col<0) return; var rr=rows(), a=Math.min(sr,er), b=Math.max(sr,er); for(var i=a;i<=b;i++){ var td=rr[i] && rr[i].children[col]; if(td && !td.classList.contains('td-flag')) td.classList.add('col-sel'); } }
+  function showFab(x,y,n){ removeFab(); fab=document.createElement('button'); fab.id='col-copy-fab'; fab.textContent='📋 Copiar ('+n+')'; fab.style.left=Math.max(8,Math.min(x, window.innerWidth-150))+'px'; fab.style.top=(y+10)+'px'; fab.onclick=function(ev){ ev.stopPropagation(); copySelected(); clearSel(); }; document.body.appendChild(fab); }
+  document.addEventListener('mousedown', function(e){
+    if(e.target && e.target.closest && e.target.closest('#col-copy-fab')) return;
+    var t=tb(); if(!t){ return; }
+    var td=e.target.closest ? e.target.closest('#conf-tbody td') : null;
+    if(!td){ clearSel(); col=-1; return; }
+    if(td.classList.contains('td-flag') || (e.target.closest && e.target.closest('select, input, button, a'))){ clearSel(); col=-1; return; }
+    clearSel();
+    col=[].slice.call(td.parentElement.children).indexOf(td);
+    sr=rowIdx(td); er=sr; startTd=td; dragging=true; moved=false;
+    applySel();
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', function(e){
+    if(!dragging) return;
+    var td=e.target.closest ? e.target.closest('#conf-tbody td') : null;
+    if(!td) return;
+    var r=rowIdx(td);
+    if(r>=0 && r!==er){ moved=true; er=r; applySel(); }
+  });
+  document.addEventListener('mouseup', function(e){
+    if(!dragging) return;
+    dragging=false;
+    var cs=selectedCells();
+    if(!moved && startTd){ var v=(startTd.textContent||'').trim(); clearSel(); if(v) doCopy(v); }
+    else if(cs.length>1){ showFab(e.clientX, e.clientY, cs.length); }
+    else { clearSel(); }
+  });
+  document.addEventListener('keydown', function(e){
+    if((e.ctrlKey||e.metaKey) && (e.key==='c'||e.key==='C')){ var cs=selectedCells(); if(cs.length>0){ e.preventDefault(); copySelected(); } }
+  });
   window.copyColumn=function(idx){
-    var tb=document.getElementById('conf-tbody'); if(!tb) return;
+    var t=tb(); if(!t) return;
     var vals=[];
-    [].slice.call(tb.querySelectorAll('tr')).forEach(function(tr){ var td=tr.children[idx]; if(td){ var v=(td.textContent||'').trim(); if(v) vals.push(v); } });
+    [].slice.call(t.querySelectorAll('tr')).forEach(function(tr){ var td=tr.children[idx]; if(td){ var v=(td.textContent||'').trim(); if(v) vals.push(v); } });
     if(!vals.length){ toast('Coluna vazia.'); return; }
     doCopy(vals.join('\n'), vals.length+' copiados!');
   };
-  document.addEventListener('click', function(e){
-    var td=e.target.closest ? e.target.closest('#conf-tbody td') : null;
-    if(!td) return;
-    if(window.getSelection && String(window.getSelection()).trim()) return;
-    if(td.classList.contains('td-flag')) return;
-    if(e.target.closest('select, input, button, a')) return;
-    var v=(td.textContent||'').trim();
-    if(v) doCopy(v);
-  });
 })();
 </script>
 {% endblock %}
