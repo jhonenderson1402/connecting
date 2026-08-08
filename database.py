@@ -238,7 +238,7 @@ def list_users():
     with SessionLocal() as s:
         users = s.scalars(select(User).order_by(User.username)).all()
         return [{'id': u.id, 'username': u.username, 'created_at': u.created_at, 'role': u.role or 'all'} for u in users]
-def create_user(username, password):
+def create_user(username, password, role='agendamento'):
     username = (username or '').strip()
     if not username:
         raise ValueError("Nome de usuario nao pode ser vazio.")
@@ -247,7 +247,9 @@ def create_user(username, password):
     if get_user_by_username(username):
         raise ValueError("Esse nome de usuario ja existe.")
     with SessionLocal() as s:
-        u = User(username=username, password_hash=generate_password_hash(password))
+        if role not in ('agendamento', 'confirmacao', 'all', 'admin'):
+            role = 'agendamento'
+        u = User(username=username, password_hash=generate_password_hash(password), role=role)
         s.add(u)
         s.commit()
         s.refresh(u)
