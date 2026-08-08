@@ -1322,7 +1322,7 @@ document.addEventListener('paste', (e) => {
 <script>
 (function(){
   var st=document.createElement('style');
-  st.textContent='.conf-table tbody td:not(.td-flag){cursor:pointer} .conf-table tbody td:not(.td-flag):hover{background:rgba(251,191,36,0.08)} .col-copy{background:none;border:none;color:#71717a;cursor:pointer;font-size:11px;padding:0 2px;margin-left:3px;vertical-align:middle} .col-copy:hover{color:#fbbf24}';
+  st.textContent='.conf-table tbody td:not(.td-flag){cursor:text;-webkit-user-select:text;user-select:text} .conf-table tbody td:not(.td-flag):hover{background:rgba(251,191,36,0.06)} .col-copy{background:none;border:none;color:#71717a;cursor:pointer;font-size:11px;padding:0 2px;margin-left:3px;vertical-align:middle} .col-copy:hover{color:#fbbf24}';
   document.head.appendChild(st);
   function toast(m){ if(typeof showToast==='function') showToast(m); }
   function fallback(text,msg){ var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); toast(msg||'Copiado!'); }catch(e){} ta.remove(); }
@@ -1337,6 +1337,7 @@ document.addEventListener('paste', (e) => {
   document.addEventListener('click', function(e){
     var td=e.target.closest ? e.target.closest('#conf-tbody td') : null;
     if(!td) return;
+    if(window.getSelection && String(window.getSelection()).trim()) return;
     if(td.classList.contains('td-flag')) return;
     if(e.target.closest('select, input, button, a')) return;
     var v=(td.textContent||'').trim();
