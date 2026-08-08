@@ -274,7 +274,7 @@ def api_list_users():
 def api_create_user():
     data = request.get_json(silent=True) or {}
     try:
-        uid = db.create_user(data.get('username'), data.get('password'))
+        uid = db.create_user(data.get('username'), data.get('password'), data.get('role'))
         return jsonify({'id': uid, 'username': data['username'].strip()}), 201
     except ValueError as e:
         return _err(str(e))
