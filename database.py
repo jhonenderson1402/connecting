@@ -247,7 +247,7 @@ def create_user(username, password, role='agendamento'):
     if get_user_by_username(username):
         raise ValueError("Esse nome de usuario ja existe.")
     with SessionLocal() as s:
-        if role not in ('agendamento', 'confirmacao', 'all', 'admin'):
+        if role not in ('agendamento', 'confirmacao', 'ambos', 'all', 'admin'):
             role = 'agendamento'
         u = User(username=username, password_hash=generate_password_hash(password), role=role)
         s.add(u)
@@ -352,7 +352,7 @@ def clear_appointment(unit, date):
         s.commit()
 # ---- Role management --------------------------------------------------------
 def set_user_role(user_id, role):
-    allowed = ('agendamento', 'confirmacao', 'all', 'admin')
+    allowed = ('agendamento', 'confirmacao', 'ambos', 'all', 'admin')
     if role not in allowed:
         raise ValueError(f'Role invalido. Use: {allowed}')
     with SessionLocal() as s:
