@@ -45,6 +45,7 @@
           <option value="all">👑 Admin (acesso total)</option>
           <option value="agendamento">📅 Equipe Agendamento</option>
           <option value="confirmacao">✅ Equipe Confirmação</option>
+          <option value="ambos">📅✅ Agendamento + Confirmação</option>
         </select>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -90,6 +91,7 @@
           <option value="all">👑 Admin (acesso total)</option>
           <option value="agendamento">📅 Equipe Agendamento</option>
           <option value="confirmacao">✅ Equipe Confirmação</option>
+          <option value="ambos">📅✅ Agendamento + Confirmação</option>
         </select>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -128,8 +130,8 @@ function render() {
   }
   grid.innerHTML = allUsers.map(u => {
     const isMe = u.id === CURRENT_USER_ID;
-    const roleLabel = u.role === 'agendamento' ? '📅 Agendamento' : u.role === 'confirmacao' ? '✅ Confirmação' : '👑 Admin';
-    const roleBadgeColor = u.role === 'agendamento' ? '#3b82f6' : u.role === 'confirmacao' ? '#22c55e' : '#fbbf24';
+    const roleLabel = u.role === 'agendamento' ? '📅 Agendamento' : u.role === 'confirmacao' ? '✅ Confirmação' : u.role === 'ambos' ? '📅✅ Agend. + Confirm.' : '👑 Admin';
+    const roleBadgeColor = u.role === 'agendamento' ? '#3b82f6' : u.role === 'confirmacao' ? '#22c55e' : u.role === 'ambos' ? '#a855f7' : '#fbbf24';
     return `
     <div class="emp-card">
       <div class="emp-avatar">${u.username[0]?.toUpperCase()||'?'}</div>
