@@ -180,9 +180,9 @@
       <table class="conf-table">
         <thead>
           <tr>
-            <th>MÊS</th><th>DATA</th><th>CLIENTE</th>
-            <th>TMK</th><th>UNIDADE</th><th>HORÁRIO</th>
-            <th>CONTATO</th>
+            <th>MÊS <button type="button" class="col-copy" onclick="copyColumn(0)" title="Copiar coluna inteira">📋</button></th><th>DATA <button type="button" class="col-copy" onclick="copyColumn(1)" title="Copiar coluna inteira">📋</button></th><th>CLIENTE <button type="button" class="col-copy" onclick="copyColumn(2)" title="Copiar coluna inteira">📋</button></th>
+            <th>TMK <button type="button" class="col-copy" onclick="copyColumn(3)" title="Copiar coluna inteira">📋</button></th><th>UNIDADE <button type="button" class="col-copy" onclick="copyColumn(4)" title="Copiar coluna inteira">📋</button></th><th>HORÁRIO <button type="button" class="col-copy" onclick="copyColumn(5)" title="Copiar coluna inteira">📋</button></th>
+            <th>CONTATO <button type="button" class="col-copy" onclick="copyColumn(6)" title="Copiar coluna inteira">📋</button></th>
             <th class="th-flag">PROCESSO DE CONFIRMAÇÃO</th><th>OBSERVAÇÃO</th>
           </tr>
         </thead>
@@ -1318,5 +1318,30 @@ document.addEventListener('paste', (e) => {
     document.getElementById('modal-paste').classList.add('show');
   }
 });
+</script>
+<script>
+(function(){
+  var st=document.createElement('style');
+  st.textContent='.conf-table tbody td:not(.td-flag){cursor:pointer} .conf-table tbody td:not(.td-flag):hover{background:rgba(251,191,36,0.08)} .col-copy{background:none;border:none;color:#71717a;cursor:pointer;font-size:11px;padding:0 2px;margin-left:3px;vertical-align:middle} .col-copy:hover{color:#fbbf24}';
+  document.head.appendChild(st);
+  function toast(m){ if(typeof showToast==='function') showToast(m); }
+  function fallback(text,msg){ var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); toast(msg||'Copiado!'); }catch(e){} ta.remove(); }
+  function doCopy(text,msg){ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(function(){toast(msg||'Copiado!');}, function(){fallback(text,msg);}); } else { fallback(text,msg); } }
+  window.copyColumn=function(idx){
+    var tb=document.getElementById('conf-tbody'); if(!tb) return;
+    var vals=[];
+    [].slice.call(tb.querySelectorAll('tr')).forEach(function(tr){ var td=tr.children[idx]; if(td){ var v=(td.textContent||'').trim(); if(v) vals.push(v); } });
+    if(!vals.length){ toast('Coluna vazia.'); return; }
+    doCopy(vals.join('\n'), vals.length+' copiados!');
+  };
+  document.addEventListener('click', function(e){
+    var td=e.target.closest ? e.target.closest('#conf-tbody td') : null;
+    if(!td) return;
+    if(td.classList.contains('td-flag')) return;
+    if(e.target.closest('select, input, button, a')) return;
+    var v=(td.textContent||'').trim();
+    if(v) doCopy(v);
+  });
+})();
 </script>
 {% endblock %}
