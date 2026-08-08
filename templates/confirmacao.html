@@ -1361,8 +1361,7 @@ document.addEventListener('paste', (e) => {
     if(!dragging) return;
     dragging=false;
     var cs=selectedCells();
-    if(!moved && startTd){ var v=(startTd.textContent||'').trim(); clearSel(); if(v) doCopy(v); }
-    else if(cs.length>1){ showFab(e.clientX, e.clientY, cs.length); }
+    if(moved && cs.length>1){ showFab(e.clientX, e.clientY, cs.length); }
     else { clearSel(); }
   });
   document.addEventListener('keydown', function(e){
