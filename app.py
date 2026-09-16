@@ -30,7 +30,7 @@ limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"]
 )
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache'})
 # SECRET_KEY: usada pra assinar cookies de sessão.
 # Em produção, defina via variável de ambiente FLASK_SECRET.
 # Em dev, geramos uma chave estável a partir do filesystem.
