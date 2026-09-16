@@ -16,10 +16,15 @@
   border-right:1px solid rgba(0,0,0,0.1);
 }
 .th-flag {
-  position:sticky; top:0; right:0; z-index:4;
+  position:sticky; top:0; right:200px; z-index:5;
   background:#fbbf24 !important; min-width:200px;
   border-left:2px solid rgba(0,0,0,0.2) !important;
-  box-shadow:-4px 0 8px rgba(0,0,0,0.2);
+  box-shadow:-4px 0 8px rgba(0,0,0,0.15);
+}
+.th-obs {
+  position:sticky; top:0; right:0; z-index:6;
+  background:#fbbf24 !important; min-width:200px;
+  border-left:2px solid rgba(0,0,0,0.2) !important;
 }
 .conf-table tbody td {
   padding:6px 10px; border-bottom:1px solid #e2e8f0;
@@ -30,14 +35,23 @@
 .conf-table tbody tr:nth-child(even) td { background:#f1f5f9; }
 .conf-table tbody tr:hover td { background:#dbeafe !important; }
 .td-flag {
-  position:sticky; right:0; z-index:2;
+  position:sticky; right:200px; z-index:3;
   background:#f8fafc !important; min-width:200px;
   border-left:2px solid #cbd5e1;
   box-shadow:-4px 0 8px rgba(0,0,0,0.1);
   padding:4px 8px !important;
 }
-.conf-table tbody tr:nth-child(even) td.td-flag { background:#eef2f7 !important; }
-.conf-table tbody tr:hover td.td-flag { background:#dbeafe !important; }
+.td-obs {
+  position:sticky; right:0; z-index:4;
+  background:#f8fafc !important; min-width:200px;
+  border-left:2px solid #cbd5e1;
+  box-shadow:-4px 0 8px rgba(0,0,0,0.1);
+  padding:4px 8px !important;
+}
+.conf-table tbody tr:nth-child(even) td.td-flag,
+.conf-table tbody tr:nth-child(even) td.td-obs { background:#eef2f7 !important; }
+.conf-table tbody tr:hover td.td-flag,
+.conf-table tbody tr:hover td.td-obs { background:#dbeafe !important; }
 /* Flag select badge */
 .flag-select {
   appearance:none; -webkit-appearance:none;
@@ -182,7 +196,7 @@
             <th>MÊS</th><th>DATA</th><th>CLIENTE</th>
             <th>TMK</th><th>UNIDADE</th><th>HORÁRIO</th>
             <th>CONTATO</th>
-            <th class="th-flag">PROCESSO DE CONFIRMAÇÃO</th>
+            <th class="th-flag">PROCESSO DE CONFIRMAÇÃO</th><th class="th-obs">OBSERVAÇÃO</th>
           </tr>
         </thead>
         <tbody id="conf-tbody"></tbody>
