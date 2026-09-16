@@ -79,6 +79,7 @@
       <p class="page-subtitle">Ranking de TMK e performance por unidade</p>
     </div>
     <div class="action-bar">
+      <button class="btn btn-primary" onclick="copiarWhatsApp()">📋 Copiar p/ WhatsApp</button>
       <button class="btn btn-primary" onclick="openExtract()">📊 Extrair Dados</button>
     </div>
   </div>
@@ -133,7 +134,7 @@
   <div class="analise-card">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
       <span style="font-size:18px">🏆</span>
-      <h2 style="font-size:14px;font-weight:700">Ranking de Erros TMK</h2>
+      <h2 style="font-size:14px;font-weight:700">Ranking de TMK</h2>
     </div>
     <div style="display:grid;grid-template-columns:2.5rem 2.5rem 2.5rem 2.5rem;gap:4px;padding:0 12px 8px;font-size:9px;font-weight:700;color:#52525b;letter-spacing:.1em;margin-bottom:4px">
       <span style="grid-column:1">POS</span>
@@ -274,6 +275,95 @@ function renderFlags(data) {
       <span style="font-size:13px;font-weight:700;color:#71717a;text-align:right">${semFlag}</span>
     </div>`;
   document.getElementById('flag-count-list').innerHTML = rows + pend;
+}
+// ── Copiar p/ WhatsApp: resumo completo da Análise Geral ──
+function copiarWhatsApp() {
+  const data = analiseData || [];
+  const total = data.length;
+  const conf  = data.filter(r => r.flag === 'CONFIRMADO').length;
+  const pend  = data.filter(r => !r.flag).length;
+  const pct   = total > 0 ? Math.round((conf/total)*100) : 0;
+  // Flags só com ocorrência, alinhadas
+  const fcount = {};
+  ALL_FLAGS.forEach(f => fcount[f] = 0);
+  data.forEach(r => { if(fcount[r.flag] !== undefined) fcount[r.flag]++; });
+  const flagsComDados = ALL_FLAGS.filter(f => fcount[f] > 0);
+  const larg = flagsComDados.reduce((m,f) => Math.max(m, f.length), 0);
+  // Ranking de TMK (erros)
+  const tmkMap = {};
+  data.forEach(r => {
+    const fRank = FLAGS_RANK.find(f => f.key === r.flag);
+    if(!fRank) return;
+    const tmk = (r.tmk||'').trim() || 'Sem TMK';
+    if(!tmkMap[tmk]) { tmkMap[tmk] = { total: 0 }; FLAGS_RANK.forEach(f => tmkMap[tmk][f.key] = 0); }
+    tmkMap[tmk].total++; tmkMap[tmk][r.flag]++;
+  });
+  const rank = Object.entries(tmkMap).map(([name,d]) => ({name, ...d})).sort((a,b) => b.total - a.total);
+  const medals = ['🥇','🥈','🥉'];
+  // Performance por unidade (todas)
+  const uLines = [];
+  Object.entries(UNIDADES_CONF).forEach(([grupo, subs]) => {
+    const rows = data.filter(r => subs.some(s => (r.unidade||'').toUpperCase().includes(s.toUpperCase())));
+    const t = rows.length, c = rows.filter(r=>r.flag==='CONFIRMADO').length;
+    const p = t>0?Math.round((c/t)*100):0;
+    uLines.push('• ' + grupo + ': ' + t + ' total · ' + c + ' conf · ' + p + '%');
+    if(subs.length > 1) {
+      subs.forEach(sub => {
+        const rr = data.filter(r => (r.unidade||'').toUpperCase().includes(sub.toUpperCase()));
+        if(rr.length > 0) {
+          const cc = rr.filter(r=>r.flag==='CONFIRMADO').length;
+          const pp = Math.round((cc/rr.length)*100);
+          uLines.push('   - ' + sub + ': ' + rr.length + ' · ' + cc + ' · ' + pp + '%');
+        }
+      });
+    }
+  });
+  const FENCE = '```';
+  const L = [];
+  L.push('📊 ANÁLISE GERAL — CONFIRMAÇÃO');
+  L.push('📅 ' + _periodoLabel());
+  L.push('');
+  L.push('📌 RESUMO');
+  L.push('• Total: ' + total);
+  L.push('• Confirmados: ' + conf + ' (' + pct + '%)');
+  L.push('• Pendentes: ' + pend);
+  L.push('');
+  L.push('🏷️ TOTAL POR FLAG');
+  if(flagsComDados.length) {
+    L.push(FENCE);
+    flagsComDados.forEach(f => L.push(f.padEnd(larg) + ' : ' + fcount[f]));
+    L.push(FENCE);
+  } else {
+    L.push('Nenhuma flag registrada.');
+  }
+  L.push('');
+  L.push('🏆 RANKING DE TMK (ERROS)');
+  if(rank.length) {
+    rank.forEach((t,i) => {
+      const det = FLAGS_RANK.filter(f => t[f.key] > 0).map(f => f.short + ' ' + t[f.key]).join(', ');
+      const pos = i<3 ? medals[i] : (i+1) + 'º';
+      L.push(pos + ' ' + t.name + ' — ' + t.total + (det ? ' (' + det + ')' : ''));
+    });
+  } else {
+    L.push('Nenhum erro registrado. 👏');
+  }
+  L.push('');
+  L.push('🏢 PERFORMANCE POR UNIDADE');
+  uLines.forEach(l => L.push(l));
+  const txt = L.join('\n');
+  const ok = () => { if(typeof showToast === 'function') showToast('Copiado! Cole no WhatsApp.'); else alert('Copiado! Cole no WhatsApp.'); };
+  if(navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(ok, () => _fallbackCopyWA(txt, ok));
+  } else {
+    _fallbackCopyWA(txt, ok);
+  }
+}
+function _fallbackCopyWA(txt, ok) {
+  const ta = document.createElement('textarea');
+  ta.value = txt; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand('copy'); ok(); } catch(e) {}
+  ta.remove();
 }
 const FLAGS_RANK = [
   { key: 'CANCELADO',       label: 'CANCELADO',        short: 'CANCEL.',   color: '#ef4444' },
