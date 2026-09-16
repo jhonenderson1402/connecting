@@ -243,21 +243,22 @@ const FLAGS_RANK = [
 function renderRankTMK(data) {
   const tmkMap = {};
   data.forEach(r => {
+    const fRank = FLAGS_RANK.find(f => f.key === r.flag);
+    if(!fRank) return;                 // só conta registros que são erro
     const tmk = (r.tmk||'').trim() || 'Sem TMK';
     if(!tmkMap[tmk]) {
       tmkMap[tmk] = { total: 0 };
       FLAGS_RANK.forEach(f => tmkMap[tmk][f.key] = 0);
     }
-    tmkMap[tmk].total++;
-    const fRank = FLAGS_RANK.find(f => f.key === r.flag);
-    if(fRank) tmkMap[tmk][r.flag]++;
+    tmkMap[tmk].total++;               // TOTAL = soma dos erros do TMK
+    tmkMap[tmk][r.flag]++;
   });
   const ranked = Object.entries(tmkMap)
     .map(([name, d]) => ({ name, ...d }))
     .sort((a,b) => b.total - a.total);
   const el = document.getElementById('rank-tmk-list');
   if(ranked.length === 0) {
-    el.innerHTML = '<p style="color:#71717a;text-align:center;padding:20px;font-size:12px">Sem dados no período.</p>';
+    el.innerHTML = '<p style="color:#71717a;text-align:center;padding:20px;font-size:12px">Nenhum erro registrado no período. 👏</p>';
     return;
   }
   const medals = ['🥇','🥈','🥉'];
@@ -374,14 +375,15 @@ function renderExtract() {
   // Ranking de TMK (mesmo da tela)
   const tmkMap = {};
   data.forEach(r => {
+    const fRank = FLAGS_RANK.find(f => f.key === r.flag);
+    if(!fRank) return;                 // só conta registros que são erro
     const tmk = (r.tmk||'').trim() || 'Sem TMK';
     if(!tmkMap[tmk]) {
       tmkMap[tmk] = { total: 0 };
       FLAGS_RANK.forEach(f => tmkMap[tmk][f.key] = 0);
     }
-    tmkMap[tmk].total++;
-    const fRank = FLAGS_RANK.find(f => f.key === r.flag);
-    if(fRank) tmkMap[tmk][r.flag]++;
+    tmkMap[tmk].total++;               // TOTAL = soma dos erros do TMK
+    tmkMap[tmk][r.flag]++;
   });
   const tmkRank = Object.entries(tmkMap).map(([name,d])=>({name, ...d})).sort((a,b)=>b.total-a.total);
   extractData = { label:_periodoLabel(), total, conf, canc, semret, convPct, semFlag, flagCount, porAtendente, tmkRank };
