@@ -236,6 +236,34 @@ async function loadAnalise() {
   if(res.status === 401) { window.location.href='/login'; return; }
   analiseData = await res.json();
   renderAnalise();
+  marcarDiasComDados();
+}
+// Pinta de verde, no seletor de DIA, os dias que têm registros no mês/ano atual
+async function marcarDiasComDados() {
+  const y  = parseInt(document.getElementById('sel-year').value);
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const mm = String(mi+1).padStart(2,'0');
+  let monthData = [];
+  try {
+    const res = await fetch(`/api/confirmacoes?mes=${encodeURIComponent(getMesStr())}`);
+    if(res.ok) monthData = await res.json();
+  } catch(e) { return; }
+  const dias = new Set();
+  monthData.forEach(r => {
+    const m = (r.data_str||'').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(m && m[2] === mm && parseInt(m[3]) === y) dias.add(parseInt(m[1]));
+  });
+  const sel = document.getElementById('sel-day');
+  if(!sel) return;
+  [].forEach.call(sel.options, opt => {
+    if(dias.has(parseInt(opt.value))) {
+      opt.style.color = '#22c55e';
+      opt.style.fontWeight = '700';
+    } else {
+      opt.style.color = '';
+      opt.style.fontWeight = '';
+    }
+  });
 }
 function renderAnalise() {
   const data = analiseData;
