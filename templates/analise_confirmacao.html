@@ -121,6 +121,14 @@
   </div>
   <!-- Stats gerais -->
   <div style="display:flex;gap:10px;flex-wrap:wrap" id="analise-stats"></div>
+  <!-- Total por Flag -->
+  <div class="analise-card">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <span style="font-size:18px">🏷️</span>
+      <h2 style="font-size:14px;font-weight:700">Total por Flag</h2>
+    </div>
+    <div id="flag-count-list"><div class="loading">Carregando...</div></div>
+  </div>
   <!-- Ranking TMK -->
   <div class="analise-card">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
@@ -176,8 +184,17 @@ const ATENDENTES = ['VIVIANE','DIELLEM','LIDIENE','KEILANE','LUANE','MARIA'];
 const ALL_FLAGS = [
   'CONFIRMADO','SEM RETORNO','CANCELADO','DUPLICADO','NÚMERO INVÁLIDO',
   'NÃO AGENDADO','UNIDADE ERRADA','HORÁRIO ERRADO','MÚLTIPLOS AGEND.',
-  'REAGENDOU','EXAME REALIZADO','NÃO PODE REALIZAR','PATOLOGIA','DESISTÊNCIA'
+  'REAGENDOU','EXAME REALIZADO','NÃO PODE REALIZAR','PATOLOGIA','DESISTÊNCIA',
+  'ERRO DO CONSULTOR'
 ];
+// Cores de cada flag (mesmas do seletor de flags)
+const FLAG_COLORS = {
+  'CONFIRMADO':'#16a34a','SEM RETORNO':'#ca8a04','CANCELADO':'#dc2626',
+  'DUPLICADO':'#db2777','NÚMERO INVÁLIDO':'#71717a','NÃO AGENDADO':'#7c3aed',
+  'UNIDADE ERRADA':'#2563eb','HORÁRIO ERRADO':'#3b82f6','MÚLTIPLOS AGEND.':'#ea580c',
+  'REAGENDOU':'#9333ea','EXAME REALIZADO':'#15803d','NÃO PODE REALIZAR':'#166534',
+  'PATOLOGIA':'#991b1b','DESISTÊNCIA':'#b91c1c','ERRO DO CONSULTOR':'#0d9488'
+};
 let analiseData = [];
 document.addEventListener('DOMContentLoaded', () => {
   const now = new Date();
@@ -230,8 +247,33 @@ function renderAnalise() {
     <div class="stat-chip" style="background:rgba(251,191,36,0.1);color:#fbbf24">📋 Total: ${total}</div>
     <div class="stat-chip" style="background:rgba(34,197,94,0.1);color:#22c55e">✅ Confirmados: ${conf} (${pct}%)</div>
     <div class="stat-chip" style="background:#1f1f1f;color:#71717a">⏳ Pendentes: ${pend}</div>`;
+  renderFlags(data);
   renderRankTMK(data);
   renderUnidades(data);
+}
+function renderFlags(data) {
+  const count = {};
+  ALL_FLAGS.forEach(f => count[f] = 0);
+  data.forEach(r => { if(count[r.flag] !== undefined) count[r.flag]++; });
+  const semFlag = data.filter(r => !r.flag).length;
+  const max = Math.max(1, ...ALL_FLAGS.map(f => count[f]));
+  const rows = ALL_FLAGS.map(f => {
+    const c = count[f];
+    const color = FLAG_COLORS[f] || '#71717a';
+    const w = Math.round((c/max)*100);
+    const dim = c === 0 ? 'opacity:0.4;' : '';
+    return `<div style="display:grid;grid-template-columns:1fr 90px 3rem;gap:10px;align-items:center;padding:7px 6px;border-bottom:1px solid rgba(255,255,255,0.04);${dim}">
+      <span style="font-size:12px;color:#d4d4d8">${f}</span>
+      <div style="height:8px;background:#1f2430;border-radius:5px;overflow:hidden"><div style="width:${w}%;height:100%;background:${color};border-radius:5px"></div></div>
+      <span style="font-size:13px;font-weight:700;color:${color};text-align:right">${c}</span>
+    </div>`;
+  }).join('');
+  const pend = `<div style="display:grid;grid-template-columns:1fr 90px 3rem;gap:10px;align-items:center;padding:7px 6px;border-top:1px solid rgba(255,255,255,0.08);margin-top:4px">
+      <span style="font-size:12px;color:#a1a1aa">⏳ Sem flag (pendentes)</span>
+      <span></span>
+      <span style="font-size:13px;font-weight:700;color:#71717a;text-align:right">${semFlag}</span>
+    </div>`;
+  document.getElementById('flag-count-list').innerHTML = rows + pend;
 }
 const FLAGS_RANK = [
   { key: 'CANCELADO',       label: 'CANCELADO',        short: 'CANCEL.',   color: '#ef4444' },
