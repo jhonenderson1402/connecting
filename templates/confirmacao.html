@@ -458,7 +458,7 @@ function renderTable() {
     const msg = allConf.length === 0
       ? 'Nenhum dado para este dia. Cole dados da planilha para começar.'
       : 'Nenhum resultado para os filtros aplicados.';
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:#71717a;background:#141414">${msg}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:#71717a;background:#141414">${msg}</td></tr>`;
     return;
   }
   tbody.innerHTML = filtered.map(r => {
@@ -478,6 +478,7 @@ function renderTable() {
           ${opts}
         </select>
       </td>
+      <td class="td-obs"><input type="text" value="${esc(r.observacao||'')}" placeholder="Anotação..." onchange="saveObs(${r.id}, this.value)" style="width:100%;min-width:150px;border:1px solid #d1d5db;border-radius:5px;padding:4px 6px;font-size:11px;background:#fff;color:#111"/></td>
     </tr>`;
   }).join('');
 }
@@ -492,6 +493,12 @@ function renderStats() {
     <div class="conf-stat-chip" style="background:rgba(251,191,36,0.1);color:#fbbf24">📋 Total: ${total}</div>
     <div class="conf-stat-chip" style="background:rgba(34,197,94,0.1);color:#22c55e">✅ Confirmados: ${conf} (${pct}%)</div>
     ${pend?`<div class="conf-stat-chip" style="background:#1f1f1f;color:#71717a">⏳ Pendentes: ${pend}</div>`:''}`;
+}
+// ── Salvar observação ──────────────────────────────────────────────────────
+function saveObs(id, val){
+  const it = allConf.find(r=>r.id===id); if(it) it.observacao = val;
+  const f = filtered.find(r=>r.id===id); if(f) f.observacao = val;
+  fetch("/api/confirmacoes/"+id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({observacao:val})});
 }
 // ── Atualizar flag ─────────────────────────────────────────────────────────
 async function updateFlag(id, sel) {
