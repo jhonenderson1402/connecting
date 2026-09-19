@@ -1123,7 +1123,7 @@ async function relatorioHoraHora(){
     var totalAg=(rows||[]).reduce(function(s,r){return s+Object.values(r.slots||{}).reduce(function(ss,v){return ss+(Number(v)||0);},0);},0);
     var lines=(TIME_SLOTS||[]).map(function(sl){return {label:sl.label, cnt:(rows||[]).reduce(function(a,r){return a+(Number((r.slots||{})[sl.key])||0);},0)};}).filter(function(x){return x.cnt>0;});
     var metaDia=0;
-    try{ var metas=await fetch("/api/metas?ano="+ano+"&mes="+mes).then(function(r){return r.json();}); var mm=(metas||[]).find(function(x){return (x.unidade||"")===UNIT && !(x.bairro||"");}); if(mm) metaDia=Number(mm.meta_dia)||0; }catch(e){}
+    try{ var metas=await fetch("/api/metas?ano="+ano+"&mes="+mes).then(function(r){return r.json();}); var mm=(metas||[]).find(function(x){return (x.unidade||"")===UNIT && !(x.bairro||"");}); if(mm) metaDia=Number(mm.meta_hora)||0; }catch(e){}
     var falta=Math.max(0, metaDia-totalAg);
     var L=["Hora a Hora "+UNIT+" - "+dataStr,""];
     lines.forEach(function(x){ L.push(x.label.split("-")[0]+"- "+x.cnt+" Ags"); });
