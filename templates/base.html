@@ -97,10 +97,24 @@
         </a>
         {% endif %}
         {% if current_role in ('all', 'admin') %}
-        <p class="nav-label" style="margin-top:12px">ADMIN</p>
-        <a href="/users" class="nav-item" data-path="/users">
-          <span class="nav-icon">🔐</span> Usuários
+        <a href="#" class="nav-item" id="cfg-toggle" onclick="toggleConfig(event)" style="margin-top:12px">
+          <span class="nav-icon">⚙️</span> CONFIGURAÇÃO <span id="cfg-arrow" style="font-size:10px;opacity:.7">▸</span>
         </a>
+        <div id="cfg-sub" style="display:none">
+          <a href="/users" class="nav-item" data-path="/users" style="padding-left:34px">
+            <span class="nav-icon">🔐</span> Usuários
+          </a>
+        </div>
+        <script>
+        function toggleConfig(e){
+          if(e) e.preventDefault();
+          var s=document.getElementById('cfg-sub'), a=document.getElementById('cfg-arrow');
+          var open = s.style.display !== 'none';
+          s.style.display = open ? 'none' : 'block';
+          if(a) a.textContent = open ? '▸' : '▾';
+        }
+        if(location.pathname === '/users'){ toggleConfig(); }
+        </script>
         {% endif %}
       </nav>
 
