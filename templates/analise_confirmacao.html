@@ -648,18 +648,39 @@ function renderUnidadesTabela(data) {
       return `<td style="color:${v>0?c.color:'#3f3f46'};font-weight:700">${v}</td>`;
     }).join('');
   }
+  // Agrupa pelos nomes REAIS que vieram nos dados (pega nomes novos automaticamente)
+  const porNome = {};
+  data.forEach(r => {
+    const n = (r.unidade || '').trim().toUpperCase() || 'SEM UNIDADE';
+    (porNome[n] = porNome[n] || []).push(r);
+  });
+  const usados = new Set();
+  function linhaGrupo(nome, rows){
+    return `<tr><td style="text-align:left;font-weight:700;color:#fbbf24">${esc(nome)}</td>${celulas(calc(rows))}</tr>`;
+  }
+  function linhaFilho(nome, rows){
+    return `<tr style="background:rgba(255,255,255,0.015)"><td style="text-align:left;padding-left:24px;color:#a1a1aa;font-weight:400">↳ ${esc(nome)}</td>${celulas(calc(rows))}</tr>`;
+  }
   let body = '';
   Object.entries(UNIDADES_CONF).forEach(([grupo, subs]) => {
-    const rowsG = data.filter(r => subs.some(s => (r.unidade||'').toUpperCase().includes(s.toUpperCase())));
-    body += `<tr><td style="text-align:left;font-weight:700;color:#fbbf24">${grupo}</td>${celulas(calc(rowsG))}</tr>`;
-    if(subs.length > 1){
-      subs.forEach(sub => {
-        const rowsS = data.filter(r => (r.unidade||'').toUpperCase().includes(sub.toUpperCase()));
-        if(!rowsS.length) return;
-        body += `<tr style="background:rgba(255,255,255,0.015)"><td style="text-align:left;padding-left:24px;color:#a1a1aa;font-weight:400">↳ ${sub}</td>${celulas(calc(rowsS))}</tr>`;
-      });
+    const filhos = Object.keys(porNome).filter(n => subs.some(s => n.includes(s.toUpperCase())));
+    filhos.forEach(n => usados.add(n));
+    const rowsG = filhos.reduce((acc,n) => acc.concat(porNome[n]), []);
+    body += linhaGrupo(grupo, rowsG);
+    const mostrarFilhos = filhos.length > 1 || (filhos.length === 1 && filhos[0] !== grupo);
+    if(mostrarFilhos){
+      filhos.sort((a,b) => porNome[b].length - porNome[a].length)
+            .forEach(n => { body += linhaFilho(n, porNome[n]); });
     }
   });
+  // Nomes que vieram nos dados e nao batem com nenhuma unidade conhecida
+  const sobras = Object.keys(porNome).filter(n => !usados.has(n))
+                       .sort((a,b) => porNome[b].length - porNome[a].length);
+  if(sobras.length){
+    const rowsO = sobras.reduce((acc,n) => acc.concat(porNome[n]), []);
+    body += linhaGrupo('OUTRAS', rowsO);
+    sobras.forEach(n => { body += linhaFilho(n, porNome[n]); });
+  }
   const head = `<thead><tr><th style="text-align:left">UNIDADE</th>${cols.map(c=>`<th style="color:${c.color}">${c.label}</th>`).join('')}</tr></thead>`;
   tbl.innerHTML = head + '<tbody>' + (body || `<tr><td colspan="${cols.length+1}" style="text-align:center;color:#52525b;padding:20px">Sem dados no período.</td></tr>`) + '</tbody>';
 }
