@@ -115,6 +115,7 @@
         <label class="filter-label">PERÍODO</label>
         <select class="select" id="sel-periodo" onchange="onPeriodoChange()">
           <option value="day">Dia</option>
+          <option value="week">Semana</option>
           <option value="month">Mês inteiro</option>
         </select>
       </div>
@@ -214,7 +215,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 function onPeriodoChange() {
   const p = document.getElementById('sel-periodo').value;
-  document.getElementById('sel-day').closest('.filter-group').style.display = p === 'day' ? '' : 'none';
+  // Semana também precisa do DIA: é a semana que contém o dia escolhido
+  document.getElementById('sel-day').closest('.filter-group').style.display = (p === 'month') ? 'none' : '';
   loadAnalise();
 }
 function getDateStr() {
@@ -227,19 +229,56 @@ function getMesStr() {
   const mi = parseInt(document.getElementById('sel-month').value);
   return document.getElementById('sel-month').options[mi].text;
 }
+// Os 7 dias (segunda a domingo) da semana que contém o dia selecionado
+function _semanaDatas() {
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  const d  = parseInt(document.getElementById('sel-day').value);
+  const base = new Date(y, mi, d);
+  const dow  = (base.getDay() + 6) % 7;   // 0 = segunda-feira
+  const ini  = new Date(y, mi, d - dow);
+  const opts = document.getElementById('sel-month').options;
+  const out = [];
+  for(let i = 0; i < 7; i++) {
+    const x = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate() + i);
+    out.push({
+      str: `${String(x.getDate()).padStart(2,'0')}/${String(x.getMonth()+1).padStart(2,'0')}/${x.getFullYear()}`,
+      mes: opts[x.getMonth()].text
+    });
+  }
+  return out;
+}
 function _periodoLabel() {
   const periodo = document.getElementById('sel-periodo').value;
   if(periodo === 'day') return getDateStr();
+  if(periodo === 'week') {
+    const s = _semanaDatas();
+    return `Semana: ${s[0].str} a ${s[6].str}`;
+  }
   return `${getMesStr()}/${document.getElementById('sel-year').value}`;
 }
 async function loadAnalise() {
   const periodo = document.getElementById('sel-periodo').value;
-  let url;
-  if(periodo === 'day') {
-    url = `/api/confirmacoes?data_str=${encodeURIComponent(getDateStr())}`;
-  } else {
-    url = `/api/confirmacoes?mes=${encodeURIComponent(getMesStr())}`;
+  if(periodo === 'week') {
+    // Busca o(s) mês(es) que a semana atravessa e filtra pelos 7 dias
+    const dias  = _semanaDatas();
+    const meses = dias.map(d => d.mes).filter((m,i,a) => a.indexOf(m) === i);
+    const partes = [];
+    for(const m of meses) {
+      const r = await fetch(`/api/confirmacoes?mes=${encodeURIComponent(m)}`);
+      if(r.status === 401) { window.location.href='/login'; return; }
+      if(r.ok) partes.push(await r.json());
+    }
+    const alvo = {};
+    dias.forEach(d => { alvo[d.str] = true; });
+    analiseData = [].concat.apply([], partes).filter(r => alvo[(r.data_str||'').trim()]);
+    renderAnalise();
+    marcarDiasComDados();
+    return;
   }
+  const url = (periodo === 'day')
+    ? `/api/confirmacoes?data_str=${encodeURIComponent(getDateStr())}`
+    : `/api/confirmacoes?mes=${encodeURIComponent(getMesStr())}`;
   const res = await fetch(url);
   if(res.status === 401) { window.location.href='/login'; return; }
   analiseData = await res.json();
