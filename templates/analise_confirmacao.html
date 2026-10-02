@@ -475,9 +475,11 @@ function renderRankConfirmacao(data) {
   const tbl = document.getElementById('rank-conf-table');
   if(!tbl) return;
   const map = {};
+  // Toda a equipe cadastrada aparece, mesmo sem registros no período
+  (ATENDENTES||[]).forEach(at => { map[String(at).trim().toUpperCase()] = _novoObj(); });
   (data||[]).forEach(r => {
-    const at = (r.atendente||'').trim() || 'SEM ATENDENTE';
-    if(!map[at]) { map[at] = {total:0, pendentes:0}; ALL_FLAGS.forEach(f => map[at][f] = 0); }
+    const at = (r.atendente||'').trim().toUpperCase() || 'SEM ATENDENTE';
+    if(!map[at]) map[at] = _novoObj();
     map[at].total++;
     if(!r.flag) map[at].pendentes++;
     else if(map[at][r.flag] !== undefined) map[at][r.flag]++;
@@ -636,6 +638,45 @@ function _contaFlags(rows){
   });
   return o;
 }
+function _novoObj(){ const o = {total:0, pendentes:0}; ALL_FLAGS.forEach(f => o[f] = 0); return o; }
+
+// Monta as linhas da Performance por Unidade (reaproveitado no Extrair Dados)
+function _linhasUnidade(data, cols){
+  data = data || [];
+  const totalGeral = data.length;
+  const flagsAtivas = cols.filter(c => ALL_FLAGS.indexOf(c.key) >= 0).map(c => c.key);
+  function calc(rows){
+    const o = _contaFlags(rows);
+    o.pctcont  = totalGeral>0 ? Math.round((o.total/totalGeral)*100) : 0;
+    o.conv     = o.total>0 ? Math.round((o['CONFIRMADO']/o.total)*100) : 0;
+    o.pctexame = o.total>0 ? Math.round((o['EXAME REALIZADO']/o.total)*100) : 0;
+    o.pendentes = Math.max(0, o.total - flagsAtivas.reduce((s,k) => s + (o[k]||0), 0));
+    return o;
+  }
+  const porNome = {};
+  data.forEach(r => {
+    const n = (r.unidade || '').trim().toUpperCase() || 'SEM UNIDADE';
+    (porNome[n] = porNome[n] || []).push(r);
+  });
+  const usados = new Set();
+  const out = [];
+  Object.entries(UNIDADES_CONF).forEach(([grupo, subs]) => {
+    const alvo = subs.map(s => _normUnid(s));
+    const filhos = Object.keys(porNome).filter(n => alvo.indexOf(_normUnid(n)) >= 0);
+    filhos.forEach(n => usados.add(n));
+    const rowsG = filhos.reduce((acc,n) => acc.concat(porNome[n]), []);
+    out.push({nome: grupo, filho: false, d: calc(rowsG)});
+    const mostrar = filhos.length > 1 || (filhos.length === 1 && _normUnid(filhos[0]) !== _normUnid(grupo));
+    if(mostrar){
+      filhos.sort((a,b) => porNome[b].length - porNome[a].length)
+            .forEach(n => out.push({nome: n, filho: true, d: calc(porNome[n])}));
+    }
+  });
+  Object.keys(porNome).filter(n => !usados.has(n))
+    .sort((a,b) => porNome[b].length - porNome[a].length)
+    .forEach(n => out.push({nome: n, filho: false, d: calc(porNome[n])}));
+  return out;
+}
 function renderUnidadesTabela(data) {
   const tbl = document.getElementById('unid-table');
   if(!tbl) return;
@@ -703,8 +744,7 @@ let extractData = null;
 function openExtract() {
   document.getElementById('extract-modal').classList.add('show');
   renderExtract();
-}
-function closeExtract() {
+}function closeExtract() {
   document.getElementById('extract-modal').classList.remove('show');
 }
 document.addEventListener('click', e=>{
@@ -724,33 +764,40 @@ function renderExtract() {
   const canc   = flagCount['CANCELADO']||0;
   const semret = flagCount['SEM RETORNO']||0;
   const convPct = total>0?Math.round((conf/total)*100):0;
-  // Quebra por atendente (só as com dados no período)
-  const porAtendente = ATENDENTES.map(at => {
-    const rows = data.filter(r => (r.atendente||'').toUpperCase() === at);
-    const t = rows.length;
-    const c = rows.filter(r=>r.flag==='CONFIRMADO').length;
-    const ca = rows.filter(r=>r.flag==='CANCELADO').length;
-    const sr = rows.filter(r=>r.flag==='SEM RETORNO').length;
-    const p = t>0?Math.round((c/t)*100):0;
-    return { atendente: at, total: t, conf: c, canc: ca, semret: sr, pct: p };
-  }).filter(a => a.total > 0).sort((a,b)=>b.total-a.total);
-  // Rank Confirmação (mesmo da tela) — por atendente, com as colunas marcadas
+  // Rank Confirmação — toda a equipe cadastrada
   const rcMap = {};
+  (ATENDENTES||[]).forEach(at => { rcMap[String(at).trim().toUpperCase()] = _novoObj(); });
   data.forEach(r => {
-    const at = (r.atendente||'').trim() || 'SEM ATENDENTE';
-    if(!rcMap[at]) { rcMap[at] = {total:0, pendentes:0}; ALL_FLAGS.forEach(f => rcMap[at][f] = 0); }
+    const at = (r.atendente||'').trim().toUpperCase() || 'SEM ATENDENTE';
+    if(!rcMap[at]) rcMap[at] = _novoObj();
     rcMap[at].total++;
     if(!r.flag) rcMap[at].pendentes++;
     else if(rcMap[at][r.flag] !== undefined) rcMap[at][r.flag]++;
   });
+  // Desempenho por TMK (quem agendou) — status de cada agendamento
+  const tmkMap = {};
+  data.forEach(r => {
+    const tmk = (r.tmk||'').trim().toUpperCase() || 'SEM TMK';
+    if(!tmkMap[tmk]) tmkMap[tmk] = _novoObj();
+    tmkMap[tmk].total++;
+    if(!r.flag) tmkMap[tmk].pendentes++;
+    else if(tmkMap[tmk][r.flag] !== undefined) tmkMap[tmk][r.flag]++;
+  });
   const rankConfCols = RANK_COLS.filter(c => rankCols[c.key]);
   const flagsAtivasExt = rankConfCols.filter(c => ALL_FLAGS.indexOf(c.key) >= 0).map(c => c.key);
-  const rankConf = Object.entries(rcMap).map(([nome,o]) => {
-    const conv = o.total>0 ? Math.round((o['CONFIRMADO']/o.total)*100) : 0;
-    const pendentes = Math.max(0, o.total - flagsAtivasExt.reduce((s,k)=>s+(o[k]||0),0));
-    return Object.assign({nome, conv}, o, {pendentes});
-  }).sort((a,b)=>b.total-a.total);
-  extractData = { label:_periodoLabel(), total, conf, canc, semret, convPct, semFlag, flagCount, porAtendente, rankConf, rankConfCols };
+  function _finaliza(mapa){
+    return Object.entries(mapa).map(([nome,o]) => {
+      const conv = o.total>0 ? Math.round((o['CONFIRMADO']/o.total)*100) : 0;
+      const pendentes = Math.max(0, o.total - flagsAtivasExt.reduce((s,k)=>s+(o[k]||0),0));
+      return Object.assign({nome, conv}, o, {pendentes});
+    }).sort((a,b)=>b.total-a.total);
+  }
+  const rankConf = _finaliza(rcMap);
+  const porTmk   = _finaliza(tmkMap);
+  const unidColsSel = UNID_COLS.filter(c => unidCols[c.key]);
+  const unidLinhas  = _linhasUnidade(data, unidColsSel);
+  extractData = { label:_periodoLabel(), total, conf, canc, semret, convPct, semFlag, flagCount,
+                  rankConf, porTmk, rankConfCols, unidLinhas, unidColsSel };
   document.getElementById('extract-body').innerHTML = buildExtractHTML(extractData);
 }
 function buildExtractHTML(d) {
@@ -762,23 +809,24 @@ function buildExtractHTML(d) {
       <div class="ext-card"><div class="ext-card-val" style="color:#ef4444">${d.canc}</div><div class="ext-card-lbl">Cancelados</div></div>
       <div class="ext-card"><div class="ext-card-val" style="color:#fbbf24">${d.convPct}%</div><div class="ext-card-lbl">Conversão</div></div>
     </div>`;
-  // Tabela por atendente
-  const atRows = d.porAtendente.map(a => `
-    <tr>
-      <td style="text-align:left">${esc(a.atendente)}</td>
-      <td>${a.total}</td>
-      <td style="color:#22c55e">${a.conf}</td>
-      <td style="color:#ef4444">${a.canc}</td>
-      <td style="color:#ca8a04">${a.semret}</td>
-      <td style="color:${a.pct>=50?'#22c55e':a.pct>=25?'#fbbf24':'#ef4444'};font-weight:700">${a.pct}%</td>
+  // Desempenho por TMK (quem agendou) — status dos agendamentos dele
+  const tkCols = d.rankConfCols || [];
+  const tkHeaders = tkCols.map(c=>`<th style="color:${c.color}">${c.label}</th>`).join('');
+  const tkRows = (d.porTmk||[]).map(t=>`<tr>
+      <td style="text-align:left">${esc(t.nome)}</td>
+      ${tkCols.map(c=>{
+        const v = t[c.key]||0;
+        if(c.key==='conv') return `<td style="color:${c.color};font-weight:700">${v}%</td>`;
+        return `<td style="color:${v>0?c.color:'#3f3f46'};font-weight:700">${v}</td>`;
+      }).join('')}
     </tr>`).join('');
   const atBox = `
     <div class="ext-chartbox">
-      <h3>👤 Desempenho por Atendente</h3>
+      <h3>👤 Desempenho por TMK</h3>
       <div style="overflow-x:auto">
-      <table class="ext-table" style="min-width:520px">
-        <thead><tr><th>ATENDENTE</th><th>CONTATOS</th><th>CONFIRM.</th><th>CANCEL.</th><th>SEM RET.</th><th>CONV.%</th></tr></thead>
-        <tbody>${atRows || `<tr><td colspan="6" style="text-align:center;color:#52525b;padding:16px">Nenhuma atendente com dados no período.</td></tr>`}</tbody>
+      <table class="ext-table" style="min-width:640px">
+        <thead><tr><th>TMK</th>${tkHeaders}</tr></thead>
+        <tbody>${tkRows || `<tr><td colspan="${1+tkCols.length}" style="text-align:center;color:#52525b;padding:16px">Nenhum TMK no período.</td></tr>`}</tbody>
       </table>
       </div>
     </div>`;
@@ -826,17 +874,42 @@ function buildExtractHTML(d) {
       </table>
       </div>
     </div>`;
-  return cards + atBox + flagBox + rcBox;}
+  // Performance por Unidade — mesma tabela da tela
+  const uCols = d.unidColsSel || [];
+  const uHeaders = uCols.map(c=>`<th style="color:${c.color}">${c.label}</th>`).join('');
+  const uRows = (d.unidLinhas||[]).map(l=>{
+    const cells = uCols.map(c=>{
+      const v = l.d[c.key] || 0;
+      if(c.key==='pctcont'||c.key==='conv'||c.key==='pctexame')
+        return `<td style="color:${c.color};font-weight:700">${v}%</td>`;
+      return `<td style="color:${v>0?c.color:'#3f3f46'};font-weight:700">${v}</td>`;
+    }).join('');
+    if(l.filho) return `<tr style="background:rgba(255,255,255,0.015)"><td style="text-align:left;padding-left:24px;color:#a1a1aa;font-weight:400">↳ ${esc(l.nome)}</td>${cells}</tr>`;
+    return `<tr><td style="text-align:left;font-weight:700;color:#fbbf24">${esc(l.nome)}</td>${cells}</tr>`;
+  }).join('');
+  const unidBox = `
+    <div class="ext-chartbox">
+      <h3>🏢 Performance por Unidade</h3>
+      <div style="overflow-x:auto">
+      <table class="ext-table" style="min-width:640px">
+        <thead><tr><th>UNIDADE</th>${uHeaders}</tr></thead>
+        <tbody>${uRows || `<tr><td colspan="${1+uCols.length}" style="text-align:center;color:#52525b;padding:16px">Sem dados no período.</td></tr>`}</tbody>
+      </table>
+      </div>
+    </div>`;
+  return cards + atBox + flagBox + rcBox + unidBox;
+}
 function downloadExtractExcel() {
   if(!extractData) return;
   const d = extractData;
   let csv = `Análise Geral - Confirmação Connecting;${d.label}\n\n`;
   csv += `Indicador;Valor\n`;
   csv += `Total de contatos;${d.total}\nConfirmados;${d.conf}\nCancelados;${d.canc}\nSem retorno;${d.semret}\nConversão;${d.convPct}%\n\n`;
-  csv += `Desempenho por Atendente\n`;
-  csv += `Atendente;Contatos;Confirmados;Cancelados;Sem Retorno;Conversão%\n`;
-  d.porAtendente.forEach(a=>{
-    csv += `${a.atendente};${a.total};${a.conf};${a.canc};${a.semret};${a.pct}%\n`;
+  const tk = d.rankConfCols || [];
+  csv += `Desempenho por TMK\n`;
+  csv += `TMK;${tk.map(c=>c.label).join(';')}\n`;
+  (d.porTmk||[]).forEach(t=>{
+    csv += `${t.nome};${tk.map(c=>(t[c.key]||0)+(c.key==='conv'?'%':'')).join(';')}\n`;
   });
   csv += `\nContagem por Flag (geral)\n`;
   csv += `Flag;Quantidade\n`;
@@ -850,6 +923,18 @@ function downloadExtractExcel() {
       csv += `${i+1}º;${r.nome};${rc.map(c=>(r[c.key]||0)+(c.key==='conv'?'%':'')).join(';')}\n`;
     });
   }
+  if(d.unidLinhas && d.unidLinhas.length){
+    const uc = d.unidColsSel || [];
+    csv += `\nPerformance por Unidade\n`;
+    csv += `Unidade;${uc.map(c=>c.label).join(';')}\n`;
+    d.unidLinhas.forEach(l=>{
+      const vals = uc.map(c=>{
+        const v = l.d[c.key]||0;
+        return v + ((c.key==='pctcont'||c.key==='conv'||c.key==='pctexame')?'%':'');
+      }).join(';');
+      csv += `${l.filho?'   ':''}${l.nome};${vals}\n`;
+    });
+  }
   const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -859,15 +944,19 @@ function downloadExtractExcel() {
 function downloadExtractPDF() {
   if(!extractData) return;
   const d = extractData;
-  const atRows = d.porAtendente.map(a=>`<tr>
-    <td>${a.atendente}</td><td style="text-align:right">${a.total}</td>
-    <td style="text-align:right">${a.conf}</td><td style="text-align:right">${a.canc}</td>
-    <td style="text-align:right">${a.semret}</td><td style="text-align:right">${a.pct}%</td></tr>`).join('');
+  const tk = d.rankConfCols || [];
+  const atRows = (d.porTmk||[]).map(t=>`<tr>
+    <td>${t.nome}</td>
+    ${tk.map(c=>`<td style="text-align:right">${t[c.key]||0}${c.key==='conv'?'%':''}</td>`).join('')}</tr>`).join('');
   const flagRows = ALL_FLAGS.map(f=>`<tr><td>${f}</td><td style="text-align:right">${d.flagCount[f]||0}</td></tr>`).join('');
   const rc = d.rankConfCols || [];
   const rcRows = (d.rankConf||[]).map((r,i)=>`<tr>
     <td>${i+1}º ${r.nome}</td>
     ${rc.map(c=>`<td style="text-align:right">${r[c.key]||0}${c.key==='conv'?'%':''}</td>`).join('')}</tr>`).join('');
+  const uc = d.unidColsSel || [];
+  const uRows = (d.unidLinhas||[]).map(l=>`<tr>
+    <td>${l.filho?'&nbsp;&nbsp;&nbsp;↳ ':''}${l.nome}</td>
+    ${uc.map(c=>`<td style="text-align:right">${l.d[c.key]||0}${(c.key==='pctcont'||c.key==='conv'||c.key==='pctexame')?'%':''}</td>`).join('')}</tr>`).join('');
   const win = window.open('', '_blank');
   win.document.write(`<html><head><title>Análise Geral — ${d.label}</title>
     <style>
@@ -888,8 +977,8 @@ function downloadExtractPDF() {
       <div class="card"><div class="v">${d.canc}</div><div class="l">Cancelados</div></div>
       <div class="card"><div class="v">${d.convPct}%</div><div class="l">Conversão</div></div>
     </div>
-    <h2>👤 Desempenho por Atendente</h2>
-    <table><thead><tr><th>Atendente</th><th style="text-align:right">Contatos</th><th style="text-align:right">Confirm.</th><th style="text-align:right">Cancel.</th><th style="text-align:right">Sem Ret.</th><th style="text-align:right">Conv.%</th></tr></thead>
+    <h2>👤 Desempenho por TMK</h2>
+    <table><thead><tr><th>TMK</th>${tk.map(c=>`<th style="text-align:right">${c.label}</th>`).join('')}</tr></thead>
       <tbody>${atRows}</tbody></table>
     <h2>Contagem por Flag (geral)</h2>
     <table><thead><tr><th>Flag</th><th style="text-align:right">Qtd</th></tr></thead>
@@ -897,6 +986,9 @@ function downloadExtractPDF() {
     <h2>🏆 Rank Confirmação</h2>
     <table><thead><tr><th>Atendente</th>${rc.map(c=>`<th style="text-align:right">${c.label}</th>`).join('')}</tr></thead>
       <tbody>${rcRows}</tbody></table>
+    <h2>🏢 Performance por Unidade</h2>
+    <table><thead><tr><th>Unidade</th>${uc.map(c=>`<th style="text-align:right">${c.label}</th>`).join('')}</tr></thead>
+      <tbody>${uRows}</tbody></table>
     </body></html>`);
   win.document.close();
   setTimeout(()=>win.print(), 400);
