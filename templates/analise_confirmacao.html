@@ -491,6 +491,11 @@ function renderRankConfirmacao(data) {
     return;
   }
   const cols = RANK_COLS.filter(c => rankCols[c.key]);
+  // FALTAM = contatos que entraram menos as flags marcadas no seletor
+  const flagsAtivasRank = cols.filter(c => ALL_FLAGS.indexOf(c.key) >= 0).map(c => c.key);
+  ranked.forEach(r => {
+    r.pendentes = Math.max(0, r.total - flagsAtivasRank.reduce((s,k) => s + (r[k]||0), 0));
+  });
   const medals = ['🥇','🥈','🥉'];
   const head = `<thead><tr><th style="text-align:left">ATENDENTE</th>${cols.map(c=>`<th style="color:${c.color}">${c.label}</th>`).join('')}</tr></thead>`;
   const body = ranked.map((r,i) => `<tr>
@@ -637,11 +642,15 @@ function renderUnidadesTabela(data) {
   data = data || [];
   const totalGeral = data.length;
   const cols = UNID_COLS.filter(c => unidCols[c.key]);
+  // Flags marcadas no seletor — base do calculo do FALTAM
+  const flagsAtivas = cols.filter(c => ALL_FLAGS.indexOf(c.key) >= 0).map(c => c.key);
   function calc(rows){
     const o = _contaFlags(rows);
     o.pctcont  = totalGeral>0 ? Math.round((o.total/totalGeral)*100) : 0;
     o.conv     = o.total>0 ? Math.round((o['CONFIRMADO']/o.total)*100) : 0;
     o.pctexame = o.total>0 ? Math.round((o['EXAME REALIZADO']/o.total)*100) : 0;
+    // FALTAM = contatos que entraram menos as flags marcadas
+    o.pendentes = Math.max(0, o.total - flagsAtivas.reduce((s,k) => s + (o[k]||0), 0));
     return o;
   }
   function celulas(d){
