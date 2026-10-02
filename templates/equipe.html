@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <div class="title-bar">
+        <div class="title-accent"></div>
+        <h1 class="page-title">👤 Equipe de Confirmação</h1>
+      </div>
+      <p class="page-subtitle" style="margin-left:20px">Quem aparece como aba na área de Confirmação</p>
+    </div>
+  </div>
+  <div class="card" style="padding:16px;margin-bottom:16px">
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label class="filter-label">NOVA PESSOA</label>
+        <input class="input" id="nova-pessoa" placeholder="Ex: ANA PAULA" style="width:240px"
+               onkeydown="if(event.key==='Enter')addPessoa()"/>
+      </div>
+      <div class="filter-group" style="justify-content:flex-end">
+        <label class="filter-label">&nbsp;</label>
+        <button class="btn btn-primary" onclick="addPessoa()">+ Adicionar</button>
+      </div>
+    </div>
+    <p style="font-size:12px;color:#71717a;margin-top:10px">
+      A pessoa nova já ganha a própria aba em Confirmação, com Colar da Planilha,
+      Resumo do Dia, Relatório WhatsApp e Extrair Dados.
+    </p>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="background:#fbbf24;color:#18181b">
+          <th style="padding:10px;text-align:left">ORDEM</th>
+          <th style="padding:10px;text-align:left">NOME</th>
+          <th style="padding:10px;text-align:right">AÇÃO</th>
+        </tr>
+      </thead>
+      <tbody id="equipe-body">
+        <tr><td colspan="3" style="padding:20px;text-align:center;color:#71717a">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let equipe = [];
+function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function loadEquipe(){
+  const r = await fetch('/api/atendentes');
+  if(r.status===401){ window.location.href='/login'; return; }
+  equipe = await r.json();
+  render();
+}
+function render(){
+  const tb = document.getElementById('equipe-body');
+  if(!equipe.length){
+    tb.innerHTML = '<tr><td colspan="3" style="padding:20px;text-align:center;color:#71717a">Ninguém cadastrado.</td></tr>';
+    return;
+  }
+  tb.innerHTML = equipe.map(p=>`<tr style="border-bottom:1px solid #1f1f1f">
+    <td style="padding:10px;color:#71717a">${p.ordem}</td>
+    <td style="padding:10px;color:#e4e4e7;font-weight:600">${esc(p.nome)}</td>
+    <td style="padding:10px;text-align:right">
+      <button class="btn btn-danger" style="padding:4px 10px;font-size:12px" onclick="delPessoa(${p.id})">Remover</button>
+    </td>
+  </tr>`).join('');
+}
+async function addPessoa(){
+  const el = document.getElementById('nova-pessoa');
+  const nome = (el.value||'').trim();
+  if(!nome){ showToast('Digite o nome.','error'); return; }
+  const r = await fetch('/api/atendentes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome})});
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ showToast(d.error||'Erro ao adicionar.','error'); return; }
+  el.value='';
+  showToast('Pessoa adicionada! Recarregue a Confirmação para ver a aba.');
+  loadEquipe();
+}
+async function delPessoa(id){
+  const p = equipe.find(x=>x.id===id); if(!p) return;
+  if(!confirm(`Remover "${p.nome}" da equipe?`)) return;
+  const r = await fetch('/api/atendentes/'+id,{method:'DELETE'});
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ showToast(d.error||'Erro ao remover.','error'); return; }
+  showToast('Removida da equipe.');
+  loadEquipe();
+}
+document.addEventListener('DOMContentLoaded', loadEquipe);
+</script>
+{% endblock %}
