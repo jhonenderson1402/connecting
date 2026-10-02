@@ -431,14 +431,28 @@ function salvarRankCols(){
 function montarPainelColunas(){
   const p = document.getElementById('rank-cols-panel');
   if(!p || p.dataset.pronto) return;
-  p.innerHTML = RANK_COLS.map(c =>
+  const todasMarcadas = RANK_COLS.every(c => rankCols[c.key]);
+  p.innerHTML =
+    `<label style="display:flex;align-items:center;gap:8px;padding:6px;font-size:12px;color:#fbbf24;font-weight:700;cursor:pointer;border-bottom:1px solid #2a2a2a;margin-bottom:4px">
+       <input type="checkbox" id="rank-col-todos" ${todasMarcadas?'checked':''}/> Selecionar todos
+     </label>` +
+    RANK_COLS.map(c =>
     `<label style="display:flex;align-items:center;gap:8px;padding:4px 6px;font-size:12px;color:#e4e4e7;cursor:pointer">
        <input type="checkbox" data-col="${c.key}" ${rankCols[c.key]?'checked':''}/> ${c.label}
      </label>`).join('');
   p.addEventListener('change', e => {
-    const k = e.target && e.target.getAttribute('data-col');
-    if(!k) return;
-    rankCols[k] = e.target.checked;
+    const alvo = e.target;
+    if(!alvo) return;
+    if(alvo.id === 'rank-col-todos'){
+      RANK_COLS.forEach(c => rankCols[c.key] = alvo.checked);
+      p.querySelectorAll('input[data-col]').forEach(i => i.checked = alvo.checked);
+    } else {
+      const k = alvo.getAttribute('data-col');
+      if(!k) return;
+      rankCols[k] = alvo.checked;
+      const todos = p.querySelector('#rank-col-todos');
+      if(todos) todos.checked = RANK_COLS.every(c => rankCols[c.key]);
+    }
     salvarRankCols();
     renderRankConfirmacao(analiseData);
   });
