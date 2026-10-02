@@ -61,7 +61,13 @@ def _force_https():
         if proto != 'https':
             url = request.url.replace('http://', 'https://', 1)
             return redirect(url, code=301)
-UNITS = ["PARÁ", "MANAUS", "MANOA", "SÃO LUIZ", "FORTALEZA", "AÇÃO"]
+UNITS_FALLBACK = ["PARÁ", "MANAUS", "MANOA", "SÃO LUIZ", "FORTALEZA", "AÇÃO"]
+def _units():
+    """Lista de unidades vinda do banco (Configuração > Unidades)."""
+    try:
+        return [u['nome'] for u in db.get_unidades()] or UNITS_FALLBACK
+    except Exception:
+        return UNITS_FALLBACK
 # Prefixo de "unidade" reservada para Leads Recebidos (uma por unidade real).
 # Reusa a tabela appointments (rows é JSON), então não precisa de migração.
 # Ex.: os leads de PARÁ ficam armazenados sob a unit "LEADS::PARÁ".
@@ -89,7 +95,7 @@ def _valid_date(s):
     except ValueError:
         return False
 def _valid_unit(u):
-    return isinstance(u, str) and u in UNITS
+    return isinstance(u, str) and u in _units()
 def _wants_json():
     """True se a request parece API (JSON). Usado para escolher 401 vs redirect."""
     if request.path.startswith('/api/'):
@@ -332,7 +338,7 @@ def api_create_employee():
     if not name:
         return _err('Campo "name" é obrigatório')
     if not _valid_unit(unit):
-        return _err(f'Campo "unit" inválido. Use um de: {UNITS}')
+        return _err(f'Campo "unit" inválido. Use um de: {_units()}')
     eid = db.create_employee(name, unit, active, funcao=funcao)
     return jsonify({'id': eid, 'name': name, 'unit': unit, 'active': active, 'funcao': funcao}), 201
 @app.route('/api/employees/<int:eid>', methods=['DELETE'])
@@ -466,9 +472,8 @@ def api_clear_leads(unit, date):
 # ── API: Constantes ───────────────────────────────────────────────────────────
 @app.route('/api/constants')
 @login_required
-@cache.cached(timeout=3600)
 def api_constants():
-    return jsonify({'units': UNITS, 'months': MONTHS, 'time_slots': TIME_SLOTS})
+    return jsonify({'units': _units(), 'months': MONTHS, 'time_slots': TIME_SLOTS})
 # Chaves de leads que entraram — montadas a partir das fontes cadastradas.
 LEAD_KEYS_FALLBACK = ['wbp_lead', 'vbot_lead', 'antigos_lead', 'mkt_lead', 'whats_lead', 'mabe_lead']
 def _lead_keys():
@@ -500,7 +505,7 @@ def api_leads_totais():
     else:
         return _err('Informe "date" (YYYY-MM-DD) ou "year"+"month".')
     # Soma os leads só das "unidades" reservadas LEADS::, por unidade real
-    totais = {u: 0 for u in UNITS}
+     totais = {u: 0 for u in _units()}
     lead_keys = _lead_keys()
     for a in appts:
         unit = a['unit']
@@ -690,7 +695,7 @@ def api_save_metas():
     # Valida unidades
     for m in metas:
         u = m.get('unidade')
-        if u not in UNITS:
+         if u not in _units():
             return _err(f'Unidade inválida nas metas: {u}')
     db.bulk_upsert_metas(ano, mes, metas)
     return jsonify({'ok': True, 'count': len(metas)})
@@ -716,6 +721,34 @@ def api_create_fonte():
 @admin_required
 def api_delete_fonte(fid):
     db.delete_fonte(fid)
+    return jsonify({'ok': True})
+# ── Unidades (Configuração) ──────────────────────────────────────────────────
+@app.route('/configuracao/unidades')
+@admin_required
+def unidades_page():
+    return render_template('unidades.html')
+@app.route('/api/unidades', methods=['GET'])
+@login_required
+def api_list_unidades():
+    return jsonify(db.get_unidades())
+@app.route('/api/unidades', methods=['POST'])
+@admin_required
+def api_create_unidade():
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(db.create_unidade(data.get('nome'))), 201
+    except ValueError as e:
+        return _err(str(e))
+@app.route('/api/unidades/<int:uid>', methods=['DELETE'])
+@admin_required
+def api_delete_unidade(uid):
+    alvo = next((u for u in db.get_unidades() if u['id'] == uid), None)
+    if not alvo:
+        return _err('Unidade não encontrada.', 404)
+    n = db.count_appointments_unidade(alvo['nome'])
+    if n > 0:
+        return _err(f"Não dá para remover: a unidade '{alvo['nome']}' tem {n} dia(s) com dados lançados.", 409)
+    db.delete_unidade(uid)
     return jsonify({'ok': True})
 # -- API Externa (relatorios so-leitura, protegida por X-API-Key) --
 def _ext_auth_ok():
