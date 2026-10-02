@@ -134,6 +134,11 @@ class Unidade(Base):
     id    = Column(Integer, primary_key=True, autoincrement=True)
     nome  = Column(String(100), nullable=False, unique=True)
     ordem = Column(Integer, default=0)
+class Atendente(Base):
+    __tablename__ = 'atendentes'
+    id    = Column(Integer, primary_key=True, autoincrement=True)
+    nome  = Column(String(100), nullable=False, unique=True)
+    ordem = Column(Integer, default=0)
 # ---- Inicializacao ----------------------------------------------------------
 def init_db():
     """Cria tabelas e indices se ainda nao existirem. Idempotente.
@@ -153,6 +158,7 @@ def init_db():
     ensure_default_admin()
     ensure_default_fontes()
     ensure_default_unidades()
+    ensure_default_atendentes()
 def _run_migrations():
     """Aplica migrações incrementais no banco existente (idempotente)."""
     with engine.connect() as conn:
@@ -219,6 +225,47 @@ def ensure_default_admin():
             else:
                 print(f"    senha: {senha}")
             print(f"    >>> TROQUE essa senha apos o primeiro login! <<<\n")
+# ---- Equipe de confirmacao (atendentes) -------------------------------------
+ATENDENTES_PADRAO = ['VIVIANE', 'DIELLEM', 'LIVYA', 'KEILANE', 'LUANE', 'MARIA']
+def ensure_default_atendentes():
+    """Semeia a equipe que ja existia, se a tabela estiver vazia."""
+    try:
+        with SessionLocal() as s:
+            if s.scalar(select(func.count(Atendente.id))) == 0:
+                for i, nome in enumerate(ATENDENTES_PADRAO, start=1):
+                    s.add(Atendente(nome=nome, ordem=i))
+                s.commit()
+                print("[init] Equipe de confirmacao padrao criada.")
+    except Exception as e:
+        print("ERRO AO CRIAR EQUIPE PADRAO:", e)
+def get_atendentes():
+    with SessionLocal() as s:
+        rows = s.scalars(select(Atendente).order_by(Atendente.ordem, Atendente.id)).all()
+        return [{'id': r.id, 'nome': r.nome, 'ordem': r.ordem or 0} for r in rows]
+def create_atendente(nome):
+    nome = (nome or '').strip().upper()
+    if not nome:
+        raise ValueError("Informe o nome da pessoa.")
+    if len(nome) > 100:
+        raise ValueError("Nome muito longo.")
+    with SessionLocal() as s:
+        if s.scalar(select(Atendente).where(Atendente.nome == nome)):
+            raise ValueError(f"'{nome}' ja esta na equipe.")
+        prox = (s.scalar(select(func.max(Atendente.ordem))) or 0) + 1
+        a = Atendente(nome=nome, ordem=prox)
+        s.add(a)
+        s.commit()
+        s.refresh(a)
+        return {'id': a.id, 'nome': a.nome, 'ordem': a.ordem}
+def count_confirmacoes_atendente(nome):
+    with SessionLocal() as s:
+        return s.scalar(select(func.count(Confirmacao.id)).where(
+            Confirmacao.atendente == nome
+        )) or 0
+def delete_atendente(aid):
+    with SessionLocal() as s:
+        s.execute(delete(Atendente).where(Atendente.id == aid))
+        s.commit()
 # ---- Unidades ---------------------------------------------------------------
 UNIDADES_PADRAO = ["PARÁ", "MANAUS", "MANOA", "SÃO LUIZ", "FORTALEZA", "AÇÃO"]
 def ensure_default_unidades():
