@@ -559,7 +559,13 @@ def api_leads_por_tmk():
 def _role_allowed(*roles):
     user_role = session.get('role', 'all')
     return user_role in ('all', 'admin', 'ambos') or user_role in roles
-ATENDENTES = ['VIVIANE', 'DIELLEM', 'LIVYA', 'KEILANE', 'LUANE', 'MARIA']
+ATENDENTES_FALLBACK = ['VIVIANE', 'DIELLEM', 'LIVYA', 'KEILANE', 'LUANE', 'MARIA']
+def _atendentes():
+    """Equipe de confirmacao vinda do banco (Configuracao > Equipe)."""
+    try:
+        return [a['nome'] for a in db.get_atendentes()] or ATENDENTES_FALLBACK
+    except Exception:
+        return ATENDENTES_FALLBACK
 UNIDADES_CONF = {
     'MANAUS': ['MANAUS'],
     'MANOA': ['MANOA'],
@@ -575,14 +581,14 @@ def _norm_atendente(value):
     if not value:
         return None
     v = value.strip().upper()
-    return v if v in ATENDENTES else None
+    return v if v in _atendentes() else None
 @app.route('/confirmacao')
 @login_required
 def confirmacao_analise():
     if not _role_allowed('confirmacao'):
         return redirect(url_for('dashboard'))
     return render_template('analise_confirmacao.html',
-                           atendentes=ATENDENTES,
+                           atendentes=_atendentes(),
                            unidades_conf=UNIDADES_CONF,
                            atendente=None)
 @app.route('/confirmacao/<atendente>')
@@ -592,9 +598,9 @@ def confirmacao_page(atendente=None):
         return redirect(url_for('dashboard'))
     if atendente:
         atendente = atendente.upper()
-        if atendente not in ATENDENTES:
+        if atendente not in _atendentes():
             return redirect(url_for('confirmacao_analise'))
-    return render_template('confirmacao.html', atendente=atendente, atendentes=ATENDENTES)
+    return render_template('confirmacao.html', atendente=atendente, atendentes=_atendentes())
 @app.route('/api/confirmacoes', methods=['GET'])
 @login_required
 def api_list_confirmacoes():
@@ -749,6 +755,34 @@ def api_delete_unidade(uid):
     if n > 0:
         return _err(f"Não dá para remover: a unidade '{alvo['nome']}' tem {n} dia(s) com dados lançados.", 409)
     db.delete_unidade(uid)
+    return jsonify({'ok': True})
+# ── Equipe de Confirmação (Configuração) ─────────────────────────────────────
+@app.route('/configuracao/equipe')
+@admin_required
+def equipe_page():
+    return render_template('equipe.html')
+@app.route('/api/atendentes', methods=['GET'])
+@login_required
+def api_list_atendentes():
+    return jsonify(db.get_atendentes())
+@app.route('/api/atendentes', methods=['POST'])
+@admin_required
+def api_create_atendente():
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(db.create_atendente(data.get('nome'))), 201
+    except ValueError as e:
+        return _err(str(e))
+@app.route('/api/atendentes/<int:aid>', methods=['DELETE'])
+@admin_required
+def api_delete_atendente(aid):
+    alvo = next((a for a in db.get_atendentes() if a['id'] == aid), None)
+    if not alvo:
+        return _err('Pessoa não encontrada.', 404)
+    n = db.count_confirmacoes_atendente(alvo['nome'])
+    if n > 0:
+        return _err(f"Não dá para remover: '{alvo['nome']}' tem {n} confirmação(ões) registrada(s).", 409)
+    db.delete_atendente(aid)
     return jsonify({'ok': True})
 # -- API Externa (relatorios so-leitura, protegida por X-API-Key) --
 def _ext_auth_ok():
