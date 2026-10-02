@@ -120,6 +120,15 @@ class Meta(Base):
         UniqueConstraint('ano', 'mes', 'unidade', 'bairro', name='uq_meta_periodo'),
         Index('idx_meta_mes', 'ano', 'mes'),
     )
+class Fonte(Base):
+    __tablename__ = 'fontes'
+    id     = Column(Integer, primary_key=True, autoincrement=True)
+    chave  = Column(String(40), nullable=False, unique=True)   # prefixo dos dados: wbp -> wbp_lead / wbp_ags
+    nome   = Column(String(80), nullable=False)                # rotulo exibido: WBP
+    ordem  = Column(Integer, default=0)
+    __table_args__ = (
+        Index('idx_fonte_ordem', 'ordem'),
+    )
 # ---- Inicializacao ----------------------------------------------------------
 def init_db():
     """Cria tabelas e indices se ainda nao existirem. Idempotente.
@@ -137,6 +146,7 @@ def init_db():
     Base.metadata.create_all(engine)
     _run_migrations()
     ensure_default_admin()
+    ensure_default_fontes()
 def _run_migrations():
     """Aplica migrações incrementais no banco existente (idempotente)."""
     with engine.connect() as conn:
@@ -203,6 +213,57 @@ def ensure_default_admin():
             else:
                 print(f"    senha: {senha}")
             print(f"    >>> TROQUE essa senha apos o primeiro login! <<<\n")
+# ---- Fontes de leads --------------------------------------------------------
+FONTES_PADRAO = [
+    ('wbp',     'WBP',      1),
+    ('vbot',    'VBOT',     2),
+    ('antigos', 'ANTIGOS',  3),
+    ('mkt',     'GERAÇÃO',  4),
+    ('whats',   'TTK',      5),
+    ('mabe',    'MABE',     6),
+]
+def ensure_default_fontes():
+    """Semeia as fontes que ja existiam no sistema, se a tabela estiver vazia."""
+    try:
+        with SessionLocal() as s:
+            if s.scalar(select(func.count(Fonte.id))) == 0:
+                for chave, nome, ordem in FONTES_PADRAO:
+                    s.add(Fonte(chave=chave, nome=nome, ordem=ordem))
+                s.commit()
+                print("[init] Fontes padrao criadas.")
+    except Exception as e:
+        print("ERRO AO CRIAR FONTES PADRAO:", e)
+def _slug_fonte(txt):
+    """Gera a chave a partir do nome: 'Meta Ads' -> 'meta_ads'."""
+    import unicodedata
+    t = unicodedata.normalize('NFKD', str(txt or '')).encode('ascii', 'ignore').decode()
+    t = re.sub(r'[^A-Za-z0-9]+', '_', t).strip('_').lower()
+    return t[:30]
+def get_fontes():
+    with SessionLocal() as s:
+        rows = s.scalars(select(Fonte).order_by(Fonte.ordem, Fonte.id)).all()
+        return [{'id': r.id, 'chave': r.chave, 'nome': r.nome, 'ordem': r.ordem or 0} for r in rows]
+def create_fonte(nome, chave=None):
+    nome = (nome or '').strip()
+    if not nome:
+        raise ValueError("Informe o nome da fonte.")
+    ch = _slug_fonte(chave or nome)
+    if not ch:
+        raise ValueError("Nome invalido para gerar a chave da fonte.")
+    with SessionLocal() as s:
+        if s.scalar(select(Fonte).where(Fonte.chave == ch)):
+            raise ValueError(f"Ja existe uma fonte com a chave '{ch}'.")
+        prox = (s.scalar(select(func.max(Fonte.ordem))) or 0) + 1
+        f = Fonte(chave=ch, nome=nome.upper(), ordem=prox)
+        s.add(f)
+        s.commit()
+        s.refresh(f)
+        return {'id': f.id, 'chave': f.chave, 'nome': f.nome, 'ordem': f.ordem}
+def delete_fonte(fid):
+    """Remove a fonte da lista. Os numeros ja lancados continuam no banco."""
+    with SessionLocal() as s:
+        s.execute(delete(Fonte).where(Fonte.id == fid))
+        s.commit()
 # ---- Helpers ----------------------------------------------------------------
 def _safe_json_loads(s, default):
     try:
