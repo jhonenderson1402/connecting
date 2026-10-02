@@ -239,7 +239,7 @@ async function onConstantsLoaded(){
   buildTableHead();
   await loadData();
 }
-}
+
 function buildTableHead(){
   let html = '<tr><th>MÊS</th><th>ANO</th><th>DATA</th><th>LÍDER</th><th class="th-nome">NOME</th>';
   LEAD_COLS.forEach(c => { html += `<th class="${c.t==='cv'?'col-conv':''}">${c.l}</th>`; });
