@@ -182,7 +182,7 @@
 const UNIDADES_CONF = {
   'MANAUS':    ['MANAUS'],
   'MANOA':     ['MANOA'],
-  'PARÁ':      ['ANANINDEUA','AUGUSTO MONTENEGRO','BRAGANÇA','CAPANEMA',
+  'PARÁ':      ['ANANINDEUA','AUGUSTO','AUGUSTO MONTENEGRO','BRAGANÇA','CAPANEMA',
                  'CAPITAO POÇO','CASTANHAL','CIDADE NOVA','JOSÉ BONIFÁCIO',
                  'JURUNAS','MARABÁ','MARAMBAIA','SANTAREM','TELEGRAFO'],
   'FORTALEZA': ['FORTALEZA'],
@@ -617,6 +617,10 @@ document.addEventListener('click', e => {
   if(btn.contains(e.target)) { montarPainelUnid(); p.style.display = (p.style.display==='none'?'block':'none'); return; }
   if(!p.contains(e.target)) p.style.display = 'none';
 });
+// Normaliza nome de unidade: tira acento, espaco extra e deixa maiusculo
+function _normUnid(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
+}
 function _contaFlags(rows){
   const o = {total:0, pendentes:0};
   ALL_FLAGS.forEach(f => o[f] = 0);
@@ -664,12 +668,12 @@ function renderUnidadesTabela(data) {
   const usados = new Set();
   let body = '';
   Object.entries(UNIDADES_CONF).forEach(([grupo, subs]) => {
-    const alvo = subs.map(s => s.toUpperCase());
-    const filhos = Object.keys(porNome).filter(n => alvo.indexOf(n) >= 0);
+    const alvo = subs.map(s => _normUnid(s));
+    const filhos = Object.keys(porNome).filter(n => alvo.indexOf(_normUnid(n)) >= 0);
     filhos.forEach(n => usados.add(n));
     const rowsG = filhos.reduce((acc,n) => acc.concat(porNome[n]), []);
     body += linhaGrupo(grupo, rowsG);
-    const mostrarFilhos = filhos.length > 1 || (filhos.length === 1 && filhos[0] !== grupo);
+    const mostrarFilhos = filhos.length > 1 || (filhos.length === 1 && _normUnid(filhos[0]) !== _normUnid(grupo));
     if(mostrarFilhos){
       filhos.sort((a,b) => porNome[b].length - porNome[a].length)
             .forEach(n => { body += linhaFilho(n, porNome[n]); });
