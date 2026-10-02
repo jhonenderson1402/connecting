@@ -805,7 +805,12 @@ function toggleNameDropdown(i, event) {
 }
 
 // Fechar dropdowns ao rolar a página (senão eles ficam "presos" na tela)
-window.addEventListener('scroll', closeAllNameDropdowns, true);
+// — mas NÃO fecha quando a rolagem acontece dentro do próprio menu
+window.addEventListener('scroll', function(e){
+  var t = e.target;
+  if(t && t.closest && t.closest('.name-dd-menu')) return;
+  closeAllNameDropdowns();
+}, true);
 window.addEventListener('resize', closeAllNameDropdowns);
 
 function closeAllNameDropdowns() {
