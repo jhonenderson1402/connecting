@@ -734,21 +734,23 @@ function renderExtract() {
     const p = t>0?Math.round((c/t)*100):0;
     return { atendente: at, total: t, conf: c, canc: ca, semret: sr, pct: p };
   }).filter(a => a.total > 0).sort((a,b)=>b.total-a.total);
-  // Ranking de TMK (mesmo da tela)
-  const tmkMap = {};
+  // Rank Confirmação (mesmo da tela) — por atendente, com as colunas marcadas
+  const rcMap = {};
   data.forEach(r => {
-    const fRank = FLAGS_RANK.find(f => f.key === r.flag);
-    if(!fRank) return;                 // só conta registros que são erro
-    const tmk = (r.tmk||'').trim() || 'Sem TMK';
-    if(!tmkMap[tmk]) {
-      tmkMap[tmk] = { total: 0 };
-      FLAGS_RANK.forEach(f => tmkMap[tmk][f.key] = 0);
-    }
-    tmkMap[tmk].total++;               // TOTAL = soma dos erros do TMK
-    tmkMap[tmk][r.flag]++;
+    const at = (r.atendente||'').trim() || 'SEM ATENDENTE';
+    if(!rcMap[at]) { rcMap[at] = {total:0, pendentes:0}; ALL_FLAGS.forEach(f => rcMap[at][f] = 0); }
+    rcMap[at].total++;
+    if(!r.flag) rcMap[at].pendentes++;
+    else if(rcMap[at][r.flag] !== undefined) rcMap[at][r.flag]++;
   });
-  const tmkRank = Object.entries(tmkMap).map(([name,d])=>({name, ...d})).sort((a,b)=>b.total-a.total);
-  extractData = { label:_periodoLabel(), total, conf, canc, semret, convPct, semFlag, flagCount, porAtendente, tmkRank };
+  const rankConfCols = RANK_COLS.filter(c => rankCols[c.key]);
+  const flagsAtivasExt = rankConfCols.filter(c => ALL_FLAGS.indexOf(c.key) >= 0).map(c => c.key);
+  const rankConf = Object.entries(rcMap).map(([nome,o]) => {
+    const conv = o.total>0 ? Math.round((o['CONFIRMADO']/o.total)*100) : 0;
+    const pendentes = Math.max(0, o.total - flagsAtivasExt.reduce((s,k)=>s+(o[k]||0),0));
+    return Object.assign({nome, conv}, o, {pendentes});
+  }).sort((a,b)=>b.total-a.total);
+  extractData = { label:_periodoLabel(), total, conf, canc, semret, convPct, semFlag, flagCount, porAtendente, rankConf, rankConfCols };
   document.getElementById('extract-body').innerHTML = buildExtractHTML(extractData);
 }
 function buildExtractHTML(d) {
@@ -802,32 +804,29 @@ function buildExtractHTML(d) {
         <span style="font-size:13px;font-weight:700;color:#71717a;text-align:right">${d.semFlag}</span>
       </div>
     </div>`;
-  // Ranking TMK
+  // Rank Confirmação (por atendente) — respeita as colunas marcadas na tela
   const medals = ['🥇','🥈','🥉'];
-  const tmkRows = (d.tmkRank||[]).map((t,i)=>{
-    const errCells = FLAGS_RANK.map(f=>{
-      const v = t[f.key]||0;
-      return `<td style="color:${v>0?f.color:'#3f3f46'}">${v}</td>`;
-    }).join('');
-    return `<tr>
-      <td style="text-align:left">${i<3?medals[i]:(i+1)+'º'} ${esc(t.name)}</td>
-      <td>${t.total}</td>
-      ${errCells}
-    </tr>`;
-  }).join('');
-  const tmkHeaders = FLAGS_RANK.map(f=>`<th style="color:${f.color}">${f.short}</th>`).join('');
-  const tmkBox = `
+  const rcCols = d.rankConfCols || [];
+  const rcHeaders = rcCols.map(c=>`<th style="color:${c.color}">${c.label}</th>`).join('');
+  const rcRows = (d.rankConf||[]).map((r,i)=>`<tr>
+      <td style="text-align:left">${i<3?medals[i]:(i+1)+'º'} ${esc(r.nome)}</td>
+      ${rcCols.map(c=>{
+        const v = r[c.key]||0;
+        if(c.key==='conv') return `<td style="color:${c.color};font-weight:700">${v}%</td>`;
+        return `<td style="color:${v>0?c.color:'#3f3f46'};font-weight:700">${v}</td>`;
+      }).join('')}
+    </tr>`).join('');
+  const rcBox = `
     <div class="ext-chartbox">
-      <h3>🏆 Ranking de TMK</h3>
+      <h3>🏆 Rank Confirmação</h3>
       <div style="overflow-x:auto">
       <table class="ext-table" style="min-width:640px">
-        <thead><tr><th>TMK</th><th>TOTAL</th>${tmkHeaders}</tr></thead>
-        <tbody>${tmkRows || `<tr><td colspan="${2+FLAGS_RANK.length}" style="text-align:center;color:#52525b;padding:16px">Sem TMK no período.</td></tr>`}</tbody>
+        <thead><tr><th>ATENDENTE</th>${rcHeaders}</tr></thead>
+        <tbody>${rcRows || `<tr><td colspan="${1+rcCols.length}" style="text-align:center;color:#52525b;padding:16px">Sem dados no período.</td></tr>`}</tbody>
       </table>
       </div>
     </div>`;
-  return cards + atBox + flagBox + tmkBox;
-}
+  return cards + atBox + flagBox + rcBox;}
 function downloadExtractExcel() {
   if(!extractData) return;
   const d = extractData;
@@ -843,11 +842,12 @@ function downloadExtractExcel() {
   csv += `Flag;Quantidade\n`;
   ALL_FLAGS.forEach(f=>{ csv += `${f};${d.flagCount[f]||0}\n`; });
   csv += `Sem flag (pendentes);${d.semFlag}\n\n`;
-  if(d.tmkRank && d.tmkRank.length){
-    csv += `Ranking de TMK\n`;
-    csv += `Posição;TMK;Total;${FLAGS_RANK.map(f=>f.label).join(';')}\n`;
-    d.tmkRank.forEach((t,i)=>{
-      csv += `${i+1}º;${t.name};${t.total};${FLAGS_RANK.map(f=>t[f.key]||0).join(';')}\n`;
+  if(d.rankConf && d.rankConf.length){
+    const rc = d.rankConfCols || [];
+    csv += `Rank Confirmação\n`;
+    csv += `Posição;Atendente;${rc.map(c=>c.label).join(';')}\n`;
+    d.rankConf.forEach((r,i)=>{
+      csv += `${i+1}º;${r.nome};${rc.map(c=>(r[c.key]||0)+(c.key==='conv'?'%':'')).join(';')}\n`;
     });
   }
   const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8'});
@@ -864,9 +864,10 @@ function downloadExtractPDF() {
     <td style="text-align:right">${a.conf}</td><td style="text-align:right">${a.canc}</td>
     <td style="text-align:right">${a.semret}</td><td style="text-align:right">${a.pct}%</td></tr>`).join('');
   const flagRows = ALL_FLAGS.map(f=>`<tr><td>${f}</td><td style="text-align:right">${d.flagCount[f]||0}</td></tr>`).join('');
-  const tmkRows = (d.tmkRank||[]).map((t,i)=>`<tr>
-    <td>${i+1}º ${t.name}</td><td style="text-align:right">${t.total}</td>
-    ${FLAGS_RANK.map(f=>`<td style="text-align:right">${t[f.key]||0}</td>`).join('')}</tr>`).join('');
+  const rc = d.rankConfCols || [];
+  const rcRows = (d.rankConf||[]).map((r,i)=>`<tr>
+    <td>${i+1}º ${r.nome}</td>
+    ${rc.map(c=>`<td style="text-align:right">${r[c.key]||0}${c.key==='conv'?'%':''}</td>`).join('')}</tr>`).join('');
   const win = window.open('', '_blank');
   win.document.write(`<html><head><title>Análise Geral — ${d.label}</title>
     <style>
@@ -893,9 +894,9 @@ function downloadExtractPDF() {
     <h2>Contagem por Flag (geral)</h2>
     <table><thead><tr><th>Flag</th><th style="text-align:right">Qtd</th></tr></thead>
       <tbody>${flagRows}<tr><td>Sem flag (pendentes)</td><td style="text-align:right">${d.semFlag}</td></tr></tbody></table>
-    <h2>🏆 Ranking de TMK</h2>
-    <table><thead><tr><th>TMK</th><th style="text-align:right">Total</th>${FLAGS_RANK.map(f=>`<th style="text-align:right">${f.short}</th>`).join('')}</tr></thead>
-      <tbody>${tmkRows}</tbody></table>
+    <h2>🏆 Rank Confirmação</h2>
+    <table><thead><tr><th>Atendente</th>${rc.map(c=>`<th style="text-align:right">${c.label}</th>`).join('')}</tr></thead>
+      <tbody>${rcRows}</tbody></table>
     </body></html>`);
   win.document.close();
   setTimeout(()=>win.print(), 400);
