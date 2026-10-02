@@ -130,17 +130,19 @@
     </div>
     <div id="flag-count-list"><div class="loading">Carregando...</div></div>
   </div>
-  <!-- Ranking TMK -->
+  <!-- Rank Confirmação -->
   <div class="analise-card">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <span style="font-size:18px">🏆</span>
-      <h2 style="font-size:14px;font-weight:700">Ranking de TMK</h2>
+      <h2 style="font-size:14px;font-weight:700">Rank Confirmação</h2>
+      <div style="margin-left:auto;position:relative">
+        <button type="button" class="select" id="rank-cols-btn" style="cursor:pointer;font-size:12px;height:32px">⚙ Colunas</button>
+        <div id="rank-cols-panel" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:#141414;border:1px solid #333;border-radius:8px;padding:8px;z-index:50;max-height:300px;overflow:auto;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.5)"></div>
+      </div>
     </div>
-    <div style="display:grid;grid-template-columns:2.5rem 2.5rem 2.5rem 2.5rem;gap:4px;padding:0 12px 8px;font-size:9px;font-weight:700;color:#52525b;letter-spacing:.1em;margin-bottom:4px">
-      <span style="grid-column:1">POS</span>
-      <span style="grid-column:2/4">TMK</span>
+    <div style="overflow-x:auto">
+      <table class="ext-table" id="rank-conf-table" style="min-width:560px"></table>
     </div>
-    <div id="rank-tmk-list"><div class="loading">Carregando...</div></div>
   </div>
   <!-- Por Unidade -->
   <div class="analise-card">
@@ -277,7 +279,7 @@ function renderAnalise() {
     <div class="stat-chip" style="background:rgba(34,197,94,0.1);color:#22c55e">✅ Confirmados: ${conf} (${pct}%)</div>
     <div class="stat-chip" style="background:#1f1f1f;color:#71717a">⏳ Pendentes: ${pend}</div>`;
   renderFlags(data);
-  renderRankTMK(data);
+   renderRankConfirmacao(data);
   renderUnidades(data);
 }
 function renderFlags(data) {
@@ -392,6 +394,94 @@ function _fallbackCopyWA(txt, ok) {
   document.body.appendChild(ta); ta.focus(); ta.select();
   try { document.execCommand('copy'); ok(); } catch(e) {}
   ta.remove();
+}
+// ── Rank Confirmação (por atendente, com seletor de colunas) ──
+const RANK_COLS = [
+  {key:'total',             label:'TOTAL',      color:'#fbbf24'},
+  {key:'CONFIRMADO',        label:'CONFIRM.',   color:'#16a34a'},
+  {key:'SEM RETORNO',       label:'S.RET',      color:'#ca8a04'},
+  {key:'CANCELADO',         label:'CANCEL.',    color:'#dc2626'},
+  {key:'DUPLICADO',         label:'DUPLIC.',    color:'#db2777'},
+  {key:'NÚMERO INVÁLIDO',   label:'N.INVÁL.',   color:'#a1a1aa'},
+  {key:'NÃO AGENDADO',      label:'N.AGEND.',   color:'#7c3aed'},
+  {key:'UNIDADE ERRADA',    label:'UNID.ERR.',  color:'#2563eb'},
+  {key:'HORÁRIO ERRADO',    label:'HOR.ERR.',   color:'#3b82f6'},
+  {key:'MÚLTIPLOS AGEND.',  label:'MÚLT.',      color:'#ea580c'},
+  {key:'REAGENDOU',         label:'REAG.',      color:'#9333ea'},
+  {key:'EXAME REALIZADO',   label:'EXAME',      color:'#15803d'},
+  {key:'NÃO PODE REALIZAR', label:'N.PODE',     color:'#166534'},
+  {key:'PATOLOGIA',         label:'PATOL.',     color:'#991b1b'},
+  {key:'DESISTÊNCIA',       label:'DESIST.',    color:'#b91c1c'},
+  {key:'ERRO DO CONSULTOR', label:'ERRO CONS.', color:'#0d9488'},
+  {key:'pendentes',         label:'PEND.',      color:'#71717a'},
+  {key:'conv',              label:'CONV.%',     color:'#22c55e'},
+];
+const RANK_PADRAO = ['total','CONFIRMADO','CANCELADO','SEM RETORNO','pendentes','conv'];
+let rankCols = {};
+(function(){
+  let salvo = null;
+  try { salvo = JSON.parse(localStorage.getItem('rankConfCols')); } catch(e) {}
+  RANK_COLS.forEach(c => {
+    rankCols[c.key] = (salvo && c.key in salvo) ? !!salvo[c.key] : RANK_PADRAO.includes(c.key);
+  });
+})();
+function salvarRankCols(){
+  try { localStorage.setItem('rankConfCols', JSON.stringify(rankCols)); } catch(e) {}
+}
+function montarPainelColunas(){
+  const p = document.getElementById('rank-cols-panel');
+  if(!p || p.dataset.pronto) return;
+  p.innerHTML = RANK_COLS.map(c =>
+    `<label style="display:flex;align-items:center;gap:8px;padding:4px 6px;font-size:12px;color:#e4e4e7;cursor:pointer">
+       <input type="checkbox" data-col="${c.key}" ${rankCols[c.key]?'checked':''}/> ${c.label}
+     </label>`).join('');
+  p.addEventListener('change', e => {
+    const k = e.target && e.target.getAttribute('data-col');
+    if(!k) return;
+    rankCols[k] = e.target.checked;
+    salvarRankCols();
+    renderRankConfirmacao(analiseData);
+  });
+  p.dataset.pronto = '1';
+}
+document.addEventListener('click', e => {
+  const btn = document.getElementById('rank-cols-btn');
+  const p = document.getElementById('rank-cols-panel');
+  if(!btn || !p) return;
+  if(btn.contains(e.target)) { montarPainelColunas(); p.style.display = (p.style.display==='none'?'block':'none'); return; }
+  if(!p.contains(e.target)) p.style.display = 'none';
+});
+function renderRankConfirmacao(data) {
+  const tbl = document.getElementById('rank-conf-table');
+  if(!tbl) return;
+  const map = {};
+  (data||[]).forEach(r => {
+    const at = (r.atendente||'').trim() || 'SEM ATENDENTE';
+    if(!map[at]) { map[at] = {total:0, pendentes:0}; ALL_FLAGS.forEach(f => map[at][f] = 0); }
+    map[at].total++;
+    if(!r.flag) map[at].pendentes++;
+    else if(map[at][r.flag] !== undefined) map[at][r.flag]++;
+  });
+  const ranked = Object.entries(map).map(([nome,d]) => {
+    const conv = d.total>0 ? Math.round((d['CONFIRMADO']/d.total)*100) : 0;
+    return Object.assign({nome, conv}, d);
+  }).sort((a,b) => b.total - a.total);
+  if(ranked.length === 0){
+    tbl.innerHTML = '<tbody><tr><td style="text-align:center;color:#52525b;padding:20px">Sem dados no período.</td></tr></tbody>';
+    return;
+  }
+  const cols = RANK_COLS.filter(c => rankCols[c.key]);
+  const medals = ['🥇','🥈','🥉'];
+  const head = `<thead><tr><th style="text-align:left">ATENDENTE</th>${cols.map(c=>`<th style="color:${c.color}">${c.label}</th>`).join('')}</tr></thead>`;
+  const body = ranked.map((r,i) => `<tr>
+      <td style="text-align:left">${i<3?medals[i]:(i+1)+'º'} ${esc(r.nome)}</td>
+      ${cols.map(c => {
+        const v = r[c.key] || 0;
+        if(c.key === 'conv') return `<td style="color:${c.color};font-weight:700">${v}%</td>`;
+        return `<td style="color:${v>0?c.color:'#3f3f46'};font-weight:700">${v}</td>`;
+      }).join('')}
+    </tr>`).join('');
+  tbl.innerHTML = head + '<tbody>' + body + '</tbody>';
 }
 const FLAGS_RANK = [
   { key: 'CANCELADO',       label: 'CANCELADO',        short: 'CANCEL.',   color: '#ef4444' },
