@@ -104,6 +104,9 @@
           <a href="/users" class="nav-item" data-path="/users" style="padding-left:34px">
             <span class="nav-icon">🔐</span> Usuários
           </a>
+          <a href="/configuracao/fontes" class="nav-item" data-path="/configuracao/fontes" style="padding-left:34px">
+            <span class="nav-icon">🏷️</span> Fonte
+          </a>
         </div>
         <script>
         function toggleConfig(e){
@@ -113,7 +116,7 @@
           s.style.display = open ? 'none' : 'block';
           if(a) a.textContent = open ? '▸' : '▾';
         }
-        if(location.pathname === '/users'){ toggleConfig(); }
+        if(location.pathname === '/users' || location.pathname.indexOf('/configuracao') === 0){ toggleConfig(); }
         </script>
         {% endif %}
       </nav>
