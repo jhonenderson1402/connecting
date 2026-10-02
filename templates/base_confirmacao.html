@@ -170,13 +170,21 @@
         </a>
 
         <p class="conf-nav-label" style="margin-top:10px">ATENDENTES</p>
-        {% set atendentes_list = ['VIVIANE','DIELLEM','LIVYA','KEILANE','LUANE','MARIA'] %}
+        {% set atendentes_list = atendentes or ['VIVIANE','DIELLEM','LIVYA','KEILANE','LUANE','MARIA'] %}
         {% for nome in atendentes_list %}
         <a href="/confirmacao/{{ nome }}"
            class="conf-nav-item {% if atendente == nome %}active{% endif %}">
           <span class="conf-nav-icon">👤</span> {{ nome }}
         </a>
         {% endfor %}
+
+        {% if current_role == 'admin' %}
+        <p class="conf-nav-label" style="margin-top:10px">CONFIGURAÇÃO</p>
+        <a href="/configuracao/equipe"
+           class="conf-nav-item {% if request.path == '/configuracao/equipe' %}active{% endif %}">
+          <span class="conf-nav-icon">⚙️</span> Equipe
+        </a>
+        {% endif %}
 
         <a href="/logout" class="conf-nav-item" style="margin-top:8px;color:#fca5a5;border-top:1px solid #1f1f1f;padding-top:12px">
           <span class="conf-nav-icon">⎋</span> Sair
