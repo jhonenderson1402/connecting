@@ -469,8 +469,13 @@ def api_clear_leads(unit, date):
 @cache.cached(timeout=3600)
 def api_constants():
     return jsonify({'units': UNITS, 'months': MONTHS, 'time_slots': TIME_SLOTS})
-# Chaves de leads que entraram (espelham as definidas em leads.html)
-LEAD_KEYS = ['wbp_lead', 'vbot_lead', 'antigos_lead', 'mkt_lead', 'whats_lead', 'mabe_lead']
+# Chaves de leads que entraram — montadas a partir das fontes cadastradas.
+LEAD_KEYS_FALLBACK = ['wbp_lead', 'vbot_lead', 'antigos_lead', 'mkt_lead', 'whats_lead', 'mabe_lead']
+def _lead_keys():
+    try:
+        return [f"{f['chave']}_lead" for f in db.get_fontes()] or LEAD_KEYS_FALLBACK
+    except Exception:
+        return LEAD_KEYS_FALLBACK
 @app.route('/api/leads_totais', methods=['GET'])
 @login_required
 def api_leads_totais():
@@ -496,6 +501,7 @@ def api_leads_totais():
         return _err('Informe "date" (YYYY-MM-DD) ou "year"+"month".')
     # Soma os leads só das "unidades" reservadas LEADS::, por unidade real
     totais = {u: 0 for u in UNITS}
+    lead_keys = _lead_keys()
     for a in appts:
         unit = a['unit']
         if not unit.startswith(LEADS_PREFIX):
@@ -505,7 +511,7 @@ def api_leads_totais():
             continue
         for r in (a.get('rows') or []):
             lead_data = r.get('lead') or {}
-            totais[unidade_real] += sum(int(lead_data.get(k) or 0) for k in LEAD_KEYS)
+            totais[unidade_real] += sum(int(lead_data.get(k) or 0) for k in lead_keys)
     return jsonify(totais)
 @app.route('/api/leads_por_tmk', methods=['GET'])
 @login_required
@@ -532,6 +538,7 @@ def api_leads_por_tmk():
         return _err('Informe "date" (YYYY-MM-DD) ou "year"+"month".')
     # Soma os leads por nome de TMK (apenas das "unidades" reservadas LEADS::)
     por_tmk = {}
+    lead_keys = _lead_keys()
     for a in appts:
         unit = a['unit']
         if not unit.startswith(LEADS_PREFIX):
@@ -541,7 +548,7 @@ def api_leads_por_tmk():
             if not nome:
                 continue
             lead_data = r.get('lead') or {}
-            total = sum(int(lead_data.get(k) or 0) for k in LEAD_KEYS)
+            total = sum(int(lead_data.get(k) or 0) for k in lead_keys)
             por_tmk[nome] = por_tmk.get(nome, 0) + total
     return jsonify(por_tmk)
 def _role_allowed(*roles):
@@ -688,6 +695,28 @@ def api_save_metas():
     db.bulk_upsert_metas(ano, mes, metas)
     return jsonify({'ok': True, 'count': len(metas)})
 
+# ── Fontes de leads (Configuração) ───────────────────────────────────────────
+@app.route('/configuracao/fontes')
+@admin_required
+def fontes_page():
+    return render_template('fontes.html')
+@app.route('/api/fontes', methods=['GET'])
+@login_required
+def api_list_fontes():
+    return jsonify(db.get_fontes())
+@app.route('/api/fontes', methods=['POST'])
+@admin_required
+def api_create_fonte():
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(db.create_fonte(data.get('nome'), data.get('chave'))), 201
+    except ValueError as e:
+        return _err(str(e))
+@app.route('/api/fontes/<int:fid>', methods=['DELETE'])
+@admin_required
+def api_delete_fonte(fid):
+    db.delete_fonte(fid)
+    return jsonify({'ok': True})
 # -- API Externa (relatorios so-leitura, protegida por X-API-Key) --
 def _ext_auth_ok():
     key = os.environ.get('EXTERNAL_API_KEY', '')
