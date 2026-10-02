@@ -505,7 +505,9 @@ def api_leads_totais():
     else:
         return _err('Informe "date" (YYYY-MM-DD) ou "year"+"month".')
     # Soma os leads só das "unidades" reservadas LEADS::, por unidade real
-     totais = {u: 0 for u in _units()}
+    # Soma os leads só das "unidades" reservadas LEADS::, por unidade real
+    totais = {u: 0 for u in _units()}
+    lead_keys = _lead_keys()
     lead_keys = _lead_keys()
     for a in appts:
         unit = a['unit']
