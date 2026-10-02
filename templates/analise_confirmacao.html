@@ -648,22 +648,24 @@ function renderUnidadesTabela(data) {
       return `<td style="color:${v>0?c.color:'#3f3f46'};font-weight:700">${v}</td>`;
     }).join('');
   }
-  // Agrupa pelos nomes REAIS que vieram nos dados (pega nomes novos automaticamente)
-  const porNome = {};
-  data.forEach(r => {
-    const n = (r.unidade || '').trim().toUpperCase() || 'SEM UNIDADE';
-    (porNome[n] = porNome[n] || []).push(r);
-  });
-  const usados = new Set();
   function linhaGrupo(nome, rows){
     return `<tr><td style="text-align:left;font-weight:700;color:#fbbf24">${esc(nome)}</td>${celulas(calc(rows))}</tr>`;
   }
   function linhaFilho(nome, rows){
     return `<tr style="background:rgba(255,255,255,0.015)"><td style="text-align:left;padding-left:24px;color:#a1a1aa;font-weight:400">↳ ${esc(nome)}</td>${celulas(calc(rows))}</tr>`;
   }
+  // Agrupa pelos nomes REAIS dos dados, por nome EXATO.
+  // (MANAUS e MANAUS CENTRO sao unidades diferentes — nao somam juntas)
+  const porNome = {};
+  data.forEach(r => {
+    const n = (r.unidade || '').trim().toUpperCase() || 'SEM UNIDADE';
+    (porNome[n] = porNome[n] || []).push(r);
+  });
+  const usados = new Set();
   let body = '';
   Object.entries(UNIDADES_CONF).forEach(([grupo, subs]) => {
-    const filhos = Object.keys(porNome).filter(n => subs.some(s => n.includes(s.toUpperCase())));
+    const alvo = subs.map(s => s.toUpperCase());
+    const filhos = Object.keys(porNome).filter(n => alvo.indexOf(n) >= 0);
     filhos.forEach(n => usados.add(n));
     const rowsG = filhos.reduce((acc,n) => acc.concat(porNome[n]), []);
     body += linhaGrupo(grupo, rowsG);
@@ -673,70 +675,14 @@ function renderUnidadesTabela(data) {
             .forEach(n => { body += linhaFilho(n, porNome[n]); });
     }
   });
-  // Nomes que vieram nos dados e nao batem com nenhuma unidade conhecida
-  const sobras = Object.keys(porNome).filter(n => !usados.has(n))
-                       .sort((a,b) => porNome[b].length - porNome[a].length);
-  if(sobras.length){
-    const rowsO = sobras.reduce((acc,n) => acc.concat(porNome[n]), []);
-    body += linhaGrupo('OUTRAS', rowsO);
-    sobras.forEach(n => { body += linhaFilho(n, porNome[n]); });
-  }
+  // Unidade que veio nos dados e nao esta na lista conhecida vira a propria linha
+  Object.keys(porNome).filter(n => !usados.has(n))
+    .sort((a,b) => porNome[b].length - porNome[a].length)
+    .forEach(n => { body += linhaGrupo(n, porNome[n]); });
   const head = `<thead><tr><th style="text-align:left">UNIDADE</th>${cols.map(c=>`<th style="color:${c.color}">${c.label}</th>`).join('')}</tr></thead>`;
   tbl.innerHTML = head + '<tbody>' + (body || `<tr><td colspan="${cols.length+1}" style="text-align:center;color:#52525b;padding:20px">Sem dados no período.</td></tr>`) + '</tbody>';
-}
-function renderUnidades(data) {
-  const grid = document.getElementById('unit-grid');
-  const boxes = Object.entries(UNIDADES_CONF).map(([grupo, subs]) => {
-    const isSingle = subs.length === 1;
-    if(isSingle) {
-      const sub  = subs[0];
-      const rows = data.filter(r => (r.unidade||'').toUpperCase().includes(sub.toUpperCase()));
-      const total = rows.length;
-      const conf  = rows.filter(r=>r.flag==='CONFIRMADO').length;
-      const pct   = total>0?Math.round((conf/total)*100):0;
-      return `<div class="unit-box">
-        <div class="unit-box-title">${grupo}</div>
-        <div style="display:flex;justify-content:space-around;padding:8px 0">
-          <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:#fbbf24">${total}</div><div style="font-size:10px;color:#71717a">TOTAL</div></div>
-          <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:#22c55e">${conf}</div><div style="font-size:10px;color:#71717a">CONF.</div></div>
-          <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:#f59e0b">${pct}%</div><div style="font-size:10px;color:#71717a">CONV.</div></div>
-        </div>
-      </div>`;
-    } else {
-      const subRows = subs.map(sub => {
-        const rows  = data.filter(r => (r.unidade||'').toUpperCase().includes(sub.toUpperCase()));
-        const total = rows.length;
-        const conf  = rows.filter(r=>r.flag==='CONFIRMADO').length;
-        const pct   = total>0?Math.round((conf/total)*100):0;
-        return {sub, total, conf, pct};
-      }).filter(r => r.total > 0).sort((a,b)=>b.total-a.total);
-      const totalGrupo = subRows.reduce((s,r)=>s+r.total,0);
-      const confGrupo  = subRows.reduce((s,r)=>s+r.conf,0);
-      const pctGrupo   = totalGrupo>0?Math.round((confGrupo/totalGrupo)*100):0;
-      return `<div class="unit-box" style="grid-column:span 1">
-        <div class="unit-box-title">${grupo} <span style="font-size:10px;font-weight:400;color:#71717a">${totalGrupo} total · ${confGrupo} conf · ${pctGrupo}%</span></div>
-        ${subRows.length===0
-          ? '<p style="color:#52525b;font-size:11px;text-align:center;padding:10px">Sem dados</p>'
-          : `<div style="display:grid;grid-template-columns:2.5rem 2.5rem 2.5rem 2.5rem;gap:2px;padding:0 4px 6px;font-size:9px;font-weight:700;color:#52525b;letter-spacing:.08em">
-              <span style="grid-column:1/3">BAIRRO</span><span style="text-align:center">TOT.</span><span style="text-align:center">CONF</span><span style="text-align:right">%</span>
-            </div>` +
-            subRows.map(r=>`<div class="unit-sub-row">
-              <span class="unit-sub-name" title="${r.sub}">${r.sub}</span>
-              <span class="unit-sub-total">${r.total}</span>
-              <span class="unit-sub-conf">${r.conf}</span>
-              <span class="unit-sub-pct">${r.pct}%</span>
-            </div>`).join('')
-        }
-      </div>`;
-    }
-  });
-  grid.style.gridTemplateColumns = 'repeat(2,1fr) repeat(3,1fr)';
-  grid.innerHTML = boxes.map((box,i) => {
-    if(i===2) return `<div style="grid-column:span 3">${box.replace('class="unit-box"','class="unit-box"')}</div>`;
-    return box;
-  }).join('');
-}
-function esc(s) {
+}  
+  function esc(s) {
   return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 // ══════════════ EXTRAIR DADOS (Análise Geral) ══════════════
