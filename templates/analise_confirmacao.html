@@ -144,13 +144,19 @@
       <table class="ext-table" id="rank-conf-table" style="min-width:560px"></table>
     </div>
   </div>
-  <!-- Por Unidade -->
+  <!-- Performance por Unidade -->
   <div class="analise-card">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <span style="font-size:18px">🏢</span>
       <h2 style="font-size:14px;font-weight:700">Performance por Unidade</h2>
+      <div style="margin-left:auto;position:relative">
+        <button type="button" class="select" id="unid-cols-btn" style="cursor:pointer;font-size:12px;height:32px">⚙ Colunas</button>
+        <div id="unid-cols-panel" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:#141414;border:1px solid #333;border-radius:8px;padding:8px;z-index:50;max-height:300px;overflow:auto;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.5)"></div>
+      </div>
     </div>
-    <div class="unit-grid" id="unit-grid"><div class="loading">Carregando...</div></div>
+    <div style="overflow-x:auto">
+      <table class="ext-table" id="unid-table" style="min-width:620px"></table>
+    </div>
   </div>
 </div>
 <!-- Modal: Extrair Dados -->
@@ -280,7 +286,7 @@ function renderAnalise() {
     <div class="stat-chip" style="background:#1f1f1f;color:#71717a">⏳ Pendentes: ${pend}</div>`;
   renderFlags(data);
    renderRankConfirmacao(data);
-  renderUnidades(data);
+  renderUnidadesTabela(data);
 }
 function renderFlags(data) {
   const count = {};
@@ -544,6 +550,118 @@ function renderRankTMK(data) {
       }).join('')}
     </div>`).join('');
   el.innerHTML = header + rows;
+}
+// ── Performance por Unidade (tabela com seletor de colunas) ──
+const UNID_COLS = [
+  {key:'total',             label:'CONTATOS',   color:'#fbbf24'},
+  {key:'pctcont',           label:'% CONT.',    color:'#f59e0b'},
+  {key:'CONFIRMADO',        label:'CONFIRM.',   color:'#16a34a'},
+  {key:'conv',              label:'% CONF.',    color:'#22c55e'},
+  {key:'EXAME REALIZADO',   label:'EXAME',      color:'#15803d'},
+  {key:'pctexame',          label:'% EXAME',    color:'#4ade80'},
+  {key:'SEM RETORNO',       label:'S.RET',      color:'#ca8a04'},
+  {key:'CANCELADO',         label:'CANCEL.',    color:'#dc2626'},
+  {key:'DUPLICADO',         label:'DUPLIC.',    color:'#db2777'},
+  {key:'NÚMERO INVÁLIDO',   label:'N.INVÁL.',   color:'#a1a1aa'},
+  {key:'NÃO AGENDADO',      label:'N.AGEND.',   color:'#7c3aed'},
+  {key:'UNIDADE ERRADA',    label:'UNID.ERR.',  color:'#2563eb'},
+  {key:'HORÁRIO ERRADO',    label:'HOR.ERR.',   color:'#3b82f6'},
+  {key:'MÚLTIPLOS AGEND.',  label:'MÚLT.',      color:'#ea580c'},
+  {key:'REAGENDOU',         label:'REAG.',      color:'#9333ea'},
+  {key:'NÃO PODE REALIZAR', label:'N.PODE',     color:'#166534'},
+  {key:'PATOLOGIA',         label:'PATOL.',     color:'#991b1b'},
+  {key:'DESISTÊNCIA',       label:'DESIST.',    color:'#b91c1c'},
+  {key:'ERRO DO CONSULTOR', label:'ERRO CONS.', color:'#0d9488'},
+  {key:'pendentes',         label:'PEND.',      color:'#71717a'},
+];
+const UNID_PADRAO = ['total','pctcont','CONFIRMADO','conv','EXAME REALIZADO','pctexame','CANCELADO','pendentes'];
+let unidCols = {};
+(function(){
+  let salvo = null;
+  try { salvo = JSON.parse(localStorage.getItem('unidCols')); } catch(e) {}
+  UNID_COLS.forEach(c => { unidCols[c.key] = (salvo && c.key in salvo) ? !!salvo[c.key] : UNID_PADRAO.includes(c.key); });
+})();
+function salvarUnidCols(){ try { localStorage.setItem('unidCols', JSON.stringify(unidCols)); } catch(e) {} }
+function montarPainelUnid(){
+  const p = document.getElementById('unid-cols-panel');
+  if(!p || p.dataset.pronto) return;
+  const todas = UNID_COLS.every(c => unidCols[c.key]);
+  p.innerHTML =
+    `<label style="display:flex;align-items:center;gap:8px;padding:6px;font-size:12px;color:#fbbf24;font-weight:700;cursor:pointer;border-bottom:1px solid #2a2a2a;margin-bottom:4px">
+       <input type="checkbox" id="unid-col-todos" ${todas?'checked':''}/> Selecionar todos
+     </label>` +
+    UNID_COLS.map(c =>
+    `<label style="display:flex;align-items:center;gap:8px;padding:4px 6px;font-size:12px;color:#e4e4e7;cursor:pointer">
+       <input type="checkbox" data-ucol="${c.key}" ${unidCols[c.key]?'checked':''}/> ${c.label}
+     </label>`).join('');
+  p.addEventListener('change', e => {
+    const alvo = e.target; if(!alvo) return;
+    if(alvo.id === 'unid-col-todos'){
+      UNID_COLS.forEach(c => unidCols[c.key] = alvo.checked);
+      p.querySelectorAll('input[data-ucol]').forEach(i => i.checked = alvo.checked);
+    } else {
+      const k = alvo.getAttribute('data-ucol'); if(!k) return;
+      unidCols[k] = alvo.checked;
+      const t = p.querySelector('#unid-col-todos');
+      if(t) t.checked = UNID_COLS.every(c => unidCols[c.key]);
+    }
+    salvarUnidCols();
+    renderUnidadesTabela(analiseData);
+  });
+  p.dataset.pronto = '1';
+}
+document.addEventListener('click', e => {
+  const btn = document.getElementById('unid-cols-btn');
+  const p = document.getElementById('unid-cols-panel');
+  if(!btn || !p) return;
+  if(btn.contains(e.target)) { montarPainelUnid(); p.style.display = (p.style.display==='none'?'block':'none'); return; }
+  if(!p.contains(e.target)) p.style.display = 'none';
+});
+function _contaFlags(rows){
+  const o = {total:0, pendentes:0};
+  ALL_FLAGS.forEach(f => o[f] = 0);
+  rows.forEach(r => {
+    o.total++;
+    if(!r.flag) o.pendentes++;
+    else if(o[r.flag] !== undefined) o[r.flag]++;
+  });
+  return o;
+}
+function renderUnidadesTabela(data) {
+  const tbl = document.getElementById('unid-table');
+  if(!tbl) return;
+  data = data || [];
+  const totalGeral = data.length;
+  const cols = UNID_COLS.filter(c => unidCols[c.key]);
+  function calc(rows){
+    const o = _contaFlags(rows);
+    o.pctcont  = totalGeral>0 ? Math.round((o.total/totalGeral)*100) : 0;
+    o.conv     = o.total>0 ? Math.round((o['CONFIRMADO']/o.total)*100) : 0;
+    o.pctexame = o.total>0 ? Math.round((o['EXAME REALIZADO']/o.total)*100) : 0;
+    return o;
+  }
+  function celulas(d){
+    return cols.map(c => {
+      const v = d[c.key] || 0;
+      if(c.key==='pctcont' || c.key==='conv' || c.key==='pctexame')
+        return `<td style="color:${c.color};font-weight:700">${v}%</td>`;
+      return `<td style="color:${v>0?c.color:'#3f3f46'};font-weight:700">${v}</td>`;
+    }).join('');
+  }
+  let body = '';
+  Object.entries(UNIDADES_CONF).forEach(([grupo, subs]) => {
+    const rowsG = data.filter(r => subs.some(s => (r.unidade||'').toUpperCase().includes(s.toUpperCase())));
+    body += `<tr><td style="text-align:left;font-weight:700;color:#fbbf24">${grupo}</td>${celulas(calc(rowsG))}</tr>`;
+    if(subs.length > 1){
+      subs.forEach(sub => {
+        const rowsS = data.filter(r => (r.unidade||'').toUpperCase().includes(sub.toUpperCase()));
+        if(!rowsS.length) return;
+        body += `<tr style="background:rgba(255,255,255,0.015)"><td style="text-align:left;padding-left:24px;color:#a1a1aa;font-weight:400">↳ ${sub}</td>${celulas(calc(rowsS))}</tr>`;
+      });
+    }
+  });
+  const head = `<thead><tr><th style="text-align:left">UNIDADE</th>${cols.map(c=>`<th style="color:${c.color}">${c.label}</th>`).join('')}</tr></thead>`;
+  tbl.innerHTML = head + '<tbody>' + (body || `<tr><td colspan="${cols.length+1}" style="text-align:center;color:#52525b;padding:20px">Sem dados no período.</td></tr>`) + '</tbody>';
 }
 function renderUnidades(data) {
   const grid = document.getElementById('unit-grid');
