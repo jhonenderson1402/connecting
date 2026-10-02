@@ -504,9 +504,8 @@ def api_leads_totais():
         appts = db.get_appointments_by_month(y, m)
     else:
         return _err('Informe "date" (YYYY-MM-DD) ou "year"+"month".')
-    # Soma os leads só das "unidades" reservadas LEADS::, por unidade real
+    # Soma os leads so das unidades reservadas LEADS::, por unidade real
     totais = {u: 0 for u in _units()}
-    lead_keys = _lead_keys()
     lead_keys = _lead_keys()
     for a in appts:
         unit = a['unit']
@@ -696,7 +695,7 @@ def api_save_metas():
     # Valida unidades
     for m in metas:
         u = m.get('unidade')
-         if u not in _units():
+        if u not in _units():
             return _err(f'Unidade inválida nas metas: {u}')
     db.bulk_upsert_metas(ano, mes, metas)
     return jsonify({'ok': True, 'count': len(metas)})
