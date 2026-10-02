@@ -129,6 +129,11 @@ class Fonte(Base):
     __table_args__ = (
         Index('idx_fonte_ordem', 'ordem'),
     )
+class Unidade(Base):
+    __tablename__ = 'unidades'
+    id    = Column(Integer, primary_key=True, autoincrement=True)
+    nome  = Column(String(100), nullable=False, unique=True)
+    ordem = Column(Integer, default=0)
 # ---- Inicializacao ----------------------------------------------------------
 def init_db():
     """Cria tabelas e indices se ainda nao existirem. Idempotente.
@@ -147,6 +152,7 @@ def init_db():
     _run_migrations()
     ensure_default_admin()
     ensure_default_fontes()
+    ensure_default_unidades()
 def _run_migrations():
     """Aplica migrações incrementais no banco existente (idempotente)."""
     with engine.connect() as conn:
@@ -213,6 +219,48 @@ def ensure_default_admin():
             else:
                 print(f"    senha: {senha}")
             print(f"    >>> TROQUE essa senha apos o primeiro login! <<<\n")
+# ---- Unidades ---------------------------------------------------------------
+UNIDADES_PADRAO = ["PARÁ", "MANAUS", "MANOA", "SÃO LUIZ", "FORTALEZA", "AÇÃO"]
+def ensure_default_unidades():
+    """Semeia as unidades que ja existiam, se a tabela estiver vazia."""
+    try:
+        with SessionLocal() as s:
+            if s.scalar(select(func.count(Unidade.id))) == 0:
+                for i, nome in enumerate(UNIDADES_PADRAO, start=1):
+                    s.add(Unidade(nome=nome, ordem=i))
+                s.commit()
+                print("[init] Unidades padrao criadas.")
+    except Exception as e:
+        print("ERRO AO CRIAR UNIDADES PADRAO:", e)
+def get_unidades():
+    with SessionLocal() as s:
+        rows = s.scalars(select(Unidade).order_by(Unidade.ordem, Unidade.id)).all()
+        return [{'id': r.id, 'nome': r.nome, 'ordem': r.ordem or 0} for r in rows]
+def create_unidade(nome):
+    nome = (nome or '').strip().upper()
+    if not nome:
+        raise ValueError("Informe o nome da unidade.")
+    if len(nome) > 100:
+        raise ValueError("Nome da unidade muito longo.")
+    with SessionLocal() as s:
+        if s.scalar(select(Unidade).where(Unidade.nome == nome)):
+            raise ValueError(f"A unidade '{nome}' ja existe.")
+        prox = (s.scalar(select(func.max(Unidade.ordem))) or 0) + 1
+        u = Unidade(nome=nome, ordem=prox)
+        s.add(u)
+        s.commit()
+        s.refresh(u)
+        return {'id': u.id, 'nome': u.nome, 'ordem': u.ordem}
+def count_appointments_unidade(nome):
+    """Quantos dias com dados existem para a unidade (agendamentos + leads)."""
+    with SessionLocal() as s:
+        return s.scalar(select(func.count(Appointment.id)).where(
+            Appointment.unit.in_([nome, 'LEADS::' + nome])
+        )) or 0
+def delete_unidade(uid):
+    with SessionLocal() as s:
+        s.execute(delete(Unidade).where(Unidade.id == uid))
+        s.commit()
 # ---- Fontes de leads --------------------------------------------------------
 FONTES_PADRAO = [
     ('wbp',     'WBP',      1),
