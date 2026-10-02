@@ -251,14 +251,46 @@ def create_unidade(nome):
         s.commit()
         s.refresh(u)
         return {'id': u.id, 'nome': u.nome, 'ordem': u.ordem}
+def _appt_tem_dados(a):
+    """True se o registro tem algo de verdade (nome, horario, lead ou comparecimento)."""
+    for r in _safe_json_loads(a.rows, []):
+        if not isinstance(r, dict):
+            continue
+        if (r.get('name') or '').strip():
+            return True
+        for v in (r.get('slots') or {}).values():
+            if str(v).strip() not in ('', '0'):
+                return True
+        for v in (r.get('lead') or {}).values():
+            if str(v).strip() not in ('', '0'):
+                return True
+    for v in _safe_json_loads(a.comparecimento_data, {}).values():
+        if isinstance(v, dict):
+            for vv in v.values():
+                if isinstance(vv, dict):
+                    for x in vv.values():
+                        if str(x).strip() not in ('', '0'):
+                            return True
+                elif str(vv).strip() not in ('', '0'):
+                    return True
+        elif str(v).strip() not in ('', '0'):
+            return True
+    return False
 def count_appointments_unidade(nome):
-    """Quantos dias com dados existem para a unidade (agendamentos + leads)."""
+    """Quantos dias com dados REAIS existem para a unidade (ignora registros vazios)."""
     with SessionLocal() as s:
-        return s.scalar(select(func.count(Appointment.id)).where(
+        regs = s.scalars(select(Appointment).where(
             Appointment.unit.in_([nome, 'LEADS::' + nome])
-        )) or 0
+        )).all()
+        return sum(1 for a in regs if _appt_tem_dados(a))
 def delete_unidade(uid):
     with SessionLocal() as s:
+        u = s.scalar(select(Unidade).where(Unidade.id == uid))
+        if u:
+            # limpa os registros vazios que sobraram (dias abertos sem nada lancado)
+            s.execute(delete(Appointment).where(
+                Appointment.unit.in_([u.nome, 'LEADS::' + u.nome])
+            ))
         s.execute(delete(Unidade).where(Unidade.id == uid))
         s.commit()
 # ---- Fontes de leads --------------------------------------------------------
