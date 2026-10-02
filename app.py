@@ -760,7 +760,7 @@ def api_delete_unidade(uid):
 @app.route('/configuracao/equipe')
 @admin_required
 def equipe_page():
-    return render_template('equipe.html')
+    return render_template('equipe.html', atendentes=_atendentes(), atendente=None)
 @app.route('/api/atendentes', methods=['GET'])
 @login_required
 def api_list_atendentes():
