@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <div class="title-bar">
+        <div class="title-accent"></div>
+        <h1 class="page-title">🏷️ Fontes de Leads</h1>
+      </div>
+      <p class="page-subtitle" style="margin-left:20px">Define as colunas da tela de Leads Recebidos</p>
+    </div>
+  </div>
+  <div class="card" style="padding:16px;margin-bottom:16px">
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label class="filter-label">NOVA FONTE</label>
+        <input class="input" id="nova-fonte" placeholder="Ex: META ADS" style="width:240px"
+               onkeydown="if(event.key==='Enter')addFonte()"/>
+      </div>
+      <div class="filter-group" style="justify-content:flex-end">
+        <label class="filter-label">&nbsp;</label>
+        <button class="btn btn-primary" onclick="addFonte()">+ Adicionar</button>
+      </div>
+    </div>
+    <p style="font-size:12px;color:#71717a;margin-top:10px">
+      A chave é gerada automaticamente a partir do nome (ex.: "META ADS" → <code>meta_ads</code>),
+      criando as colunas LEADS / AGS / CONV. dessa fonte.
+    </p>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="background:#fbbf24;color:#18181b">
+          <th style="padding:10px;text-align:left">ORDEM</th>
+          <th style="padding:10px;text-align:left">NOME</th>
+          <th style="padding:10px;text-align:left">CHAVE</th>
+          <th style="padding:10px;text-align:right">AÇÃO</th>
+        </tr>
+      </thead>
+      <tbody id="fontes-body">
+        <tr><td colspan="4" style="padding:20px;text-align:center;color:#71717a">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let fontes = [];
+function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function loadFontes(){
+  const r = await fetch('/api/fontes');
+  if(r.status===401){ window.location.href='/login'; return; }
+  fontes = await r.json();
+  render();
+}
+function render(){
+  const tb = document.getElementById('fontes-body');
+  if(!fontes.length){
+    tb.innerHTML = '<tr><td colspan="4" style="padding:20px;text-align:center;color:#71717a">Nenhuma fonte cadastrada.</td></tr>';
+    return;
+  }
+  tb.innerHTML = fontes.map(f=>`<tr style="border-bottom:1px solid #1f1f1f">
+    <td style="padding:10px;color:#71717a">${f.ordem}</td>
+    <td style="padding:10px;color:#e4e4e7;font-weight:600">${esc(f.nome)}</td>
+    <td style="padding:10px;color:#a1a1aa"><code>${esc(f.chave)}</code></td>
+    <td style="padding:10px;text-align:right">
+      <button class="btn btn-danger" style="padding:4px 10px;font-size:12px" onclick="delFonte(${f.id})">Remover</button>
+    </td>
+  </tr>`).join('');
+}
+async function addFonte(){
+  const el = document.getElementById('nova-fonte');
+  const nome = (el.value||'').trim();
+  if(!nome){ showToast('Digite o nome da fonte.','error'); return; }
+  const r = await fetch('/api/fontes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome})});
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ showToast(d.error||'Erro ao adicionar.','error'); return; }
+  el.value='';
+  showToast('Fonte adicionada!');
+  loadFontes();
+}
+async function delFonte(id){
+  const f = fontes.find(x=>x.id===id); if(!f) return;
+  if(!confirm(`Remover a fonte "${f.nome}"? As colunas dela somem da tela de Leads. Os números já lançados continuam salvos no banco.`)) return;
+  const r = await fetch('/api/fontes/'+id,{method:'DELETE'});
+  if(!r.ok){ showToast('Erro ao remover.','error'); return; }
+  showToast('Fonte removida.');
+  loadFontes();
+}
+document.addEventListener('DOMContentLoaded', loadFontes);
+</script>
+{% endblock %}
