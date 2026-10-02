@@ -153,7 +153,11 @@ def init_db():
         except Exception as e:
             print("ERRO AO CRIAR ADMIN:", e)
         return
-    Base.metadata.create_all(engine)
+    try:
+        Base.metadata.create_all(engine)
+    except Exception as e:
+        # Os 2 workers podem tentar criar a mesma tabela ao mesmo tempo no 1o boot.
+        print("[init] create_all ignorado (tabela ja criada por outro worker):", e)
     _run_migrations()
     ensure_default_admin()
     ensure_default_fontes()
