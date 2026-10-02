@@ -7,7 +7,7 @@
   function editing(){ var a=document.activeElement; return a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && a.closest && a.closest("#schedule-table"); }
   function ddOpen(){ return !!document.querySelector(".name-dd-menu.open"); }
   function tick(){ if(typeof loadAppointment!=="function") return; if(document.hidden) return; if(editing()||saveInFlight()||ddOpen()) return; try{ loadAppointment(); }catch(e){} }
-  setInterval(tick, 5000);
+  setInterval(tick, 30000);
 })();
 </script>
 
@@ -658,9 +658,14 @@ async function loadAppointment() {
   }
   showDateWarning(false);
   const res = await fetch(`/api/appointments/${encodeURIComponent(UNIT)}/${dateKey}`);
-  const appt = await res.json();
+  if(!res.ok){
+    if(res.status === 429) showToast('Servidor ocupado. Seus dados estão salvos.', 'error');
+    return; // NUNCA limpa a tela por causa de erro do servidor
+  }
+  const appt = await res.json().catch(()=>null);
+  if(!appt || typeof appt !== 'object' || appt.error) return;
   document.getElementById('inp-leader').value = appt.leader || '';
-  rows = appt.rows || [];
+  rows = Array.isArray(appt.rows) ? appt.rows : [];
   renderTable();
 }
 
