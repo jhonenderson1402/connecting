@@ -811,27 +811,30 @@ async function renderExtract() {
     nome, ag:d.ag, comp:d.comp, conv: d.ag>0?Math.round((d.comp/d.ag)*100):0
   }));
 
-  // Ranking de TMK (todas as unidades juntas): nome -> agend, comp
+  // Ranking de TMK por unidade: a chave é unidade + nome (mesma pessoa em 2 unidades não se funde)
   const tmkMap = {};
   appts.forEach(appt=>{
+    const un = appt.unit;
     (appt.rows||[]).forEach(r=>{
       const nome = r.name?.trim();
       if(!nome) return;
-      if(!tmkMap[nome]) tmkMap[nome] = {ag:0, comp:0, unit:appt.unit};
-      tmkMap[nome].ag += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+      const k = un + '||' + nome;
+      if(!tmkMap[k]) tmkMap[k] = {nome, unit:un, ag:0, comp:0};
+      tmkMap[k].ag += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
     });
     if(appt.comparecimento_data){
       Object.entries(appt.comparecimento_data).forEach(([nome,v])=>{
-        if(/^__.*__$/.test(nome)) return;    // ignora chaves internas (__bairros__, __vendas__, __punicoes__...)
-        if(!tmkMap[nome]) tmkMap[nome] = {ag:0, comp:0, unit:appt.unit};
-        tmkMap[nome].comp += Number(v)||0;
+        if(/^__.*__$/.test(nome)) return;   // ignora chaves internas (__bairros__, __vendas__, __punicoes__...)
+        const k = un + '||' + nome;
+        if(!tmkMap[k]) tmkMap[k] = {nome, unit:un, ag:0, comp:0};
+        tmkMap[k].comp += Number(v)||0;
       });
     }
   });
-  const tmkRank = Object.entries(tmkMap)
-    .map(([nome,d])=>({nome, unit:d.unit, leads:Number(leadsTmk[nome])||0, ag:d.ag, comp:d.comp, conv: d.ag>0?Math.round((d.comp/d.ag)*100):0}))
+  const tmkRank = Object.values(tmkMap)
+    .map(d=>({nome:d.nome, unit:d.unit, leads:Number(leadsTmk[d.nome])||0,
+              ag:d.ag, comp:d.comp, conv: d.ag>0?Math.round((d.comp/d.ag)*100):0}))
     .sort((a,b)=>b.ag-a.ag);
-
   // Ranking de Líderes (com leads somados das pessoas sob cada líder)
   const leaderRank = _buildLeaderRank(appts, leadsTmk);
 
@@ -954,28 +957,47 @@ function buildExtractHTML(porUnidade, tot, prevTot, prevLabel, tmkRank, bairrosP
       </table>
     </div>`;
 
-  // Ranking de TMK
-  const tmkRows = (tmkRank||[]).map((t,i)=>{
-    const cColor = t.conv>=70?'#22c55e':t.conv>=40?'#fbbf24':'#ef4444';
-    return `<tr>
-      <td style="text-align:left">${i<3?medals[i]:(i+1)+'º'} ${t.nome} <span style="color:#52525b;font-size:11px">· ${t.unit}</span></td>
-      <td style="color:#3b82f6">${t.leads}</td>
-      <td style="color:#fbbf24">${t.ag}</td>
-      <td style="color:#22c55e">${t.comp}</td>
-      <td style="color:${cColor};font-weight:700">${t.conv}%</td>
-    </tr>`;
-  }).join('');
+  // Ranking de TMK — caixa geral + uma caixa por unidade, lado a lado
+  function _tmkLinhas(lista){
+    return lista.map((t,i)=>{
+      const cColor = t.conv>=70?'#22c55e':t.conv>=40?'#fbbf24':'#ef4444';
+      return `<tr>
+        <td style="text-align:left">${i<3?medals[i]:(i+1)+'º'} ${t.nome}</td>
+        <td style="color:#3b82f6">${t.leads}</td>
+        <td style="color:#fbbf24">${t.ag}</td>
+        <td style="color:#22c55e">${t.comp}</td>
+        <td style="color:${cColor};font-weight:700">${t.conv}%</td>
+      </tr>`;
+    }).join('');
+  }
+  function _tmkBox(titulo, lista, destaque){
+    return `<div style="border:1px solid ${destaque?'rgba(251,191,36,0.35)':'rgba(255,255,255,0.06)'};border-radius:10px;padding:12px;background:${destaque?'rgba(251,191,36,0.04)':'rgba(255,255,255,0.015)'}">
+      <div style="font-size:11px;font-weight:700;color:#fbbf24;letter-spacing:.05em;margin-bottom:8px">${titulo}</div>
+      <table class="ext-table" style="font-size:12px">
+        <thead><tr><th>NOME</th><th>LEADS</th><th>AGEND.</th><th>COMP.</th><th>CONV.%</th></tr></thead>
+        <tbody>${_tmkLinhas(lista) || '<tr><td colspan="5" style="text-align:center;color:#52525b;padding:12px">Sem dados</td></tr>'}</tbody>
+      </table>
+    </div>`;
+  }
+  // Caixa geral: soma a mesma pessoa que aparece em mais de uma unidade
+  const _geralMap = {};
+  (tmkRank||[]).forEach(t=>{
+    if(!_geralMap[t.nome]) _geralMap[t.nome] = {nome:t.nome, leads:Number(leadsTmk[t.nome])||0, ag:0, comp:0};
+    _geralMap[t.nome].ag   += t.ag;
+    _geralMap[t.nome].comp += t.comp;
+  });
+  const tmkGeral = Object.values(_geralMap)
+    .map(d=>Object.assign(d, {conv: d.ag>0?Math.round((d.comp/d.ag)*100):0}))
+    .sort((a,b)=>b.ag-a.ag);
+  const _unidsTmk = (typeof UNITS !== 'undefined' && UNITS.length) ? UNITS : [];
+  const tmkBoxes = [_tmkBox('🏆 RANK GERAL — TODAS AS UNIDADES', tmkGeral, true)]
+    .concat(_unidsTmk.map(u => _tmkBox(u, (tmkRank||[]).filter(t => t.unit === u), false)))
+    .join('');
   const tmkTable = `
     <div class="ext-chartbox" style="margin-top:20px">
       <h3>🏆 Ranking de TMK</h3>
-      <table class="ext-table">
-        <thead><tr><th>TMK</th><th>LEADS</th><th>AGEND.</th><th>COMP.</th><th>CONV.%</th></tr></thead>
-        <tbody>
-          ${tmkRows || '<tr><td colspan="5" style="text-align:center;color:#52525b;padding:16px">Sem TMK no período.</td></tr>'}
-        </tbody>
-      </table>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">${tmkBoxes}</div>
     </div>`;
-
   return cards + charts + table + leaderTable + tmkTable;
 }
 
