@@ -217,5 +217,44 @@
     }
   </script>
   {% block scripts %}{% endblock %}
+  <script>
+/* ── Tema claro / escuro ── */
+(function(){
+  var KEY = 'connectingTema';
+  var LUA = '<svg viewBox="0 0 24 24"><path d="M21 13.2A9 9 0 1 1 10.8 3a7.2 7.2 0 0 0 10.2 10.2z"/></svg>';
+  var SOL = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.6"/><g stroke-width="2.1" stroke-linecap="round"><line x1="12" y1="1.4" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22.6"/><line x1="1.4" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22.6" y2="12"/><line x1="4.4" y1="4.4" x2="6.3" y2="6.3"/><line x1="17.7" y1="17.7" x2="19.6" y2="19.6"/><line x1="4.4" y1="19.6" x2="6.3" y2="17.7"/><line x1="17.7" y1="6.3" x2="19.6" y2="4.4"/></g></svg>';
+
+  function aplicar(t){
+    document.body.classList.toggle('tema-claro', t === 'claro');
+    var l = document.getElementById('tema-lua'), s = document.getElementById('tema-sol');
+    if(l) l.classList.toggle('on', t !== 'claro');
+    if(s) s.classList.toggle('on', t === 'claro');
+  }
+  window.setTema = function(t){
+    try { localStorage.setItem(KEY, t); } catch(e) {}
+    aplicar(t);
+  };
+  function montar(){
+    if(document.getElementById('tema-lua')) return;
+    var alvo = document.querySelector('.page-header .action-bar')
+            || document.querySelector('.page-header .filter-bar')
+            || document.querySelector('.filter-bar');
+    if(!alvo) return;
+    var box = document.createElement('div');
+    box.className = 'tema-sw';
+    box.innerHTML = '<button type="button" class="tema-btn lua" id="tema-lua" title="Tema escuro">' + LUA + '</button>'
+                  + '<button type="button" class="tema-btn sol" id="tema-sol" title="Tema claro">' + SOL + '</button>';
+    alvo.insertBefore(box, alvo.firstChild);
+    document.getElementById('tema-lua').onclick = function(){ setTema('escuro'); };
+    document.getElementById('tema-sol').onclick = function(){ setTema('claro'); };
+  }
+  var salvo = 'escuro';
+  try { salvo = localStorage.getItem(KEY) || 'escuro'; } catch(e) {}
+  if(document.body) document.body.classList.toggle('tema-claro', salvo === 'claro');
+  function init(){ montar(); aplicar(salvo); }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
 </body>
 </html>
