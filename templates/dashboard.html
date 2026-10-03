@@ -961,25 +961,32 @@ function buildExtractHTML(porUnidade, tot, prevTot, prevLabel, tmkRank, bairrosP
   function _tmkLinhas(lista){
     return lista.map((t,i)=>{
       const cColor = t.conv>=70?'#22c55e':t.conv>=40?'#fbbf24':'#ef4444';
+      const pos = i<3 ? medals[i] : (i+1)+'º';
       return `<tr>
-        <td style="text-align:left">${i<3?medals[i]:(i+1)+'º'} ${t.nome}</td>
-        <td style="color:#3b82f6">${t.leads}</td>
-        <td style="color:#fbbf24">${t.ag}</td>
-        <td style="color:#22c55e">${t.comp}</td>
-        <td style="color:${cColor};font-weight:700">${t.conv}%</td>
+        <td style="text-align:left;padding:6px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${t.nome}">${pos} ${t.nome}</td>
+        <td style="color:#3b82f6;padding:6px 4px">${t.leads}</td>
+        <td style="color:#fbbf24;padding:6px 4px">${t.ag}</td>
+        <td style="color:#22c55e;padding:6px 4px">${t.comp}</td>
+        <td style="color:${cColor};font-weight:700;padding:6px 4px">${t.conv}%</td>
       </tr>`;
     }).join('');
   }
   function _tmkBox(titulo, lista, destaque){
-    return `<div style="border:1px solid ${destaque?'rgba(251,191,36,0.35)':'rgba(255,255,255,0.06)'};border-radius:10px;padding:12px;background:${destaque?'rgba(251,191,36,0.04)':'rgba(255,255,255,0.015)'}">
-      <div style="font-size:11px;font-weight:700;color:#fbbf24;letter-spacing:.05em;margin-bottom:8px">${titulo}</div>
-      <table class="ext-table" style="font-size:12px">
-        <thead><tr><th>NOME</th><th>LEADS</th><th>AGEND.</th><th>COMP.</th><th>CONV.%</th></tr></thead>
+    return `<div style="border:1px solid ${destaque?'rgba(251,191,36,0.35)':'rgba(255,255,255,0.06)'};border-radius:10px;padding:12px;background:${destaque?'rgba(251,191,36,0.04)':'rgba(255,255,255,0.015)'};overflow:hidden">
+      <div style="font-size:11px;font-weight:700;color:#fbbf24;letter-spacing:.05em;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${titulo}</div>
+      <table class="ext-table" style="width:100%;table-layout:fixed;font-size:11px">
+        <colgroup><col/><col style="width:46px"/><col style="width:52px"/><col style="width:48px"/><col style="width:52px"/></colgroup>
+        <thead><tr>
+          <th style="padding:6px 4px">NOME</th>
+          <th style="padding:6px 4px">LEADS</th>
+          <th style="padding:6px 4px">AGEND.</th>
+          <th style="padding:6px 4px">COMP.</th>
+          <th style="padding:6px 4px">CONV.</th>
+        </tr></thead>
         <tbody>${_tmkLinhas(lista) || '<tr><td colspan="5" style="text-align:center;color:#52525b;padding:12px">Sem dados</td></tr>'}</tbody>
       </table>
     </div>`;
-  }
-  // Caixa geral: soma a mesma pessoa que aparece em mais de uma unidade
+  }  // Caixa geral: soma a mesma pessoa que aparece em mais de uma unidade
   const _geralMap = {};
   (tmkRank||[]).forEach(t=>{
     if(!_geralMap[t.nome]) _geralMap[t.nome] = {nome:t.nome, leads:0, ag:0, comp:0};
@@ -998,7 +1005,7 @@ function buildExtractHTML(porUnidade, tot, prevTot, prevLabel, tmkRank, bairrosP
   const tmkTable = `
     <div class="ext-chartbox" style="margin-top:20px">
       <h3>🏆 Ranking de TMK</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">${tmkBoxes}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;align-items:start">${tmkBoxes}</div>
     </div>`;
   return cards + charts + table + leaderTable + tmkTable;
 }
