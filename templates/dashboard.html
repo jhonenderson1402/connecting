@@ -598,29 +598,30 @@ function renderLeaderRanking() {
   UNITS.forEach(u => leaderNames[u] = {});
 
   allAppointments.forEach(appt => {
-    const leader = (appt.leader || '').trim().toUpperCase();
-    if (!leader) return;
-
-    // Determina a unidade correta da líder
-    const leaderUnit = getLeaderUnit(leader, appt.unit);
-    if (!unitLeaderMap[leaderUnit]) return;
-
-    if (!unitLeaderMap[leaderUnit][leader]) unitLeaderMap[leaderUnit][leader] = {ag:0, comp:0, vendas:0};
-    if (!leaderNames[leaderUnit][leader]) leaderNames[leaderUnit][leader] = new Set();
+    const padrao = (appt.leader || '').trim().toUpperCase();
+    const liderDaPessoa = {};   // nome da pessoa -> {leader, unit}
 
     (appt.rows||[]).forEach(r => {
       const nm = r.name?.trim();
-      if (!nm) return;
+      // O líder vem da própria linha; o campo do topo é só fallback
+      const leader = ((r.leader || padrao) || '').trim().toUpperCase();
+      if (!nm || !leader) return;
+      const leaderUnit = getLeaderUnit(leader, appt.unit);
+      if (!unitLeaderMap[leaderUnit]) return;
+      if (!unitLeaderMap[leaderUnit][leader]) unitLeaderMap[leaderUnit][leader] = {ag:0, comp:0};
+      if (!leaderNames[leaderUnit][leader]) leaderNames[leaderUnit][leader] = new Set();
       unitLeaderMap[leaderUnit][leader].ag += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
-      leaderNames[leaderUnit][leader].add(nm);   // registra a pessoa sob esse líder
+      leaderNames[leaderUnit][leader].add(nm);
+      liderDaPessoa[nm] = {leader, unit:leaderUnit};
     });
     if (appt.comparecimento_data)
       Object.entries(appt.comparecimento_data).forEach(([nm,v]) => {
-        if (nm === '__vendas__') { Object.values(v).forEach(function(x){ unitLeaderMap[leaderUnit][leader].vendas += Number(x)||0; }); return; } if (nm === '__bairros__' || nm === '__punicoes__') return;
-        unitLeaderMap[leaderUnit][leader].comp += Number(v)||0;
+        if (/^__.*__$/.test(nm)) return;   // ignora chaves internas
+        const info = liderDaPessoa[(nm||'').trim()];
+        if (!info || !unitLeaderMap[info.unit] || !unitLeaderMap[info.unit][info.leader]) return;
+        unitLeaderMap[info.unit][info.leader].comp += Number(v)||0;
       });
   });
-
   const medals = ['🥇','🥈','🥉'];
   const el = document.getElementById('leader-ranking');
 
@@ -744,19 +745,25 @@ function _buildLeaderRank(appts, leadsTmk) {
   const map = {};       // leader -> {ag, comp, unit}
   const names = {};     // leader -> Set(nomes)
   appts.forEach(appt=>{
-    const leader = (appt.leader || '').trim().toUpperCase();
-    if(!leader) return;
-    const unit = employeeUnitMap[leader.toLowerCase()] || appt.unit;
-    if(!map[leader]) { map[leader] = {ag:0, comp:0, unit}; names[leader] = new Set(); }
+    const padrao = (appt.leader || '').trim().toUpperCase();
+    const liderDaPessoa = {};   // nome da pessoa -> líder
+
     (appt.rows||[]).forEach(r=>{
       const nm = r.name?.trim();
-      if(!nm) return;
+      // O líder vem da própria linha; o campo do topo é só fallback
+      const leader = ((r.leader || padrao) || '').trim().toUpperCase();
+      if(!nm || !leader) return;
+      const unit = employeeUnitMap[leader.toLowerCase()] || appt.unit;
+      if(!map[leader]) { map[leader] = {ag:0, comp:0, unit}; names[leader] = new Set(); }
       map[leader].ag += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
       names[leader].add(nm);
+      liderDaPessoa[nm] = leader;
     });
     if(appt.comparecimento_data){
       Object.entries(appt.comparecimento_data).forEach(([nm,v])=>{
-        if(nm === '__bairros__') return;
+        if(/^__.*__$/.test(nm)) return;   // ignora chaves internas
+        const leader = liderDaPessoa[(nm||'').trim()];
+        if(!leader || !map[leader]) return;
         map[leader].comp += Number(v)||0;
       });
     }
