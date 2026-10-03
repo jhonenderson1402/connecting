@@ -982,9 +982,11 @@ function buildExtractHTML(porUnidade, tot, prevTot, prevLabel, tmkRank, bairrosP
   // Caixa geral: soma a mesma pessoa que aparece em mais de uma unidade
   const _geralMap = {};
   (tmkRank||[]).forEach(t=>{
-    if(!_geralMap[t.nome]) _geralMap[t.nome] = {nome:t.nome, leads:Number(leadsTmk[t.nome])||0, ag:0, comp:0};
+    if(!_geralMap[t.nome]) _geralMap[t.nome] = {nome:t.nome, leads:0, ag:0, comp:0};
     _geralMap[t.nome].ag   += t.ag;
     _geralMap[t.nome].comp += t.comp;
+    // leads já vem total por pessoa em cada entrada — pega o valor, não soma
+    _geralMap[t.nome].leads = Math.max(_geralMap[t.nome].leads, Number(t.leads)||0);
   });
   const tmkGeral = Object.values(_geralMap)
     .map(d=>Object.assign(d, {conv: d.ag>0?Math.round((d.comp/d.ag)*100):0}))
