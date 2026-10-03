@@ -256,3 +256,73 @@ input,select,button { font-family:inherit; }
   .btn { height:30px; font-size:10px; }
   .page-title { font-size:16px; }
 }
+/* ══════════════════════ TEMA CLARO ══════════════════════ */
+body.tema-claro {
+  --bg:         #f4f5f7;
+  --fg:         #1e2330;
+  --card:       #ffffff;
+  --card-fg:    #1e2330;
+  --secondary:  #eef0f4;
+  --muted-fg:   #6b7483;
+  --border:     #e2e5ea;
+  --destructive:hsl(0,74%,42%);
+  --green:      hsl(142,72%,29%);
+  --yellow:     #a16207;
+  --gold-text:  #a16207;
+}
+/* Fundos que estavam chumbados em tom escuro */
+body.tema-claro .sidebar,
+body.tema-claro .mobile-header       { background:#ffffff; }
+body.tema-claro .row-alt,
+body.tema-claro .row-alt td:first-child { background:#f6f8fa !important; }
+body.tema-claro .schedule-table tbody tr:hover { background:#eef2f7; }
+body.tema-claro .rank-unit-box       { background:#f7f9fb; border:1px solid var(--border); }
+body.tema-claro .rank-row,
+body.tema-claro .comp-row,
+body.tema-claro .unit-stat           { background:#f3f5f8; }
+body.tema-claro .rank-header-row     { border-bottom-color:var(--border); }
+body.tema-claro .slot-input:hover,
+body.tema-claro .slot-input:focus    { background:#e9edf3; }
+body.tema-claro .slot-bar-bg         { background:#e8ebf0; }
+body.tema-claro .select,
+body.tema-claro .input,
+body.tema-claro .btn-outline         { background:#ffffff; }
+body.tema-claro .btn-outline:hover   { background:#eef0f4; }
+/* O dourado funciona como FUNDO no claro, mas como TEXTO precisa escurecer */
+body.tema-claro .logo-sub,
+body.tema-claro .rank-unit-title,
+body.tema-claro .emp-avatar,
+body.tema-claro .comp-avatar,
+body.tema-claro .primary,
+body.tema-claro .yellow,
+body.tema-claro .primary-input,
+body.tema-claro .slot-filled         { color:var(--gold-text) !important; }
+body.tema-claro .slot-filled,
+body.tema-claro .primary-input       { background:#fdf3d6 !important; }
+body.tema-claro .stat-icon,
+body.tema-claro .unit-icon-wrap,
+body.tema-claro .emp-avatar,
+body.tema-claro .comp-avatar         { background:#fdf3d6; }
+body.tema-claro .green-input,
+body.tema-claro .saved-badge         { background:#e6f6ec; }
+body.tema-claro .blue                { color:#1d4ed8 !important; }
+/* Sombra leve substitui o contraste que o fundo escuro dava de graça */
+body.tema-claro .card,
+body.tema-claro .stat-card,
+body.tema-claro .unit-card,
+body.tema-claro .emp-card            { box-shadow:0 1px 3px rgba(16,24,40,.07); }
+body.tema-claro .toast               { box-shadow:0 8px 24px rgba(16,24,40,.12); }
+
+/* ── Botões lua / sol ── */
+.tema-sw  { display:flex; gap:6px; align-items:center; }
+.tema-btn { width:32px; height:32px; border-radius:8px; border:1px solid var(--border);
+            display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;
+            transition:border-color .15s, box-shadow .15s, transform .1s; }
+.tema-btn:hover        { transform:translateY(-1px); }
+.tema-btn.lua          { background:#f1f3f6; }
+.tema-btn.sol          { background:#18181b; }
+.tema-btn svg          { width:17px; height:17px; display:block; }
+.tema-btn.lua svg      { fill:#101014; stroke:#101014; }
+.tema-btn.sol svg      { fill:#ffffff; stroke:#ffffff; }
+.tema-btn.on           { border-color:var(--primary); box-shadow:0 0 0 2px rgba(255,187,0,.18); }
+.tema-btn:not(.on)     { opacity:.55; }
