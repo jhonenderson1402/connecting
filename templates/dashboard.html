@@ -822,7 +822,7 @@ async function renderExtract() {
     });
     if(appt.comparecimento_data){
       Object.entries(appt.comparecimento_data).forEach(([nome,v])=>{
-        if(nome === '__bairros__') return;   // ignora objeto de bairros
+        if(/^__.*__$/.test(nome)) return;    // ignora chaves internas (__bairros__, __vendas__, __punicoes__...)
         if(!tmkMap[nome]) tmkMap[nome] = {ag:0, comp:0, unit:appt.unit};
         tmkMap[nome].comp += Number(v)||0;
       });
