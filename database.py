@@ -355,6 +355,8 @@ def delete_unidade(uid):
             s.execute(delete(Appointment).where(
                 Appointment.unit.in_([u.nome, 'LEADS::' + u.nome])
             ))
+            # e os bairros cadastrados nessa unidade
+            s.execute(delete(Bairro).where(Bairro.unidade == u.nome))
         s.execute(delete(Unidade).where(Unidade.id == uid))
         s.commit()
 # ---- Fontes de leads --------------------------------------------------------
