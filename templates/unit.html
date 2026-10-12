@@ -597,9 +597,10 @@ function buildTableHead() {
   // Colunas: MÊS, ANO, DATA, LÍDER, NOME, 13 slots, TOTAL+lixeira
   // Total: 3.5 + 2.5 + 5.5 + 4 + 10 + 13*4.5 + 11 = 95% (sobra 5% pra paddings/bordas)
   const colgroup = document.createElement('colgroup');
-  const widths = ['3.5%', '2.5%', '5.5%', '9%', '10%'];   // MÊS, ANO, DATA, LÍDER, NOME
-  TIME_SLOTS.forEach(() => widths.push('4.5%'));          // N slots × 4.5%
-  widths.push('11%');                                     // TOTAL + lixeira juntos
+  const widths = ['3.5%', '2.5%', '5.5%', '8%', '9%'];    // MÊS, ANO, DATA, LÍDER, NOME
+  TIME_SLOTS.forEach(() => widths.push('4.3%'));          // N slots
+  widths.push('5%');                                      // INCLUSÃO
+  widths.push('10%');                                     // TOTAL + lixeira juntos
   widths.forEach(w => {
     const col = document.createElement('col');
     col.style.width = w;
@@ -610,7 +611,7 @@ function buildTableHead() {
   const head = document.getElementById('table-head');
   let html = '<tr><th>MÊS</th><th>ANO</th><th>DATA</th><th>LÍDER</th><th>NOME</th>';
   TIME_SLOTS.forEach(s => { html += `<th>${s.label}</th>`; });
-  html += '<th>TOTAL</th></tr>';
+  html += '<th>INCLUSÃO</th><th>TOTAL</th></tr>';
   head.innerHTML = html;
 }
 
@@ -683,9 +684,24 @@ function slotCls(v){
   var n=Number(v);
   return 'slot-input slot-filled'+((!isNaN(n)&&n<5)?' slot-below':'');
 }
+// Total da linha = soma das faixas de horário + INCLUSÃO
+function rowTotal(r){
+  const s = Object.values((r && r.slots) || {}).reduce((a,v)=>a+(Number(v)||0),0);
+  return s + (Number(r && r.inclusao) || 0);
+}
+// Inclusão não tem meta por hora, então nunca fica vermelha
+function incCls(v){
+  v = (v==null ? '' : (''+v)).trim();
+  return 'slot-input' + (v==='' ? '' : ' slot-filled');
+}
+function inclusaoChange(i, val){
+  rows[i].inclusao = val;
+  updateRowTotal(i);
+  scheduleSave();
+}
 function renderTable() {
   const tbody = document.getElementById('table-body');
-  const colspan = 5 + TIME_SLOTS.length + 1; // 5 fixas + 10 slots + 1 (TOTAL+lixeira)
+  const colspan = 5 + TIME_SLOTS.length + 2; // 5 fixas + slots + INCLUSÃO + TOTAL
 
   if(rows.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${colspan}" class="empty-row">Nenhuma linha. Clique em "+ Adicionar Linha" para começar.</td></tr>`;
@@ -700,7 +716,7 @@ function renderTable() {
   const attendants = employees.filter(e => (e.funcao||'ATENDENTE')==='ATENDENTE');
   const leaders = employees.filter(e => e.funcao==='LIDER');
   tbody.innerHTML = rows.map((row,i)=>{
-    const total = Object.values(row.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+    const total = rowTotal(row);
     const bg = i%2===0?'':'row-alt';
     let nameCell;
     if(attendants.length>0){
@@ -761,6 +777,8 @@ function renderTable() {
       <td>${leaderCell}</td>
       <td>${nameCell}</td>
       ${slotCells}
+      <td><input class="${incCls(row.inclusao||'')}" maxlength="5" value="${row.inclusao||''}"
+          oninput="inclusaoChange(${i},this.value);this.className=incCls(this.value)"/></td>
       <td class="total-cell">
         <span class="total-badge${total>0?' total-active':''}">${total}</span>
         <button class="del-btn" onclick="removeRow(${i})" title="Remover linha">🗑</button>
@@ -891,7 +909,7 @@ function slotChange(i, key, val) {
 function updateRowTotal(i) {
   const trs = document.getElementById('table-body').querySelectorAll('tr');
   if(!trs[i]) return;
-  const total = Object.values(rows[i].slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+  const total = rowTotal(rows[i]);
   const badge = trs[i].querySelector('.total-badge');
   if(badge){ badge.textContent=total; badge.className='total-badge'+(total>0?' total-active':''); }
 }
@@ -1070,7 +1088,7 @@ async function runExport() {
     const includeUnit = scope === 'all';
     const header = ['MÊS', 'ANO', 'DATA'];
     if (includeUnit) header.push('UNIDADE');
-    header.push('LÍDER', 'NOME', ...TIME_SLOTS.map(s => s.label), 'TOTAL');
+    header.push('LÍDER', 'NOME', ...TIME_SLOTS.map(s => s.label), 'INCLUSÃO', 'TOTAL');
 
     const lines = [header.map(_csvEsc).join(';')];
 
@@ -1082,11 +1100,11 @@ async function runExport() {
       const leader = appt.leader || '';
 
       (appt.rows || []).forEach(r => {
-        const total = Object.values(r.slots || {}).reduce((s, v) => s + (Number(v) || 0), 0);
+        const total = rowTotal(r);
         const slotVals = TIME_SLOTS.map(s => r.slots?.[s.key] || '');
         const out = [monthName, yy, dateBr];
         if (includeUnit) out.push(appt.unit);
-        out.push(leader, r.name || '', ...slotVals, total);
+        out.push(leader, r.name || '', ...slotVals, r.inclusao || '', total);
         lines.push(out.map(_csvEsc).join(';'));
       });
     });
@@ -1130,7 +1148,7 @@ async function relatorioHoraHora(){
   try{
     var NL=String.fromCharCode(10);
     var dk=getDateKey(); var p=dk.split("-"); var ano=p[0], mes=parseInt(p[1],10); var dataStr=p[2]+"/"+p[1];
-    var totalAg=(rows||[]).reduce(function(s,r){return s+Object.values(r.slots||{}).reduce(function(ss,v){return ss+(Number(v)||0);},0);},0);
+    var totalAg=(rows||[]).reduce(function(s,r){return s+rowTotal(r);},0);
     var lines=(TIME_SLOTS||[]).map(function(sl){return {label:sl.label, cnt:(rows||[]).reduce(function(a,r){return a+(Number((r.slots||{})[sl.key])||0);},0)};}).filter(function(x){return x.cnt>0;});
     var metaDia=0;
     try{ var metas=await fetch("/api/metas?ano="+ano+"&mes="+mes).then(function(r){return r.json();}); var mm=(metas||[]).find(function(x){return (x.unidade||"")===UNIT && !(x.bairro||"");}); if(mm) metaDia=Number(mm.meta_hora)||0; }catch(e){}
@@ -1150,7 +1168,7 @@ async function relatorioHoraHora(){
 }
 async function openSummary() {
   const totalPeople = rows.filter(r=>r.name?.trim()).length;
-  const totalAg = rows.reduce((s,r)=>s+Object.values(r.slots||{}).reduce((ss,v)=>ss+(Number(v)||0),0),0);
+  const totalAg = rows.reduce((s,r)=>s+rowTotal(r),0);
   document.getElementById('sum-pessoas').textContent=totalPeople;
   document.getElementById('sum-total').textContent=totalAg;
 
@@ -1194,7 +1212,7 @@ async function openSummary() {
     .map(r=>({
       name:r.name.trim(),
       leads:Number(leadsPorNome[r.name.trim()])||0,
-      ag:Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0),
+       ag:rowTotal(r),
       comp:Number(compData[r.name.trim()])||0
     }))
     .sort((a,b)=>b.ag-a.ag);
@@ -1235,7 +1253,7 @@ async function loadMonthSummary() {
       const day = parseInt(appt.date.split('-')[2]);
       if (!dayMap[day]) dayMap[day] = {ag:0, comp:0, filled:false};
       (appt.rows||[]).forEach(r => {
-        const slotSum = Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+        const slotSum = rowTotal(r);
         if (r.name?.trim()) dayMap[day].ag += slotSum;
         if (slotSum > 0) dayMap[day].filled = true;
       });
@@ -1311,7 +1329,7 @@ function openComparecimento() {
         rows.forEach(r => {
           const name = r.name?.trim(); if(!name) return;
           if(!personMap[name]) personMap[name] = {ag:0, comp:0};
-          personMap[name].ag += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+          personMap[name].ag += rowTotal(r);
         });
         compPeople = Object.entries(personMap)
           .sort((a,b) => b[1].ag - a[1].ag)
@@ -1331,7 +1349,7 @@ function openComparecimento() {
   rows.forEach(r=>{
     const name=r.name?.trim(); if(!name)return;
     if(!personMap[name]) personMap[name]={ag:0,comp:0};
-    personMap[name].ag+=Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+    personMap[name].ag+=rowTotal(r);
   });
   compPeople=Object.entries(personMap)
     .sort((a,b)=>b[1].ag-a[1].ag)
