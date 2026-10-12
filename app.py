@@ -756,6 +756,37 @@ def api_delete_unidade(uid):
         return _err(f"Não dá para remover: a unidade '{alvo['nome']}' tem {n} dia(s) com dados lançados.", 409)
     db.delete_unidade(uid)
     return jsonify({'ok': True})
+# ── Bairros das unidades (Configuração) ──────────────────────────────────────
+@app.route('/api/bairros', methods=['GET'])
+@login_required
+def api_list_bairros():
+    unidade = request.args.get('unidade')
+    if unidade:
+        unidade = unquote(unidade)
+        if not _valid_unit(unidade):
+            return _err(f'Unidade inválida: {unidade}')
+    return jsonify(db.get_bairros(unidade))
+@app.route('/api/bairros/mapa', methods=['GET'])
+@login_required
+def api_bairros_mapa():
+    """{'PARÁ': ['Augusto', ...], ...} — usado pelo Comparecimento e pelas Metas."""
+    return jsonify(db.get_bairros_por_unidade())
+@app.route('/api/bairros', methods=['POST'])
+@admin_required
+def api_create_bairro():
+    data = request.get_json(silent=True) or {}
+    unidade = (data.get('unidade') or '').strip()
+    if not _valid_unit(unidade):
+        return _err(f'Unidade inválida: {unidade}')
+    try:
+        return jsonify(db.create_bairro(unidade, data.get('nome'))), 201
+    except ValueError as e:
+        return _err(str(e))
+@app.route('/api/bairros/<int:bid>', methods=['DELETE'])
+@admin_required
+def api_delete_bairro(bid):
+    db.delete_bairro(bid)
+    return jsonify({'ok': True})
 # ── Equipe de Confirmação (Configuração) ─────────────────────────────────────
 @app.route('/configuracao/equipe')
 @admin_required
