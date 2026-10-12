@@ -10,6 +10,7 @@
       <p class="page-subtitle" style="margin-left:20px">Unidades do sistema — aparecem no menu, no Resumo Geral e nas Metas</p>
     </div>
   </div>
+
   <div class="card" style="padding:16px;margin-bottom:16px">
     <div class="filter-bar">
       <div class="filter-group">
@@ -22,51 +23,89 @@
         <button class="btn btn-primary" onclick="addUnidade()">+ Adicionar</button>
       </div>
     </div>
-    <p style="font-size:12px;color:#71717a;margin-top:10px">
+    <p style="font-size:12px;color:var(--muted-fg);margin-top:10px">
       A unidade nova já nasce com tudo: Hora a Hora, Leads Recebidos, Resumo do Dia,
       Comparecimento, Metas e os rankings. Depois é só cadastrar os funcionários dela em <b>Funcionários</b>.
     </p>
   </div>
-  <div class="card" style="padding:0;overflow:hidden">
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <thead>
-        <tr style="background:#fbbf24;color:#18181b">
-          <th style="padding:10px;text-align:left">ORDEM</th>
-          <th style="padding:10px;text-align:left">UNIDADE</th>
-          <th style="padding:10px;text-align:right">AÇÃO</th>
-        </tr>
-      </thead>
-      <tbody id="unidades-body">
-        <tr><td colspan="3" style="padding:20px;text-align:center;color:#71717a">Carregando...</td></tr>
-      </tbody>
-    </table>
+
+  <div id="lista-unidades">
+    <div class="loading">Carregando...</div>
   </div>
 </div>
+
+<style>
+  .uni-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:14px; overflow:hidden; }
+  .uni-head { display:flex; align-items:center; gap:10px; padding:12px 16px; background:var(--primary); color:var(--primary-fg); }
+  .uni-ord  { font-size:11px; font-weight:700; opacity:.65; min-width:18px; }
+  .uni-nome { font-size:14px; font-weight:800; letter-spacing:.03em; flex:1; }
+  .uni-body { padding:14px 16px; }
+  .uni-lbl  { font-size:9px; font-weight:700; letter-spacing:.15em; color:var(--muted-fg); margin-bottom:9px; }
+  .bai-list { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px; }
+  .bai-chip { display:inline-flex; align-items:center; gap:7px; padding:5px 9px 5px 11px;
+              background:var(--secondary); border:1px solid var(--border); border-radius:20px; font-size:12px; }
+  .bai-x    { background:none; border:none; color:var(--destructive); cursor:pointer; font-size:13px;
+              line-height:1; padding:0 1px; opacity:.6; }
+  .bai-x:hover { opacity:1; }
+  .bai-vazio{ font-size:12px; color:var(--muted-fg); font-style:italic; margin-bottom:12px; }
+  .bai-add  { display:flex; gap:7px; align-items:center; flex-wrap:wrap; }
+  .bai-add .input { width:230px; height:30px; font-size:12px; }
+  .bai-add .btn   { height:30px; font-size:11px; }
+  .uni-rm   { background:rgba(0,0,0,.14); border:1px solid rgba(0,0,0,.2); color:var(--primary-fg);
+              padding:4px 11px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .uni-rm:hover { background:rgba(0,0,0,.26); }
+</style>
 {% endblock %}
+
 {% block scripts %}
 <script>
 let unidades = [];
+let bairros  = [];   // [{id, unidade, nome, ordem}]
+
 function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-async function loadUnidades(){
-  const r = await fetch('/api/unidades');
-  if(r.status===401){ window.location.href='/login'; return; }
-  unidades = await r.json();
+function escAttr(s){ return esc(s).replace(/'/g,'&#39;'); }
+
+async function loadTudo(){
+  const [ru, rb] = await Promise.all([fetch('/api/unidades'), fetch('/api/bairros')]);
+  if(ru.status===401){ window.location.href='/login'; return; }
+  unidades = ru.ok ? await ru.json() : [];
+  bairros  = rb.ok ? await rb.json() : [];
   render();
 }
+
 function render(){
-  const tb = document.getElementById('unidades-body');
+  const box = document.getElementById('lista-unidades');
   if(!unidades.length){
-    tb.innerHTML = '<tr><td colspan="3" style="padding:20px;text-align:center;color:#71717a">Nenhuma unidade cadastrada.</td></tr>';
+    box.innerHTML = '<div class="card" style="padding:20px;text-align:center;color:var(--muted-fg)">Nenhuma unidade cadastrada.</div>';
     return;
   }
-  tb.innerHTML = unidades.map(u=>`<tr style="border-bottom:1px solid #1f1f1f">
-    <td style="padding:10px;color:#71717a">${u.ordem}</td>
-    <td style="padding:10px;color:#e4e4e7;font-weight:600">${esc(u.nome)}</td>
-    <td style="padding:10px;text-align:right">
-      <button class="btn btn-danger" style="padding:4px 10px;font-size:12px" onclick="delUnidade(${u.id})">Remover</button>
-    </td>
-  </tr>`).join('');
+  box.innerHTML = unidades.map(u => {
+    const meus = bairros.filter(b => b.unidade === u.nome);
+    const chips = meus.length
+      ? `<div class="bai-list">${meus.map(b =>
+          `<span class="bai-chip">${esc(b.nome)}
+             <button class="bai-x" title="Remover bairro" onclick="delBairro(${b.id})">✕</button>
+           </span>`).join('')}</div>`
+      : `<p class="bai-vazio">Nenhum bairro cadastrado nesta unidade.</p>`;
+    return `<div class="uni-card">
+      <div class="uni-head">
+        <span class="uni-ord">${u.ordem}</span>
+        <span class="uni-nome">${esc(u.nome)}</span>
+        <button class="uni-rm" onclick="delUnidade(${u.id})">Remover unidade</button>
+      </div>
+      <div class="uni-body">
+        <p class="uni-lbl">BAIRROS — ${meus.length}</p>
+        ${chips}
+        <div class="bai-add">
+          <input class="input" id="nb-${u.id}" placeholder="Nome do bairro"
+                 onkeydown="if(event.key==='Enter')addBairro(${u.id},'${escAttr(u.nome)}')"/>
+          <button class="btn btn-primary" onclick="addBairro(${u.id},'${escAttr(u.nome)}')">+ Bairro</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
+
 async function addUnidade(){
   const el = document.getElementById('nova-unidade');
   const nome = (el.value||'').trim();
@@ -76,17 +115,42 @@ async function addUnidade(){
   if(!r.ok){ showToast(d.error||'Erro ao adicionar.','error'); return; }
   el.value='';
   showToast('Unidade adicionada! Recarregue para vê-la no menu.');
-  loadUnidades();
+  loadTudo();
 }
+
 async function delUnidade(id){
   const u = unidades.find(x=>x.id===id); if(!u) return;
-  if(!confirm(`Remover a unidade "${u.nome}"?`)) return;
+  if(!confirm(`Remover a unidade "${u.nome}"? Os bairros dela também serão removidos.`)) return;
   const r = await fetch('/api/unidades/'+id,{method:'DELETE'});
   const d = await r.json().catch(()=>({}));
   if(!r.ok){ showToast(d.error||'Erro ao remover.','error'); return; }
   showToast('Unidade removida.');
-  loadUnidades();
+  loadTudo();
 }
-document.addEventListener('DOMContentLoaded', loadUnidades);
+
+async function addBairro(uid, unidade){
+  const el = document.getElementById('nb-'+uid);
+  const nome = (el.value||'').trim();
+  if(!nome){ showToast('Digite o nome do bairro.','error'); return; }
+  const r = await fetch('/api/bairros',{method:'POST',headers:{'Content-Type':'application/json'},
+                                        body:JSON.stringify({unidade, nome})});
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ showToast(d.error||'Erro ao adicionar o bairro.','error'); return; }
+  el.value='';
+  showToast(`Bairro "${nome}" adicionado em ${unidade}.`);
+  loadTudo();
+}
+
+async function delBairro(bid){
+  const b = bairros.find(x=>x.id===bid); if(!b) return;
+  if(!confirm(`Remover o bairro "${b.nome}" de ${b.unidade}?\n\nOs números já lançados continuam salvos.`)) return;
+  const r = await fetch('/api/bairros/'+bid,{method:'DELETE'});
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ showToast(d.error||'Erro ao remover.','error'); return; }
+  showToast('Bairro removido.');
+  loadTudo();
+}
+
+document.addEventListener('DOMContentLoaded', loadTudo);
 </script>
 {% endblock %}
