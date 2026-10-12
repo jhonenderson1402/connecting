@@ -139,6 +139,18 @@ class Atendente(Base):
     id    = Column(Integer, primary_key=True, autoincrement=True)
     nome  = Column(String(100), nullable=False, unique=True)
     ordem = Column(Integer, default=0)
+class Bairro(Base):
+    """Bairros/clinicas de cada unidade. Alimentam o Comparecimento,
+    as Metas e o 'Ver bairros' do Resumo Geral."""
+    __tablename__ = 'bairros'
+    id      = Column(Integer, primary_key=True, autoincrement=True)
+    unidade = Column(String(100), nullable=False)
+    nome    = Column(String(120), nullable=False)
+    ordem   = Column(Integer, default=0)
+    __table_args__ = (
+        UniqueConstraint('unidade', 'nome', name='uq_bairro_unidade'),
+        Index('idx_bairro_unidade', 'unidade'),
+    )
 # ---- Inicializacao ----------------------------------------------------------
 def init_db():
     """Cria tabelas e indices se ainda nao existirem. Idempotente.
@@ -163,6 +175,7 @@ def init_db():
     ensure_default_fontes()
     ensure_default_unidades()
     ensure_default_atendentes()
+    ensure_default_bairros()
 def _run_migrations():
     """Aplica migrações incrementais no banco existente (idempotente)."""
     with engine.connect() as conn:
@@ -717,3 +730,68 @@ def get_stats_publicas():
                     except (ValueError, TypeError):
                         pass
     return {'leads': total_leads, 'agendamentos': total_agend, 'comparecimentos': total_comp}
+# ---- Bairros ----------------------------------------------------------------
+# Os 10 do PARA ja existiam chumbados no codigo; viram cadastro.
+BAIRROS_PADRAO = {
+    'PARÁ': ['Ananindeua', 'Augusto', 'Capanema', 'Castanhal', 'Cidade Nova',
+             'José Bonifácio', 'Jurunas', 'Marabá', 'Marambaia', 'Telegrafo'],
+}
+def ensure_default_bairros():
+    """Semeia os bairros que ja existiam no codigo, se a tabela estiver vazia."""
+    try:
+        with SessionLocal() as s:
+            if s.scalar(select(func.count(Bairro.id))) == 0:
+                for unidade, nomes in BAIRROS_PADRAO.items():
+                    for i, nome in enumerate(nomes, start=1):
+                        s.add(Bairro(unidade=unidade, nome=nome, ordem=i))
+                s.commit()
+                print("[init] Bairros padrao criados.")
+    except Exception as e:
+        print("ERRO AO CRIAR BAIRROS PADRAO:", e)
+
+def get_bairros(unidade=None):
+    """Lista os bairros. Sem argumento, devolve de todas as unidades."""
+    with SessionLocal() as s:
+        q = select(Bairro)
+        if unidade:
+            q = q.where(Bairro.unidade == unidade)
+        q = q.order_by(Bairro.unidade, Bairro.ordem, Bairro.id)
+        rows = s.scalars(q).all()
+        return [{'id': r.id, 'unidade': r.unidade, 'nome': r.nome,
+                 'ordem': r.ordem or 0} for r in rows]
+
+def get_bairros_por_unidade():
+    """Devolve {'PARÁ': ['Augusto', ...], 'MANAUS': [...]} — pronto pro front."""
+    mapa = {}
+    for b in get_bairros():
+        mapa.setdefault(b['unidade'], []).append(b['nome'])
+    return mapa
+
+def create_bairro(unidade, nome):
+    unidade = (unidade or '').strip().upper()
+    nome    = (nome or '').strip()
+    if not unidade:
+        raise ValueError("Informe a unidade do bairro.")
+    if not nome:
+        raise ValueError("Informe o nome do bairro.")
+    if len(nome) > 120:
+        raise ValueError("Nome do bairro muito longo.")
+    with SessionLocal() as s:
+        existe = s.scalar(select(Bairro).where(and_(
+            Bairro.unidade == unidade, func.lower(Bairro.nome) == nome.lower()
+        )))
+        if existe:
+            raise ValueError(f"O bairro '{nome}' ja existe em {unidade}.")
+        prox = (s.scalar(select(func.max(Bairro.ordem)).where(
+            Bairro.unidade == unidade)) or 0) + 1
+        b = Bairro(unidade=unidade, nome=nome, ordem=prox)
+        s.add(b)
+        s.commit()
+        s.refresh(b)
+        return {'id': b.id, 'unidade': b.unidade, 'nome': b.nome, 'ordem': b.ordem}
+
+def delete_bairro(bid):
+    """Remove o bairro da lista. Os numeros ja lancados continuam no banco."""
+    with SessionLocal() as s:
+        s.execute(delete(Bairro).where(Bairro.id == bid))
+        s.commit()
