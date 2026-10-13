@@ -361,7 +361,9 @@ def set_regiao_unidade(uid, regiao):
     with SessionLocal() as s:
         s.execute(update(Unidade).where(Unidade.id == uid).values(regiao=regiao))
         s.commit()
-    return {'id': uid, 'regiao': regiao}def _appt_tem_dados(a):
+     return {'id': uid, 'regiao': regiao}
+
+def _appt_tem_dados(a):
     """True se o registro tem algo de verdade (nome, horario, lead ou comparecimento)."""
     for r in _safe_json_loads(a.rows, []):
         if not isinstance(r, dict):
