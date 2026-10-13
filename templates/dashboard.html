@@ -371,17 +371,36 @@ async function loadDashboard() {
   }
 
   // Stats
+  // Filtro MÊS  -> números do Acompanhamento Unidades (visão da clínica)
+  // Filtro DIA  -> números do Hora a Hora das unidades (operação do dia)
   let totalAg = 0, totalComp = 0;
-  allAppointments.forEach(appt => {
-    (appt.rows||[]).forEach(r => {
-      if(r.name?.trim()) {
-        totalAg += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+  if(filterType === 'day') {
+    allAppointments.forEach(appt => {
+      (appt.rows||[]).forEach(r => {
+        if(r.name?.trim()) {
+          totalAg += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0)
+                   + (Number(r.inclusao) || 0);
+        }
+      });
+      if(appt.comparecimento_data) {
+        Object.entries(appt.comparecimento_data).forEach(([k,v]) => {
+          if(/^__.*__$/.test(k)) return;   // ignora __bairros__, __vendas__, __punicoes__
+          totalComp += Number(v) || 0;
+        });
       }
     });
-    if(appt.comparecimento_data) {
-      totalComp += Object.values(appt.comparecimento_data).reduce((s,v)=>s+(Number(v)||0),0);
-    }
-  });
+  } else {
+    try {
+      const acRes  = await fetch(`/api/acompanhamento_mes?ano=${year}&mes=${monthIndex+1}`);
+      const acDias = acRes.ok ? await acRes.json() : [];
+      acDias.forEach(d => {
+        (d.rows||[]).forEach(l => {
+          totalAg   += Number(l.ag) || 0;   // AGENDAMENTOS
+          totalComp += Number(l.ex) || 0;   // EXAMES REALIZADOS
+        });
+      });
+    } catch(e) {}
+  }
   document.getElementById('total-agendados').textContent = totalAg;
   document.getElementById('total-comparecimentos').textContent = totalComp;
 
