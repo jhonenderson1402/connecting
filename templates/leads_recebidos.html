@@ -88,13 +88,13 @@
 
   <div class="lr-kpis">
     <div class="stat-card"><div class="stat-icon">📥</div><div>
-      <div class="stat-value blue" id="k-leads">0</div><div class="stat-label">Leads recebidos</div></div></div>
+      <div class="stat-value blue" id="k-leads">0</div><div class="stat-label" id="k-lbl1">Leads no mês</div></div></div>
     <div class="stat-card"><div class="stat-icon">📅</div><div>
-      <div class="stat-value primary" id="k-ag">0</div><div class="stat-label">Agendamentos</div></div></div>
+      <div class="stat-value primary" id="k-ag">0</div><div class="stat-label" id="k-lbl2">Agendamentos no mês</div></div></div>
     <div class="stat-card"><div class="stat-icon">📈</div><div>
-      <div class="stat-value green" id="k-conv">0%</div><div class="stat-label">Conversão</div></div></div>
+      <div class="stat-value green" id="k-conv">0%</div><div class="stat-label" id="k-lbl3">Conversão do mês</div></div></div>
     <div class="stat-card"><div class="stat-icon">🧾</div><div>
-      <div class="stat-value" id="k-linhas">0</div><div class="stat-label">Linhas no dia</div></div></div>
+      <div class="stat-value" id="k-linhas">0</div><div class="stat-label" id="k-lbl4">Linhas no mês</div></div></div>
   </div>
 
   <div class="card table-card" style="padding:0;overflow:hidden;margin-top:14px">
@@ -119,7 +119,8 @@
 
 {% block scripts %}
 <script>
-let linhas = [];        // [{local, agencia, leads, ag}]
+let linhas = [];        // [{local, agencia, leads, ag}] — do dia selecionado
+let mesDados = [];      // todos os dias do mês — alimenta os indicadores do topo
 let LOCAIS = [], AGENCIAS = [];
 let saveTimer = null;
 
@@ -180,7 +181,18 @@ async function carregar(){
   if(!r.ok){ showToast('Erro ao carregar o dia.','error'); return; }
   const d = await r.json().catch(()=>null);
   linhas = (d && Array.isArray(d.rows)) ? d.rows : [];
+  await carregarMes();
   render();
+}
+// Todos os dias do mês — usados só nos indicadores do topo
+async function carregarMes(){
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  if(isNaN(mi) || isNaN(y)){ mesDados = []; return; }
+  try {
+    const r = await fetch(`/api/leads_recebidos_mes?ano=${y}&mes=${mi+1}`);
+    mesDados = r.ok ? await r.json() : [];
+  } catch(e){ mesDados = []; }
 }
 function onDateChange(){ updateDias(); carregar(); }
 
@@ -227,12 +239,23 @@ function render(){
       <td><span class="${convCls(tp)}">${tp}%</span></td><td></td></tr>`;
   }
 
-  const TL = vis.reduce((s,x)=>s+(Number(x.l.leads)||0),0);
-  const TA = vis.reduce((s,x)=>s+(Number(x.l.ag)||0),0);
+  // Indicadores do topo: total do MÊS selecionado (respeitando o filtro de LOCAL)
+  let TL = 0, TA = 0, nLin = 0;
+  mesDados.forEach(d => (d.rows||[]).forEach(l => {
+    if(filtro && l.local !== filtro) return;
+    TL += Number(l.leads) || 0;
+    TA += Number(l.ag)    || 0;
+    nLin++;
+  }));
   document.getElementById('k-leads').textContent  = TL;
   document.getElementById('k-ag').textContent     = TA;
   document.getElementById('k-conv').textContent   = (TL>0?Math.round(TA/TL*100):0) + '%';
-  document.getElementById('k-linhas').textContent = vis.length;
+  document.getElementById('k-linhas').textContent = nLin;
+  const sufixo = ' no mês de ' + mes + (filtro ? ' · ' + filtro : '');
+  document.getElementById('k-lbl1').textContent = 'Leads' + sufixo;
+  document.getElementById('k-lbl2').textContent = 'Agendamentos' + sufixo;
+  document.getElementById('k-lbl3').textContent = 'Conversão' + sufixo;
+  document.getElementById('k-lbl4').textContent = 'Linhas' + sufixo;
 }
 
 // ── Edição ──────────────────────────────────────────────────────────────────
@@ -285,7 +308,11 @@ async function salvar(){
     body: JSON.stringify({rows: linhas})
   });
   document.getElementById('saving-badge').style.display = 'none';
-  if(r.ok){ document.getElementById('saved-badge').style.display = ''; }
+  if(r.ok){
+    document.getElementById('saved-badge').style.display = '';
+    await carregarMes();   // mantém os indicadores do mês em dia
+    render();
+  }
   else {
     const e = await r.json().catch(()=>({}));
     showToast('Erro ao salvar: ' + (e.error || r.status), 'error');
