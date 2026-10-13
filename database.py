@@ -131,9 +131,10 @@ class Fonte(Base):
     )
 class Unidade(Base):
     __tablename__ = 'unidades'
-    id    = Column(Integer, primary_key=True, autoincrement=True)
-    nome  = Column(String(100), nullable=False, unique=True)
-    ordem = Column(Integer, default=0)
+    id     = Column(Integer, primary_key=True, autoincrement=True)
+    nome   = Column(String(100), nullable=False, unique=True)
+    regiao = Column(String(100), default='')   # estado/localidade: Pará, Amazonas...
+    ordem  = Column(Integer, default=0)
 class Atendente(Base):
     __tablename__ = 'atendentes'
     id    = Column(Integer, primary_key=True, autoincrement=True)
@@ -212,6 +213,13 @@ def _run_migrations():
             print("[migration] Coluna 'funcao' adicionada à tabela employees.")
         except Exception:
             conn.rollback()  # Coluna já existe, ignora
+        # Migração: adiciona coluna 'regiao' na tabela unidades se não existir
+        try:
+            conn.execute(text("ALTER TABLE unidades ADD COLUMN regiao VARCHAR(100) DEFAULT ''"))
+            conn.commit()
+            print("[migration] Coluna 'regiao' adicionada à tabela unidades.")
+        except Exception:
+            conn.rollback()  # Coluna já existe, ignora
         # Migração 3: cria a tabela 'metas' se não existir (Base.metadata.create_all já cobre,
         # mas garantimos aqui para bancos que rodaram create_all antes deste modelo existir).
         # Nada a fazer além do create_all; deixado como marcador.
@@ -285,37 +293,75 @@ def delete_atendente(aid):
         s.commit()
 # ---- Unidades ---------------------------------------------------------------
 UNIDADES_PADRAO = ["PARÁ", "MANAUS", "MANOA", "SÃO LUIZ", "FORTALEZA", "AÇÃO"]
+# Regiao (estado) de cada unidade que ja existia
+REGIOES_PADRAO = {
+    'PARÁ': 'Pará', 'MANAUS': 'Amazonas', 'MANOA': 'Amazonas',
+    'MANAUS CENTRO': 'Amazonas', 'SÃO LUIZ': 'Maranhão',
+    'FORTALEZA': 'Ceará', 'AÇÃO': 'Ação',
+}
 def ensure_default_unidades():
-    """Semeia as unidades que ja existiam, se a tabela estiver vazia."""
+    """Semeia as unidades que ja existiam, se a tabela estiver vazia.
+    E preenche a regiao das que ja estao cadastradas sem regiao."""
     try:
         with SessionLocal() as s:
             if s.scalar(select(func.count(Unidade.id))) == 0:
                 for i, nome in enumerate(UNIDADES_PADRAO, start=1):
-                    s.add(Unidade(nome=nome, ordem=i))
+                    s.add(Unidade(nome=nome, regiao=REGIOES_PADRAO.get(nome, ''), ordem=i))
                 s.commit()
                 print("[init] Unidades padrao criadas.")
+            else:
+                # Primeira vez que a coluna existe: completa o que esta em branco
+                mudou = False
+                for u in s.scalars(select(Unidade)).all():
+                    if not (u.regiao or '').strip() and u.nome in REGIOES_PADRAO:
+                        u.regiao = REGIOES_PADRAO[u.nome]
+                        mudou = True
+                if mudou:
+                    s.commit()
+                    print("[init] Regioes das unidades existentes preenchidas.")
     except Exception as e:
         print("ERRO AO CRIAR UNIDADES PADRAO:", e)
 def get_unidades():
     with SessionLocal() as s:
         rows = s.scalars(select(Unidade).order_by(Unidade.ordem, Unidade.id)).all()
-        return [{'id': r.id, 'nome': r.nome, 'ordem': r.ordem or 0} for r in rows]
-def create_unidade(nome):
+        return [{'id': r.id, 'nome': r.nome, 'regiao': r.regiao or '',
+                 'ordem': r.ordem or 0} for r in rows]
+def get_regioes():
+    """Lista das regioes em uso, sem repetir."""
+    vistas, out = set(), []
+    for u in get_unidades():
+        r = (u.get('regiao') or '').strip()
+        if r and r.lower() not in vistas:
+            vistas.add(r.lower())
+            out.append(r)
+    return sorted(out, key=lambda x: x.lower())
+def create_unidade(nome, regiao=''):
     nome = (nome or '').strip().upper()
+    regiao = (regiao or '').strip()
     if not nome:
         raise ValueError("Informe o nome da unidade.")
     if len(nome) > 100:
         raise ValueError("Nome da unidade muito longo.")
+    if len(regiao) > 100:
+        raise ValueError("Nome da regiao muito longo.")
     with SessionLocal() as s:
         if s.scalar(select(Unidade).where(Unidade.nome == nome)):
             raise ValueError(f"A unidade '{nome}' ja existe.")
         prox = (s.scalar(select(func.max(Unidade.ordem))) or 0) + 1
-        u = Unidade(nome=nome, ordem=prox)
+        u = Unidade(nome=nome, regiao=regiao, ordem=prox)
         s.add(u)
         s.commit()
         s.refresh(u)
-        return {'id': u.id, 'nome': u.nome, 'ordem': u.ordem}
-def _appt_tem_dados(a):
+        return {'id': u.id, 'nome': u.nome, 'regiao': u.regiao or '', 'ordem': u.ordem}
+def set_regiao_unidade(uid, regiao):
+    """Renomeia/define a regiao de uma unidade. E so um rotulo — nao mexe em dados."""
+    regiao = (regiao or '').strip()
+    if len(regiao) > 100:
+        raise ValueError("Nome da regiao muito longo.")
+    with SessionLocal() as s:
+        s.execute(update(Unidade).where(Unidade.id == uid).values(regiao=regiao))
+        s.commit()
+    return {'id': uid, 'regiao': regiao}def _appt_tem_dados(a):
     """True se o registro tem algo de verdade (nome, horario, lead ou comparecimento)."""
     for r in _safe_json_loads(a.rows, []):
         if not isinstance(r, dict):
