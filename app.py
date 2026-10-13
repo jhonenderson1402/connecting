@@ -379,7 +379,8 @@ def api_appointments():
         return _err('Informe "date" (YYYY-MM-DD) ou "year"+"month".')
     # Nunca expõe as "unidades" reservadas (Leads e Acompanhamento) nos agendamentos nem no dashboard
     appts = [a for a in appts
-             if not a['unit'].startswith(LEADS_PREFIX) and a['unit'] != ACOMP_UNIT]
+             if not a['unit'].startswith(LEADS_PREFIX)
+             and a['unit'] != ACOMP_UNIT and a['unit'] != LEADSAG_UNIT]
     if unit:
         appts = [a for a in appts if a['unit'] == unit]
     return jsonify(appts)
@@ -836,7 +837,59 @@ def api_acomp_mes():
         return _err('Informe ano e mes válidos.')
     out = [{'date': a['date'], 'rows': a['rows']}
            for a in db.get_appointments_by_month(ano, mes) if a['unit'] == ACOMP_UNIT]
+    return jsonify(out)# ── Leads Recebidos (por local e agência) ────────────────────────────────────
+LEADSAG_UNIT = "LEADSAG::GERAL"
+@app.route('/leads-recebidos')
+@login_required
+def leads_recebidos_page():
+    return render_template('leads_recebidos.html')
+@app.route('/api/leads_recebidos/<date>', methods=['GET'])
+@login_required
+def api_get_leadsag(date):
+    if not _valid_date(date):
+        return _err('Data inválida. Use YYYY-MM-DD.')
+    appt = db.get_appointment(LEADSAG_UNIT, date)
+    return jsonify(appt or {})
+@app.route('/api/leads_recebidos/<date>', methods=['POST'])
+@login_required
+def api_save_leadsag(date):
+    if not _valid_date(date):
+        return _err('Data inválida. Use YYYY-MM-DD.')
+    data = request.get_json(silent=True) or {}
+    rows = data.get('rows', [])
+    if not isinstance(rows, list):
+        return _err('Campo "rows" deve ser lista.')
+    db.upsert_appointment(LEADSAG_UNIT, date, '', rows)
+    return jsonify({'ok': True})
+@app.route('/api/leads_recebidos_mes', methods=['GET'])
+@login_required
+def api_leadsag_mes():
+    """Todos os dias do mês de uma vez — usado no Resumo Geral."""
+    try:
+        ano = int(request.args.get('ano'))
+        mes = int(request.args.get('mes'))
+    except (TypeError, ValueError):
+        return _err('Informe ano e mes válidos.')
+    out = [{'date': a['date'], 'rows': a['rows']}
+           for a in db.get_appointments_by_month(ano, mes) if a['unit'] == LEADSAG_UNIT]
     return jsonify(out)
+@app.route('/api/lead_opcoes', methods=['GET'])
+@login_required
+def api_list_lead_opcoes():
+    return jsonify(db.get_lead_opcoes_mapa())
+@app.route('/api/lead_opcoes', methods=['POST'])
+@admin_required
+def api_create_lead_opcao():
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(db.create_lead_opcao(data.get('tipo'), data.get('nome'))), 201
+    except ValueError as e:
+        return _err(str(e))
+@app.route('/api/lead_opcoes/<int:oid>', methods=['DELETE'])
+@admin_required
+def api_delete_lead_opcao(oid):
+    db.delete_lead_opcao(oid)
+    return jsonify({'ok': True})
 # ── Equipe de Confirmação (Configuração) ─────────────────────────────────────
 @app.route('/configuracao/equipe')
 @admin_required
