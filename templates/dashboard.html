@@ -200,22 +200,12 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
     <div class="card-header">
       <span>🏅</span>
       <h2 class="card-title">Ranking por Unidade</h2>
-      <div class="filter-bar" style="margin-left:auto">
-        <div class="filter-group">
-          <label class="filter-label">MÊS</label>
-          <select class="select select-sm" id="rank-month" onchange="loadRanking()"></select>
-        </div>
-        <div class="filter-group">
-          <label class="filter-label">FILTRO</label>
-          <select class="select select-sm" id="rank-type" onchange="onRankFilterTypeChange()">
-            <option value="month">Mês</option>
-            <option value="day">Dia</option>
-          </select>
-        </div>
-        <div class="filter-group" id="rank-day-group" style="display:none">
-          <label class="filter-label">DIA</label>
-          <select class="select select-sm" id="rank-day" onchange="loadRanking()"></select>
-        </div>
+      <span style="margin-left:auto;font-size:11px;color:var(--muted-fg)" id="rank-periodo"></span>
+      <!-- seletores antigos mantidos ocultos: o ranking agora segue o filtro do topo -->
+      <div style="display:none">
+        <select id="rank-month"></select>
+        <select id="rank-type"><option value="month">Mês</option></select>
+        <div id="rank-day-group"><select id="rank-day"></select></div>
       </div>
     </div>
     <div class="units-ranking-grid" id="ranking-grid">
@@ -300,10 +290,8 @@ function onConstantsLoaded() {
     now.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
 
   loadEmployees();
-  loadDashboard();
-  loadRanking();
+  loadDashboard();   // ele já dispara o loadRanking
 }
-
 function updateDaySelect(id, monthIndex, year, selectedDay) {
   const sel = document.getElementById(id);
   const days = getDaysInMonth(monthIndex, year);
@@ -335,10 +323,15 @@ async function loadEmployees() {
 
 async function loadDashboard() {
   const now = new Date();
+  // Usa o MESMO filtro do topo do Resumo Geral
   const monthIndex = parseInt(document.getElementById('filter-month').value);
   const year = now.getFullYear();
   const filterType = document.getElementById('filter-type').value;
   const day = parseInt(document.getElementById('filter-day').value) || now.getDate();
+  const lblP = document.getElementById('rank-periodo');
+  if(lblP) lblP.textContent = (filterType === 'day')
+    ? `${String(day).padStart(2,'0')}/${String(monthIndex+1).padStart(2,'0')}/${year}`
+    : `${MONTHS[monthIndex]} / ${year}`;
 
   let url, leadsUrl, leadsTmkUrl;
   if(filterType === 'day') {
@@ -422,6 +415,7 @@ async function loadDashboard() {
 
   renderUnitsGrid();
   renderLeaderRanking();
+  loadRanking();   // o ranking segue o mesmo filtro do topo
 }
 
 async function loadRanking() {
