@@ -72,6 +72,8 @@ def _units():
 # Reusa a tabela appointments (rows é JSON), então não precisa de migração.
 # Ex.: os leads de PARÁ ficam armazenados sob a unit "LEADS::PARÁ".
 LEADS_PREFIX = "LEADS::"
+# "Unidade" reservada do Acompanhamento Unidades (uma linha por bairro, por dia)
+ACOMP_UNIT = "ACOMP::GERAL"
 MONTHS = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO",
           "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"]
 TIME_SLOTS = [
@@ -375,8 +377,9 @@ def api_appointments():
         appts = db.get_appointments_by_month(y, m)
     else:
         return _err('Informe "date" (YYYY-MM-DD) ou "year"+"month".')
-    # Nunca expõe as "unidades" reservadas de Leads nos agendamentos nem no dashboard
-    appts = [a for a in appts if not a['unit'].startswith(LEADS_PREFIX)]
+    # Nunca expõe as "unidades" reservadas (Leads e Acompanhamento) nos agendamentos nem no dashboard
+    appts = [a for a in appts
+             if not a['unit'].startswith(LEADS_PREFIX) and a['unit'] != ACOMP_UNIT]
     if unit:
         appts = [a for a in appts if a['unit'] == unit]
     return jsonify(appts)
@@ -787,6 +790,41 @@ def api_create_bairro():
 def api_delete_bairro(bid):
     db.delete_bairro(bid)
     return jsonify({'ok': True})
+# ── Acompanhamento Unidades ──────────────────────────────────────────────────
+@app.route('/acompanhamento')
+@login_required
+def acompanhamento_page():
+    return render_template('acompanhamento.html')
+@app.route('/api/acompanhamento/<date>', methods=['GET'])
+@login_required
+def api_get_acomp(date):
+    if not _valid_date(date):
+        return _err('Data inválida. Use YYYY-MM-DD.')
+    appt = db.get_appointment(ACOMP_UNIT, date)
+    return jsonify(appt or {})
+@app.route('/api/acompanhamento/<date>', methods=['POST'])
+@login_required
+def api_save_acomp(date):
+    if not _valid_date(date):
+        return _err('Data inválida. Use YYYY-MM-DD.')
+    data = request.get_json(silent=True) or {}
+    rows = data.get('rows', [])
+    if not isinstance(rows, list):
+        return _err('Campo "rows" deve ser lista.')
+    db.upsert_appointment(ACOMP_UNIT, date, '', rows)
+    return jsonify({'ok': True})
+@app.route('/api/acompanhamento_mes', methods=['GET'])
+@login_required
+def api_acomp_mes():
+    """Todos os dias do mês de uma vez — usado no Resumo do Mês da tela."""
+    try:
+        ano = int(request.args.get('ano'))
+        mes = int(request.args.get('mes'))
+    except (TypeError, ValueError):
+        return _err('Informe ano e mes válidos.')
+    out = [{'date': a['date'], 'rows': a['rows']}
+           for a in db.get_appointments_by_month(ano, mes) if a['unit'] == ACOMP_UNIT]
+    return jsonify(out)
 # ── Equipe de Confirmação (Configuração) ─────────────────────────────────────
 @app.route('/configuracao/equipe')
 @admin_required
