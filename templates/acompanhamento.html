@@ -14,6 +14,10 @@
   .ac-table tbody tr:hover td { background:var(--secondary); }
   .ac-fx { color:var(--muted-fg); font-weight:500; text-transform:uppercase; font-size:9.5px;
            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ac-reg { display:inline-block; padding:3px 9px; border-radius:12px; font-size:10px; font-weight:700;
+            background:rgba(251,191,36,.10); color:var(--primary); white-space:nowrap;
+            overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .ac-reg.vazia { background:transparent; color:var(--muted-fg); font-weight:500; font-style:italic; }
   .ac-in { width:100%; background:transparent; border:1px solid var(--border); color:var(--muted-fg);
            text-align:center; padding:4px 0; border-radius:5px; font-size:10.5px; font-weight:700; font-family:inherit; }
   .ac-in:focus { outline:none; border-color:var(--primary); }
@@ -91,7 +95,7 @@
       <table class="ac-table" id="ac-table">
         <colgroup>
           <col style="width:58px"><col style="width:82px"><col style="width:74px">
-          <col style="width:98px"><col style="width:126px">
+          <col style="width:98px"><col style="width:132px">
           <col style="width:76px"><col style="width:76px"><col style="width:68px"><col style="width:62px">
           <col style="width:66px"><col style="width:76px"><col style="width:80px"><col style="width:76px"><col style="width:74px">
           <col style="width:32px">
@@ -115,7 +119,9 @@
 <script>
 const CAMPOS = ['ag','ex','pa','du','ue','ca','ge','na'];
 let linhas = [];        // [{unidade, bairro, ag, ex, ...}]
+let unidades = [];      // [{nome, regiao, ordem}] — vem de Configuração > Unidades
 let mapaBairros = {};   // {'PARÁ': ['Augusto', ...]}
+let opcoes = [];        // lista plana: [{unidade, bairro, regiao, rotulo}]
 let saveTimer = null;
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -151,26 +157,46 @@ function dateKey(){
 }
 function dateBr(){
   const k = dateKey(); if(!k) return '—';
-  const p = k.split('-'); return `${p[2]}/${p[1]}/${p[0]}`;
+  const p = k.split('-'); return p[2]+'/'+p[1]+'/'+p[0];
 }
 initDatas();
 
 // ── Carga ───────────────────────────────────────────────────────────────────
 async function onConstantsLoaded(){
   try {
-    const r = await fetch('/api/bairros/mapa');
-    mapaBairros = r.ok ? await r.json() : {};
-  } catch(e){ mapaBairros = {}; }
-  const sr = document.getElementById('sel-regiao');
-  (UNITS||[]).forEach(u => {
-    const o = document.createElement('option'); o.value = u; o.textContent = u; sr.appendChild(o);
-  });
+    const [ru, rb] = await Promise.all([fetch('/api/unidades'), fetch('/api/bairros/mapa')]);
+    unidades    = ru.ok ? await ru.json() : [];
+    mapaBairros = rb.ok ? await rb.json() : {};
+  } catch(e){ unidades = []; mapaBairros = {}; }
+  montarOpcoes();
+  montarFiltroRegiao();
   await carregar();
 }
-// Unidades (bairros) disponíveis numa região. Sem bairro cadastrado, a própria região vira a opção.
-function opcoesDe(regiao){
-  const b = mapaBairros[regiao] || [];
-  return b.length ? b : [regiao];
+// Monta a lista plana de escolhas: cada bairro vira uma opção, carregando sua região.
+// Unidade sem bairro cadastrado entra com o próprio nome.
+function montarOpcoes(){
+  opcoes = [];
+  unidades.forEach(u => {
+    const bs = mapaBairros[u.nome] || [];
+    if(bs.length){
+      bs.forEach(b => opcoes.push({unidade:u.nome, bairro:b, regiao:u.regiao||'', rotulo:b}));
+    } else {
+      opcoes.push({unidade:u.nome, bairro:u.nome, regiao:u.regiao||'', rotulo:u.nome});
+    }
+  });
+}
+function montarFiltroRegiao(){
+  const sr = document.getElementById('sel-regiao');
+  const regs = [];
+  opcoes.forEach(o => { if(o.regiao && regs.indexOf(o.regiao) < 0) regs.push(o.regiao); });
+  regs.sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  sr.innerHTML = '<option value="">Todas</option>' +
+    regs.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('');
+}
+function regiaoDe(l){
+  const o = opcoes.find(x => x.unidade === l.unidade && x.bairro === l.bairro)
+         || opcoes.find(x => x.unidade === l.unidade);
+  return o ? (o.regiao || '') : '';
 }
 async function carregar(){
   const k = dateKey(); if(!k) return;
@@ -185,6 +211,21 @@ function onDateChange(){ updateDias(); carregar(); }
 
 // ── Render ──────────────────────────────────────────────────────────────────
 function convCls(p){ return p>=50?'ac-conv hi':p>=35?'ac-conv md':p>0?'ac-conv lo':'ac-conv'; }
+function optionsHtml(l){
+  // agrupa por unidade; marca a opção escolhida
+  let html = '', unidAtual = null;
+  opcoes.forEach(o => {
+    if(o.unidade !== unidAtual){
+      if(unidAtual !== null) html += '</optgroup>';
+      html += `<optgroup label="${esc(o.unidade)}">`;
+      unidAtual = o.unidade;
+    }
+    const sel = (o.unidade === l.unidade && o.bairro === l.bairro) ? ' selected' : '';
+    html += `<option value="${esc(o.unidade)}|${esc(o.bairro)}"${sel}>${esc(o.rotulo)}</option>`;
+  });
+  if(unidAtual !== null) html += '</optgroup>';
+  return html;
+}
 function render(){
   const filtro = document.getElementById('sel-regiao').value;
   const tb = document.getElementById('ac-body');
@@ -193,7 +234,7 @@ function render(){
   const ano = document.getElementById('sel-year').value;
   const dbr = dateBr();
 
-  const vis = linhas.map((l,i)=>({l,i})).filter(x => !filtro || x.l.unidade === filtro);
+  const vis = linhas.map((l,i)=>({l,i})).filter(x => !filtro || regiaoDe(x.l) === filtro);
   if(!vis.length){
     tb.innerHTML = `<tr><td colspan="15" class="ac-vazio">Nenhuma linha neste dia. Clique em "+ Adicionar Linha" ou em "⚡ Gerar todas as unidades".</td></tr>`;
     document.getElementById('ac-foot').innerHTML = '';
@@ -201,14 +242,16 @@ function render(){
   }
   tb.innerHTML = vis.map(({l,i},pos)=>{
     const p = (Number(l.ag)||0) > 0 ? Math.round((Number(l.ex)||0)/(Number(l.ag)||1)*100) : 0;
-    const regOpts = (UNITS||[]).map(u=>`<option${u===l.unidade?' selected':''}>${esc(u)}</option>`).join('');
-    const uniOpts = opcoesDe(l.unidade).map(b=>`<option${b===l.bairro?' selected':''}>${esc(b)}</option>`).join('');
+    const reg = regiaoDe(l);
+    const regCell = reg
+      ? `<span class="ac-reg" title="${esc(reg)}">${esc(reg)}</span>`
+      : `<span class="ac-reg vazia">sem região</span>`;
     const campo = (k,cls)=>`<td><input class="ac-in ${(Number(l[k])||0)>0?cls:''}" inputmode="numeric" maxlength="6"
         value="${l[k]||''}" oninput="setVal(${i},'${k}',this.value)"/></td>`;
     return `<tr class="${pos%2?'alt':''}">
       <td class="ac-fx">${ano}</td><td class="ac-fx">${mes}</td><td class="ac-fx">${dbr}</td>
-      <td><select class="ac-dd" onchange="setRegiao(${i},this.value)">${regOpts}</select></td>
-      <td><select class="ac-dd" onchange="setVal(${i},'bairro',this.value)">${uniOpts}</select></td>
+      <td>${regCell}</td>
+      <td><select class="ac-dd" onchange="setUnidade(${i},this.value)">${optionsHtml(l)}</select></td>
       ${campo('ag','on')}${campo('ex','ex')}${campo('pa','pa')}
       <td><span class="${convCls(p)}">${p}%</span></td>
       ${campo('du','on')}${campo('ue','on')}${campo('ca','on')}${campo('ge','on')}${campo('na','on')}
@@ -229,12 +272,13 @@ function render(){
 
 // ── Edição ──────────────────────────────────────────────────────────────────
 function setVal(i,k,v){
-  linhas[i][k] = (k==='bairro') ? v : (Number(v)||0);
+  linhas[i][k] = Number(v)||0;
   render(); agendarSave();
 }
-function setRegiao(i,v){
-  linhas[i].unidade = v;
-  linhas[i].bairro  = opcoesDe(v)[0] || '';
+function setUnidade(i, valor){
+  const p = String(valor||'').split('|');
+  linhas[i].unidade = p[0] || '';
+  linhas[i].bairro  = p[1] || p[0] || '';
   render(); agendarSave();
 }
 function linhaNova(unidade, bairro){
@@ -243,21 +287,23 @@ function linhaNova(unidade, bairro){
   return o;
 }
 function addLinha(){
-  const reg = document.getElementById('sel-regiao').value || (UNITS||[])[0] || '';
-  if(!reg){ showToast('Nenhuma unidade cadastrada.','error'); return; }
-  linhas.push(linhaNova(reg, opcoesDe(reg)[0] || reg));
+  if(!opcoes.length){ showToast('Nenhuma unidade cadastrada.','error'); return; }
+  const filtro = document.getElementById('sel-regiao').value;
+  const base = opcoes.find(o => !filtro || o.regiao === filtro) || opcoes[0];
+  linhas.push(linhaNova(base.unidade, base.bairro));
   render(); agendarSave();
 }
 function gerarTodas(){
   const filtro = document.getElementById('sel-regiao').value;
-  const alvo = filtro ? [filtro] : (UNITS||[]);
-  const existe = new Set(linhas.map(l => l.unidade+'|'+l.bairro));
+  const existe = {};
+  linhas.forEach(l => { existe[l.unidade+'|'+l.bairro] = true; });
   let n = 0;
-  alvo.forEach(u => opcoesDe(u).forEach(b => {
-    if(!existe.has(u+'|'+b)){ linhas.push(linhaNova(u,b)); n++; }
-  }));
+  opcoes.forEach(o => {
+    if(filtro && o.regiao !== filtro) return;
+    if(!existe[o.unidade+'|'+o.bairro]){ linhas.push(linhaNova(o.unidade,o.bairro)); n++; }
+  });
   render(); agendarSave();
-  showToast(n ? `${n} linha(s) criada(s).` : 'Todas as unidades já estão na lista.');
+  showToast(n ? n+' linha(s) criada(s).' : 'Todas as unidades já estão na lista.');
 }
 function rmLinha(i){ linhas.splice(i,1); render(); agendarSave(); }
 function limparDia(){
@@ -298,17 +344,17 @@ function exportCsv(){
   const head = ['ANO','MÊS','DATA','REGIÃO','UNIDADE','AGENDAMENTOS','EXAMES REALIZADOS','PATOLOGIAS',
                 'CONVERSÃO','DUPLICADO','UNIDADE ERRADAS','CANCELAMENTO DIA ANTERIOR',
                 'GESTANTE, LACTANTE, LENTES','NÃO AGENDADO'];
-  const q = v => `"${String(v==null?'':v).replace(/"/g,'""')}"`;
+  const q = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
   const L = [head.map(q).join(';')];
   linhas.forEach(l => {
     const p = (Number(l.ag)||0)>0 ? Math.round((Number(l.ex)||0)/(Number(l.ag)||1)*100) : 0;
-    L.push([ano, mes, dbr, l.unidade, l.bairro, l.ag||0, l.ex||0, l.pa||0, p+'%',
+    L.push([ano, mes, dbr, regiaoDe(l), l.bairro, l.ag||0, l.ex||0, l.pa||0, p+'%',
             l.du||0, l.ue||0, l.ca||0, l.ge||0, l.na||0].map(q).join(';'));
   });
   const blob = new Blob(['\uFEFF'+L.join('\r\n')], {type:'text/csv;charset=utf-8;'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `acompanhamento_${dateKey()}.csv`;
+  a.download = 'acompanhamento_'+dateKey()+'.csv';
   a.click();
   URL.revokeObjectURL(a.href);
 }
