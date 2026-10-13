@@ -404,10 +404,18 @@ async function loadDashboard() {
   document.getElementById('total-agendados').textContent = totalAg;
   document.getElementById('total-comparecimentos').textContent = totalComp;
 
-  // Total de leads (soma de todas as unidades, respeita o filtro mês/dia)
-  const totalLeads = Object.values(leadsTotais).reduce((s,v)=>s+(Number(v)||0),0);
+  // Total de leads — vem da tela Leads Recebidos (por local e agência)
+  let totalLeads = 0;
+  try {
+    const lrRes  = await fetch(`/api/leads_recebidos_mes?ano=${year}&mes=${monthIndex+1}`);
+    const lrDias = lrRes.ok ? await lrRes.json() : [];
+    const alvoLr = (filterType === 'day') ? formatDateKey(year, monthIndex, day) : null;
+    lrDias.forEach(d => {
+      if(alvoLr && d.date !== alvoLr) return;
+      (d.rows||[]).forEach(l => { totalLeads += Number(l.leads) || 0; });
+    });
+  } catch(e) {}
   document.getElementById('total-leads').textContent = totalLeads;
-
   // % Conversão geral (Agendamentos × Comparecimento)
   const totalConv = totalAg>0?Math.round((totalComp/totalAg)*100):0;
   document.getElementById('total-conversao').textContent = totalConv + '%';
