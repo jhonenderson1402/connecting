@@ -1,69 +1,161 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-content">
-  <div class="page-header">
-    <div>
-      <div class="title-bar">
-        <div class="title-accent"></div>
-        <h1 class="page-title">🏢 Unidades</h1>
-      </div>
-      <p class="page-subtitle" style="margin-left:20px">Unidades do sistema — aparecem no menu, no Resumo Geral e nas Metas</p>
-    </div>
+<style>
+  .uni-page{
+    --u-card:var(--card); --u-card2:rgba(255,255,255,.022); --u-raised:var(--secondary);
+    --u-bd:var(--border); --u-bd2:rgba(255,255,255,.085);
+    --u-gold:var(--primary); --u-gold-dim:#8a6a12; --u-glow:rgba(251,191,36,.10);
+    --u-fg:var(--fg); --u-fg2:var(--muted-fg); --u-muted:var(--muted-fg);
+    font-size:13px;
+  }
+  body.tema-claro .uni-page{
+    --u-card2:rgba(0,0,0,.018); --u-bd2:rgba(0,0,0,.10);
+    --u-gold:#a16207; --u-gold-dim:#d9a62a; --u-glow:rgba(161,98,7,.09);
+  }
+
+  .uni-ph{margin-bottom:22px}
+  .uni-ph-top{display:flex;align-items:center;gap:11px}
+  .uni-acc{width:3px;height:28px;border-radius:3px;
+           background:linear-gradient(180deg,var(--u-gold),var(--u-gold-dim))}
+  .uni-ph h1{font-size:22px;font-weight:650;letter-spacing:-.02em;color:var(--u-fg)}
+  .uni-ph p{font-size:12px;color:var(--u-muted);margin:5px 0 0 14px}
+
+  .uni-panel{background:var(--u-card);border:1px solid var(--u-bd);border-radius:12px;
+             padding:18px 20px;margin-bottom:22px}
+  .uni-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px}
+  .uni-fg{display:flex;flex-direction:column;gap:6px}
+  .uni-fl{font-size:9.5px;font-weight:600;color:var(--u-muted);letter-spacing:.11em;text-transform:uppercase}
+  .uni-in{background:var(--u-raised);border:1px solid var(--u-bd2);color:var(--u-fg);border-radius:8px;
+          padding:0 11px;height:36px;font-size:12.5px;outline:none;font-family:inherit;
+          transition:border-color .15s,box-shadow .15s}
+  .uni-in::placeholder{color:var(--u-muted)}
+  .uni-in:focus{border-color:var(--u-gold);box-shadow:0 0 0 3px var(--u-glow)}
+  .uni-btn{height:36px;padding:0 16px;border-radius:8px;border:none;font-size:12.5px;font-weight:600;
+           cursor:pointer;font-family:inherit;transition:filter .15s,transform .08s}
+  .uni-btn:active{transform:translateY(1px)}
+  .uni-btn-p{background:var(--primary);color:var(--primary-fg)}
+  .uni-btn-p:hover{filter:brightness(1.08)}
+  .uni-btn-s{background:var(--u-raised);border:1px solid var(--u-bd2);color:var(--u-fg2);
+             height:32px;padding:0 12px;font-size:11.5px}
+  .uni-btn-s:hover{border-color:var(--u-gold);color:var(--u-fg)}
+  .uni-hint{font-size:11.5px;color:var(--u-muted);margin-top:13px;line-height:1.65;max-width:740px}
+  .uni-hint b{color:var(--u-fg2);font-weight:600}
+
+  .uni-card{background:var(--u-card);border:1px solid var(--u-bd);border-radius:12px;
+            margin-bottom:12px;overflow:hidden;transition:border-color .18s}
+  .uni-card:hover{border-color:var(--u-bd2)}
+  .uni-head{display:flex;align-items:center;gap:13px;padding:14px 18px;flex-wrap:wrap;
+            background:var(--u-card2);border-bottom:1px solid var(--u-bd);position:relative}
+  .uni-head::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+                    background:linear-gradient(180deg,var(--u-gold),var(--u-gold-dim))}
+  .uni-ord{font-size:10.5px;font-weight:600;color:var(--u-muted);min-width:14px;font-variant-numeric:tabular-nums}
+  .uni-nome{font-size:14.5px;font-weight:650;letter-spacing:.01em;color:var(--u-fg)}
+
+  .uni-reg{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 4px 0 11px;
+           background:var(--u-glow);border:1px solid var(--u-glow);border-radius:14px;
+           font-size:11.5px;font-weight:600;color:var(--u-gold);transition:border-color .15s}
+  .uni-reg:hover{border-color:var(--u-gold)}
+  .uni-reg.vazia{background:transparent;border-color:var(--u-bd2);color:var(--u-muted);
+                 font-weight:500;font-style:italic}
+  .uni-reg .pin{opacity:.8;font-size:9px}
+  .uni-lapis{width:20px;height:20px;border:none;background:transparent;color:inherit;cursor:pointer;
+             border-radius:50%;font-size:10.5px;display:inline-flex;align-items:center;justify-content:center;
+             opacity:.55;transition:opacity .15s,background .15s}
+  .uni-lapis:hover{opacity:1;background:rgba(128,128,128,.18)}
+
+  .uni-meta{margin-left:auto;display:flex;align-items:center;gap:14px}
+  .uni-cnt{font-size:11px;color:var(--u-muted);font-variant-numeric:tabular-nums}
+  .uni-cnt b{color:var(--u-fg2);font-weight:600}
+  .uni-rm{width:28px;height:28px;border:1px solid var(--u-bd2);background:transparent;color:var(--u-muted);
+          border-radius:7px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;
+          justify-content:center;transition:all .15s;font-family:inherit}
+  .uni-rm:hover{border-color:rgba(239,68,68,.5);color:var(--destructive);background:rgba(239,68,68,.08)}
+
+  .uni-body{padding:16px 18px}
+  .uni-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+  .uni-chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 5px 0 12px;
+            background:var(--u-raised);border:1px solid var(--u-bd2);border-radius:14px;
+            font-size:12px;color:var(--u-fg2);transition:all .15s}
+  .uni-chip:hover{color:var(--u-fg)}
+  .uni-chip-x{width:18px;height:18px;border:none;background:transparent;color:var(--u-muted);cursor:pointer;
+              border-radius:50%;font-size:10px;display:inline-flex;align-items:center;justify-content:center;
+              transition:all .15s;font-family:inherit}
+  .uni-chip-x:hover{background:rgba(239,68,68,.16);color:var(--destructive)}
+  .uni-vazio{font-size:12px;color:var(--u-muted);margin-bottom:14px;padding:14px;
+             border:1px dashed var(--u-bd2);border-radius:9px;text-align:center}
+  .uni-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .uni-add .uni-in{width:220px;height:32px;font-size:12px}
+
+  .uni-ov{position:fixed;inset:0;background:rgba(0,0,0,.7);-webkit-backdrop-filter:blur(3px);
+          backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:300;padding:18px}
+  .uni-ov.show{display:flex}
+  .uni-dlg{background:var(--u-card);border:1px solid var(--u-bd2);border-radius:14px;width:100%;
+           max-width:360px;padding:22px;box-shadow:0 24px 64px rgba(0,0,0,.5)}
+  .uni-dlg h3{font-size:14px;font-weight:650;margin-bottom:4px;color:var(--u-fg)}
+  .uni-dlg p{font-size:11.5px;color:var(--u-muted);margin-bottom:16px}
+  .uni-dlg .uni-in{width:100%;margin-bottom:10px}
+  .uni-sug{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}
+  .uni-sug button{height:26px;padding:0 11px;border-radius:13px;background:var(--u-raised);
+                  border:1px solid var(--u-bd2);color:var(--u-fg2);font-size:11.5px;cursor:pointer;font-family:inherit}
+  .uni-sug button:hover{border-color:var(--u-gold);color:var(--u-gold)}
+  .uni-dlg-ft{display:flex;gap:8px;justify-content:flex-end}
+</style>
+
+<div class="page-content uni-page">
+  <div class="uni-ph">
+    <div class="uni-ph-top"><div class="uni-acc"></div><h1>Unidades</h1></div>
+    <p>Unidades do sistema — aparecem no menu, no Resumo Geral e nas Metas</p>
   </div>
 
-  <div class="card" style="padding:16px;margin-bottom:16px">
-    <div class="filter-bar">
-      <div class="filter-group">
-        <label class="filter-label">NOVA UNIDADE</label>
-        <input class="input" id="nova-unidade" placeholder="Ex: BELÉM" style="width:240px"
+  <div class="uni-panel">
+    <div class="uni-row">
+      <div class="uni-fg">
+        <span class="uni-fl">Nova unidade</span>
+        <input class="uni-in" id="nova-unidade" placeholder="Ex: BELÉM" style="width:240px"
                onkeydown="if(event.key==='Enter')addUnidade()"/>
       </div>
-      <div class="filter-group" style="justify-content:flex-end">
-        <label class="filter-label">&nbsp;</label>
-        <button class="btn btn-primary" onclick="addUnidade()">+ Adicionar</button>
+      <div class="uni-fg">
+        <span class="uni-fl">Região</span>
+        <input class="uni-in" id="nova-regiao" placeholder="Ex: Pará" list="lista-regioes" style="width:200px"
+               onkeydown="if(event.key==='Enter')addUnidade()"/>
+        <datalist id="lista-regioes"></datalist>
       </div>
+      <button class="uni-btn uni-btn-p" onclick="addUnidade()">Adicionar unidade</button>
     </div>
-    <p style="font-size:12px;color:var(--muted-fg);margin-top:10px">
-      A unidade nova já nasce com tudo: Hora a Hora, Leads Recebidos, Resumo do Dia,
-      Comparecimento, Metas e os rankings. Depois é só cadastrar os funcionários dela em <b>Funcionários</b>.
+    <p class="uni-hint">
+      A unidade nova já nasce com tudo: Hora a Hora, Leads Recebidos, Resumo do Dia, Comparecimento,
+      Metas e os rankings. A <b>região</b> é o estado ou localidade que agrupa as unidades no
+      Acompanhamento — o campo sugere as que já existem.
     </p>
   </div>
 
-  <div id="lista-unidades">
-    <div class="loading">Carregando...</div>
-  </div>
+  <div id="lista-unidades"><div class="loading">Carregando...</div></div>
 </div>
 
-<style>
-  .uni-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:14px; overflow:hidden; }
-  .uni-head { display:flex; align-items:center; gap:10px; padding:12px 16px; background:var(--primary); color:var(--primary-fg); }
-  .uni-ord  { font-size:11px; font-weight:700; opacity:.65; min-width:18px; }
-  .uni-nome { font-size:14px; font-weight:800; letter-spacing:.03em; flex:1; }
-  .uni-body { padding:14px 16px; }
-  .uni-lbl  { font-size:9px; font-weight:700; letter-spacing:.15em; color:var(--muted-fg); margin-bottom:9px; }
-  .bai-list { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px; }
-  .bai-chip { display:inline-flex; align-items:center; gap:7px; padding:5px 9px 5px 11px;
-              background:var(--secondary); border:1px solid var(--border); border-radius:20px; font-size:12px; }
-  .bai-x    { background:none; border:none; color:var(--destructive); cursor:pointer; font-size:13px;
-              line-height:1; padding:0 1px; opacity:.6; }
-  .bai-x:hover { opacity:1; }
-  .bai-vazio{ font-size:12px; color:var(--muted-fg); font-style:italic; margin-bottom:12px; }
-  .bai-add  { display:flex; gap:7px; align-items:center; flex-wrap:wrap; }
-  .bai-add .input { width:230px; height:30px; font-size:12px; }
-  .bai-add .btn   { height:30px; font-size:11px; }
-  .uni-rm   { background:rgba(0,0,0,.14); border:1px solid rgba(0,0,0,.2); color:var(--primary-fg);
-              padding:4px 11px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; }
-  .uni-rm:hover { background:rgba(0,0,0,.26); }
-</style>
+<div class="uni-ov" id="reg-ov" onclick="if(event.target===this)fechaReg()">
+  <div class="uni-dlg">
+    <h3 id="reg-tit">Região</h3>
+    <p>Defina o estado ou localidade desta unidade.</p>
+    <input class="uni-in" id="reg-in" placeholder="Ex: Pará" onkeydown="if(event.key==='Enter')salvaReg()"/>
+    <div class="uni-sug" id="reg-sug"></div>
+    <div class="uni-dlg-ft">
+      <button class="uni-btn uni-btn-s" style="height:34px" onclick="fechaReg()">Cancelar</button>
+      <button class="uni-btn uni-btn-p" style="height:34px" onclick="salvaReg()">Salvar</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 let unidades = [];
-let bairros  = [];   // [{id, unidade, nome, ordem}]
+let bairros  = [];
+let regEditando = null;
 
-function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function escAttr(s){ return esc(s).replace(/'/g,'&#39;'); }
+const esc = s => String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const escAttr = s => esc(s).replace(/'/g,'&#39;');
+const regioes = () => [...new Set(unidades.map(u=>u.regiao).filter(Boolean))]
+                      .sort((a,b)=>a.localeCompare(b,'pt-BR'));
 
 async function loadTudo(){
   const [ru, rb] = await Promise.all([fetch('/api/unidades'), fetch('/api/bairros')]);
@@ -76,51 +168,89 @@ async function loadTudo(){
 function render(){
   const box = document.getElementById('lista-unidades');
   if(!unidades.length){
-    box.innerHTML = '<div class="card" style="padding:20px;text-align:center;color:var(--muted-fg)">Nenhuma unidade cadastrada.</div>';
+    box.innerHTML = '<div class="uni-panel" style="text-align:center;color:var(--u-muted)">Nenhuma unidade cadastrada.</div>';
     return;
   }
   box.innerHTML = unidades.map(u => {
     const meus = bairros.filter(b => b.unidade === u.nome);
     const chips = meus.length
-      ? `<div class="bai-list">${meus.map(b =>
-          `<span class="bai-chip">${esc(b.nome)}
-             <button class="bai-x" title="Remover bairro" onclick="delBairro(${b.id})">✕</button>
+      ? `<div class="uni-chips">${meus.map(b =>
+          `<span class="uni-chip">${esc(b.nome)}
+             <button class="uni-chip-x" title="Remover bairro" onclick="delBairro(${b.id})">✕</button>
            </span>`).join('')}</div>`
-      : `<p class="bai-vazio">Nenhum bairro cadastrado nesta unidade.</p>`;
+      : `<p class="uni-vazio">Nenhum bairro cadastrado nesta unidade</p>`;
+    const reg = u.regiao
+      ? `<span class="uni-reg"><span class="pin">◆</span>${esc(u.regiao)}
+           <button class="uni-lapis" title="Renomear região" onclick="abreReg(${u.id})">✎</button></span>`
+      : `<span class="uni-reg vazia">sem região
+           <button class="uni-lapis" title="Definir região" onclick="abreReg(${u.id})">✎</button></span>`;
     return `<div class="uni-card">
       <div class="uni-head">
         <span class="uni-ord">${u.ordem}</span>
         <span class="uni-nome">${esc(u.nome)}</span>
-        <button class="uni-rm" onclick="delUnidade(${u.id})">Remover unidade</button>
+        ${reg}
+        <div class="uni-meta">
+          <span class="uni-cnt"><b>${meus.length}</b> bairro${meus.length===1?'':'s'}</span>
+          <button class="uni-rm" title="Remover unidade" onclick="delUnidade(${u.id})">✕</button>
+        </div>
       </div>
       <div class="uni-body">
-        <p class="uni-lbl">BAIRROS — ${meus.length}</p>
         ${chips}
-        <div class="bai-add">
-          <input class="input" id="nb-${u.id}" placeholder="Nome do bairro"
+        <div class="uni-add">
+          <input class="uni-in" id="nb-${u.id}" placeholder="Nome do bairro"
                  onkeydown="if(event.key==='Enter')addBairro(${u.id},'${escAttr(u.nome)}')"/>
-          <button class="btn btn-primary" onclick="addBairro(${u.id},'${escAttr(u.nome)}')">+ Bairro</button>
+          <button class="uni-btn uni-btn-s" onclick="addBairro(${u.id},'${escAttr(u.nome)}')">+ Bairro</button>
         </div>
       </div>
     </div>`;
   }).join('');
+  document.getElementById('lista-regioes').innerHTML =
+    regioes().map(r=>`<option>${esc(r)}</option>`).join('');
 }
 
-async function addUnidade(){
-  const el = document.getElementById('nova-unidade');
-  const nome = (el.value||'').trim();
-  if(!nome){ showToast('Digite o nome da unidade.','error'); return; }
-  const r = await fetch('/api/unidades',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome})});
+// ── Região ──────────────────────────────────────────────────────────────────
+function abreReg(id){
+  const u = unidades.find(x=>x.id===id); if(!u) return;
+  regEditando = id;
+  document.getElementById('reg-tit').textContent = 'Região de ' + u.nome;
+  document.getElementById('reg-in').value = u.regiao || '';
+  document.getElementById('reg-sug').innerHTML = regioes().map(r =>
+    `<button onclick="document.getElementById('reg-in').value='${escAttr(r)}'">${esc(r)}</button>`).join('');
+  document.getElementById('reg-ov').classList.add('show');
+  setTimeout(()=>document.getElementById('reg-in').focus(), 40);
+}
+function fechaReg(){ document.getElementById('reg-ov').classList.remove('show'); regEditando = null; }
+async function salvaReg(){
+  if(regEditando === null) return fechaReg();
+  const regiao = document.getElementById('reg-in').value.trim();
+  const r = await fetch('/api/unidades/'+regEditando+'/regiao', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({regiao})
+  });
   const d = await r.json().catch(()=>({}));
-  if(!r.ok){ showToast(d.error||'Erro ao adicionar.','error'); return; }
-  el.value='';
-  showToast('Unidade adicionada! Recarregue para vê-la no menu.');
+  if(!r.ok){ showToast(d.error||'Erro ao salvar a região.','error'); return; }
+  fechaReg();
+  showToast(regiao ? `Região definida como "${regiao}".` : 'Região removida.');
   loadTudo();
 }
 
+// ── Unidades ────────────────────────────────────────────────────────────────
+async function addUnidade(){
+  const eu = document.getElementById('nova-unidade');
+  const er = document.getElementById('nova-regiao');
+  const nome = (eu.value||'').trim();
+  const regiao = (er.value||'').trim();
+  if(!nome){ showToast('Digite o nome da unidade.','error'); return; }
+  const r = await fetch('/api/unidades',{method:'POST',headers:{'Content-Type':'application/json'},
+                                         body:JSON.stringify({nome, regiao})});
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ showToast(d.error||'Erro ao adicionar.','error'); return; }
+  eu.value=''; er.value='';
+  showToast('Unidade adicionada! Recarregue para vê-la no menu.');
+  loadTudo();
+}
 async function delUnidade(id){
   const u = unidades.find(x=>x.id===id); if(!u) return;
-  if(!confirm(`Remover a unidade "${u.nome}"? Os bairros dela também serão removidos.`)) return;
+  if(!confirm(`Remover a unidade "${u.nome}"?\n\nOs bairros dela também serão removidos.`)) return;
   const r = await fetch('/api/unidades/'+id,{method:'DELETE'});
   const d = await r.json().catch(()=>({}));
   if(!r.ok){ showToast(d.error||'Erro ao remover.','error'); return; }
@@ -128,6 +258,7 @@ async function delUnidade(id){
   loadTudo();
 }
 
+// ── Bairros ─────────────────────────────────────────────────────────────────
 async function addBairro(uid, unidade){
   const el = document.getElementById('nb-'+uid);
   const nome = (el.value||'').trim();
@@ -140,7 +271,6 @@ async function addBairro(uid, unidade){
   showToast(`Bairro "${nome}" adicionado em ${unidade}.`);
   loadTudo();
 }
-
 async function delBairro(bid){
   const b = bairros.find(x=>x.id===bid); if(!b) return;
   if(!confirm(`Remover o bairro "${b.nome}" de ${b.unidade}?\n\nOs números já lançados continuam salvos.`)) return;
