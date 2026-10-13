@@ -152,6 +152,17 @@ class Bairro(Base):
         UniqueConstraint('unidade', 'nome', name='uq_bairro_unidade'),
         Index('idx_bairro_unidade', 'unidade'),
     )
+class LeadOpcao(Base):
+    """Opcoes de LOCAL e AGENCIA da tela Leads Recebidos."""
+    __tablename__ = 'lead_opcoes'
+    id    = Column(Integer, primary_key=True, autoincrement=True)
+    tipo  = Column(String(20), nullable=False)    # 'local' ou 'agencia'
+    nome  = Column(String(120), nullable=False)
+    ordem = Column(Integer, default=0)
+    __table_args__ = (
+        UniqueConstraint('tipo', 'nome', name='uq_lead_opcao'),
+        Index('idx_lead_opcao_tipo', 'tipo'),
+    )
 # ---- Inicializacao ----------------------------------------------------------
 def init_db():
     """Cria tabelas e indices se ainda nao existirem. Idempotente.
@@ -177,6 +188,7 @@ def init_db():
     ensure_default_unidades()
     ensure_default_atendentes()
     ensure_default_bairros()
+    ensure_default_lead_opcoes()
 def _run_migrations():
     """Aplica migrações incrementais no banco existente (idempotente)."""
     with engine.connect() as conn:
@@ -840,3 +852,63 @@ def get_stats_publicas():
                     except (ValueError, TypeError):
                         pass
     return {'leads': total_leads, 'agendamentos': total_agend, 'comparecimentos': total_comp}
+
+# ---- Leads Recebidos: LOCAL e AGENCIA ---------------------------------------
+LOCAIS_PADRAO = ['AMAZONAS', 'PARÁ', 'MARANHÃO', 'CEARÁ', 'AÇÃO',
+                 'GERAL', 'MABE', 'RD CONVERSAS']
+AGENCIAS_PADRAO = ['VBOT', 'LP', 'WBP', 'TIK TOK', 'MKT INTERNO',
+                   'GERAÇÃO DE LEADS', 'CAMP WHATS', 'AÇÃO']
+def ensure_default_lead_opcoes():
+    """Semeia os locais e agencias que ja existiam na planilha."""
+    try:
+        with SessionLocal() as s:
+            if s.scalar(select(func.count(LeadOpcao.id))) == 0:
+                for i, nome in enumerate(LOCAIS_PADRAO, start=1):
+                    s.add(LeadOpcao(tipo='local', nome=nome, ordem=i))
+                for i, nome in enumerate(AGENCIAS_PADRAO, start=1):
+                    s.add(LeadOpcao(tipo='agencia', nome=nome, ordem=i))
+                s.commit()
+                print("[init] Locais e agencias padrao criados.")
+    except Exception as e:
+        print("ERRO AO CRIAR LOCAIS/AGENCIAS PADRAO:", e)
+def get_lead_opcoes(tipo=None):
+    with SessionLocal() as s:
+        q = select(LeadOpcao)
+        if tipo:
+            q = q.where(LeadOpcao.tipo == tipo)
+        q = q.order_by(LeadOpcao.tipo, LeadOpcao.ordem, LeadOpcao.id)
+        rows = s.scalars(q).all()
+        return [{'id': r.id, 'tipo': r.tipo, 'nome': r.nome, 'ordem': r.ordem or 0} for r in rows]
+def get_lead_opcoes_mapa():
+    """{'local': [...], 'agencia': [...]} — pronto pro front."""
+    mapa = {'local': [], 'agencia': []}
+    for o in get_lead_opcoes():
+        mapa.setdefault(o['tipo'], []).append(o['nome'])
+    return mapa
+def create_lead_opcao(tipo, nome):
+    tipo = (tipo or '').strip().lower()
+    nome = (nome or '').strip().upper()
+    if tipo not in ('local', 'agencia'):
+        raise ValueError("Tipo invalido. Use 'local' ou 'agencia'.")
+    if not nome:
+        raise ValueError("Informe o nome.")
+    if len(nome) > 120:
+        raise ValueError("Nome muito longo.")
+    with SessionLocal() as s:
+        existe = s.scalar(select(LeadOpcao).where(and_(
+            LeadOpcao.tipo == tipo, func.lower(LeadOpcao.nome) == nome.lower()
+        )))
+        if existe:
+            raise ValueError(f"'{nome}' ja esta cadastrado.")
+        prox = (s.scalar(select(func.max(LeadOpcao.ordem)).where(
+            LeadOpcao.tipo == tipo)) or 0) + 1
+        o = LeadOpcao(tipo=tipo, nome=nome, ordem=prox)
+        s.add(o)
+        s.commit()
+        s.refresh(o)
+        return {'id': o.id, 'tipo': o.tipo, 'nome': o.nome, 'ordem': o.ordem}
+def delete_lead_opcao(oid):
+    """Remove a opcao da lista. Os numeros ja lancados continuam no banco."""
+    with SessionLocal() as s:
+        s.execute(delete(LeadOpcao).where(LeadOpcao.id == oid))
+        s.commit()
