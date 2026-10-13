@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .lr-wrap { overflow-x:auto; border-radius:10px; }
+  .lr-table { width:100%; border-collapse:separate; border-spacing:0; font-size:11.5px;
+              background:var(--card); min-width:880px; table-layout:fixed; }
+  .lr-table thead th { background:var(--primary); color:var(--primary-fg); font-weight:800;
+              text-transform:uppercase; font-size:8.5px; letter-spacing:.3px; padding:9px 5px;
+              text-align:center; white-space:nowrap; border-right:1px solid rgba(0,0,0,.08); }
+  .lr-table thead th:last-child { border-right:none; }
+  .lr-table tbody td { padding:5px 5px; text-align:center; background:var(--card);
+              border-bottom:1px solid var(--border); vertical-align:middle; }
+  .lr-table tbody tr.alt td { background:var(--secondary); }
+  .lr-table tbody tr:hover td { background:var(--secondary); }
+  .lr-fx { color:var(--muted-fg); font-weight:500; text-transform:uppercase; font-size:9.5px; white-space:nowrap; }
+  .lr-dd { width:100%; background:transparent; border:1px solid var(--border); color:var(--fg);
+           border-radius:6px; padding:5px 18px 5px 8px; font-size:11.5px; font-family:inherit;
+           text-align:left; appearance:none; -webkit-appearance:none; cursor:pointer;
+           background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%23a1a1aa' d='M5 6L0 0h10z'/%3E%3C/svg%3E");
+           background-repeat:no-repeat; background-position:right 6px center; }
+  .lr-in { width:100%; background:transparent; border:1px solid var(--border); color:var(--muted-fg);
+           text-align:center; padding:5px 0; border-radius:6px; font-size:11.5px; font-weight:700; font-family:inherit; }
+  .lr-in:focus { outline:none; border-color:var(--primary); }
+  .lr-in.lead { background:rgba(59,130,246,.13); border-color:rgba(59,130,246,.4); color:#3b82f6; }
+  .lr-in.ag   { background:rgba(251,191,36,.14); border-color:rgba(251,191,36,.42); color:var(--primary); }
+  .lr-conv { display:inline-block; min-width:46px; padding:3px 7px; border-radius:999px;
+             font-weight:800; font-size:11px; background:var(--secondary); color:var(--muted-fg); }
+  .lr-conv.hi { background:rgba(34,197,94,.16); color:var(--green); }
+  .lr-conv.md { background:rgba(251,191,36,.16); color:var(--primary); }
+  .lr-conv.lo { background:rgba(239,68,68,.14); color:var(--destructive); }
+  .lr-del { background:none; border:none; color:var(--destructive); font-size:12px; cursor:pointer; opacity:.55; }
+  .lr-del:hover { opacity:1; }
+  .lr-table tfoot td { background:var(--secondary); font-weight:800; padding:9px 5px;
+             text-align:center; font-size:12px; border-top:2px solid var(--border); }
+  .lr-vazio { text-align:center; padding:40px; color:var(--muted-fg); font-style:italic; }
+  .lr-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:14px; }
+  @media(max-width:768px){ .lr-kpis { grid-template-columns:repeat(2,1fr); } }
+</style>
+
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <div class="title-bar">
+        <div class="title-accent"></div>
+        <h1 class="page-title">📥 Leads Recebidos</h1>
+        <span class="saving-badge" id="saving-badge" style="display:none">💾 Salvando...</span>
+        <span class="saved-badge" id="saved-badge" style="display:none">✓ Salvo</span>
+      </div>
+      <p class="page-subtitle" style="margin-left:20px">Leads e agendamentos por localidade e agência</p>
+    </div>
+    <div class="action-bar">
+      <button class="btn btn-primary" onclick="addLinha()">+ Adicionar Linha</button>
+      <button class="btn btn-outline" onclick="gerarTodas()">⚡ Gerar todas as combinações</button>
+      <button class="btn btn-outline" onclick="exportCsv()">⬇ Exportar CSV</button>
+      <button class="btn btn-danger" onclick="limparDia()">🗑 Limpar Dia</button>
+    </div>
+  </div>
+
+  <div class="card" style="padding:16px">
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label class="filter-label">MÊS</label>
+        <select class="select" id="sel-month" onchange="onDateChange()">
+          {% set months_list = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"] %}
+          {% for m in months_list %}<option value="{{ loop.index0 }}">{{ m }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">ANO</label>
+        <select class="select" id="sel-year" onchange="onDateChange()">
+          {% for y in range(2024, 2031) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">DIA</label>
+        <select class="select" id="sel-day" onchange="onDateChange()">
+          {% for d in range(1, 32) %}<option value="{{ d }}">{{ '%02d' % d }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">LOCAL</label>
+        <select class="select" id="sel-local" onchange="render()">
+          <option value="">Todos</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="lr-kpis">
+    <div class="stat-card"><div class="stat-icon">📥</div><div>
+      <div class="stat-value blue" id="k-leads">0</div><div class="stat-label">Leads recebidos</div></div></div>
+    <div class="stat-card"><div class="stat-icon">📅</div><div>
+      <div class="stat-value primary" id="k-ag">0</div><div class="stat-label">Agendamentos</div></div></div>
+    <div class="stat-card"><div class="stat-icon">📈</div><div>
+      <div class="stat-value green" id="k-conv">0%</div><div class="stat-label">Conversão</div></div></div>
+    <div class="stat-card"><div class="stat-icon">🧾</div><div>
+      <div class="stat-value" id="k-linhas">0</div><div class="stat-label">Linhas no dia</div></div></div>
+  </div>
+
+  <div class="card table-card" style="padding:0;overflow:hidden;margin-top:14px">
+    <div class="lr-wrap">
+      <table class="lr-table" id="lr-table">
+        <colgroup>
+          <col style="width:58px"><col style="width:86px"><col style="width:78px">
+          <col style="width:140px"><col style="width:158px">
+          <col style="width:112px"><col style="width:112px"><col style="width:74px"><col style="width:32px">
+        </colgroup>
+        <thead>
+          <tr><th>ANO</th><th>MÊS</th><th>DATA</th><th>LOCAL</th><th>AGÊNCIA</th>
+              <th>LEADS RECEBIDOS</th><th>AGENDAMENTOS</th><th>CONV.</th><th></th></tr>
+        </thead>
+        <tbody id="lr-body"></tbody>
+        <tfoot id="lr-foot"></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let linhas = [];        // [{local, agencia, leads, ag}]
+let LOCAIS = [], AGENCIAS = [];
+let saveTimer = null;
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ── Datas ───────────────────────────────────────────────────────────────────
+function initDatas(){
+  const now = new Date();
+  document.getElementById('sel-month').value = String(now.getMonth());
+  document.getElementById('sel-year').value  = String(now.getFullYear());
+  updateDias(now.getDate());
+}
+function updateDias(prefer){
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  const sd = document.getElementById('sel-day');
+  if(isNaN(mi)||isNaN(y)) return;
+  const n = new Date(y, mi+1, 0).getDate();
+  const alvo = Math.min(parseInt(prefer)||parseInt(sd.value)||1, n) || 1;
+  sd.innerHTML = '';
+  for(let d=1; d<=n; d++){
+    const o = document.createElement('option');
+    o.value = d; o.textContent = String(d).padStart(2,'0');
+    if(d===alvo) o.selected = true;
+    sd.appendChild(o);
+  }
+}
+function dateKey(){
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  const d  = parseInt(document.getElementById('sel-day').value);
+  if(isNaN(mi)||isNaN(y)||isNaN(d)) return null;
+  return formatDateKey(y, mi, d);
+}
+function dateBr(){
+  const k = dateKey(); if(!k) return '—';
+  const p = k.split('-'); return p[2]+'/'+p[1]+'/'+p[0];
+}
+initDatas();
+
+// ── Carga ───────────────────────────────────────────────────────────────────
+async function onConstantsLoaded(){
+  try {
+    const r = await fetch('/api/lead_opcoes');
+    const m = r.ok ? await r.json() : {};
+    LOCAIS   = m.local   || [];
+    AGENCIAS = m.agencia || [];
+  } catch(e){ LOCAIS = []; AGENCIAS = []; }
+  const sf = document.getElementById('sel-local');
+  sf.innerHTML = '<option value="">Todos</option>' +
+    LOCAIS.map(l=>`<option value="${esc(l)}">${esc(l)}</option>`).join('');
+  await carregar();
+}
+async function carregar(){
+  const k = dateKey(); if(!k) return;
+  const r = await fetch('/api/leads_recebidos/'+k);
+  if(r.status === 401){ window.location.href='/login'; return; }
+  if(!r.ok){ showToast('Erro ao carregar o dia.','error'); return; }
+  const d = await r.json().catch(()=>null);
+  linhas = (d && Array.isArray(d.rows)) ? d.rows : [];
+  render();
+}
+function onDateChange(){ updateDias(); carregar(); }
+
+// ── Render ──────────────────────────────────────────────────────────────────
+function convCls(p){ return p>=50?'lr-conv hi':p>=25?'lr-conv md':p>0?'lr-conv lo':'lr-conv'; }
+function render(){
+  const filtro = document.getElementById('sel-local').value;
+  const tb = document.getElementById('lr-body');
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const mes = isNaN(mi) ? '—' : MONTHS[mi];
+  const ano = document.getElementById('sel-year').value;
+  const dbr = dateBr();
+
+  const vis = linhas.map((l,i)=>({l,i})).filter(x => !filtro || x.l.local === filtro);
+
+  if(!vis.length){
+    tb.innerHTML = `<tr><td colspan="9" class="lr-vazio">Nenhuma linha neste dia. Clique em "+ Adicionar Linha" ou em "⚡ Gerar todas as combinações".</td></tr>`;
+    document.getElementById('lr-foot').innerHTML = '';
+  } else {
+    tb.innerHTML = vis.map(({l,i},pos)=>{
+      const lv = Number(l.leads)||0, av = Number(l.ag)||0;
+      const p  = lv>0 ? Math.round(av/lv*100) : 0;
+      const locOpts = LOCAIS.map(x=>`<option${x===l.local?' selected':''}>${esc(x)}</option>`).join('');
+      const agOpts  = AGENCIAS.map(x=>`<option${x===l.agencia?' selected':''}>${esc(x)}</option>`).join('');
+      return `<tr class="${pos%2?'alt':''}">
+        <td class="lr-fx">${ano}</td><td class="lr-fx">${mes}</td><td class="lr-fx">${dbr}</td>
+        <td><select class="lr-dd" onchange="setVal(${i},'local',this.value)">${locOpts}</select></td>
+        <td><select class="lr-dd" onchange="setVal(${i},'agencia',this.value)">${agOpts}</select></td>
+        <td><input class="lr-in ${lv>0?'lead':''}" inputmode="numeric" maxlength="8"
+             value="${l.leads||''}" oninput="setVal(${i},'leads',this.value)"/></td>
+        <td><input class="lr-in ${av>0?'ag':''}" inputmode="numeric" maxlength="8"
+             value="${l.ag||''}" oninput="setVal(${i},'ag',this.value)"/></td>
+        <td><span class="${convCls(p)}">${p}%</span></td>
+        <td><button class="lr-del" onclick="rmLinha(${i})" title="Remover linha">🗑</button></td>
+      </tr>`;
+    }).join('');
+    const tl = vis.reduce((s,x)=>s+(Number(x.l.leads)||0),0);
+    const ta = vis.reduce((s,x)=>s+(Number(x.l.ag)||0),0);
+    const tp = tl>0?Math.round(ta/tl*100):0;
+    document.getElementById('lr-foot').innerHTML = `<tr>
+      <td colspan="5" style="text-align:left;padding-left:12px;color:var(--muted-fg)">TOTAL — ${vis.length} linha(s)</td>
+      <td style="color:#3b82f6">${tl}</td>
+      <td style="color:var(--primary)">${ta}</td>
+      <td><span class="${convCls(tp)}">${tp}%</span></td><td></td></tr>`;
+  }
+
+  const TL = vis.reduce((s,x)=>s+(Number(x.l.leads)||0),0);
+  const TA = vis.reduce((s,x)=>s+(Number(x.l.ag)||0),0);
+  document.getElementById('k-leads').textContent  = TL;
+  document.getElementById('k-ag').textContent     = TA;
+  document.getElementById('k-conv').textContent   = (TL>0?Math.round(TA/TL*100):0) + '%';
+  document.getElementById('k-linhas').textContent = vis.length;
+}
+
+// ── Edição ──────────────────────────────────────────────────────────────────
+function setVal(i,k,v){
+  linhas[i][k] = (k==='leads'||k==='ag') ? (Number(v)||0) : v;
+  render(); agendarSave();
+}
+function linhaNova(local, agencia){
+  return {local: local||'', agencia: agencia||'', leads:0, ag:0};
+}
+function addLinha(){
+  if(!LOCAIS.length || !AGENCIAS.length){
+    showToast('Cadastre os locais e agências primeiro.','error'); return;
+  }
+  const filtro = document.getElementById('sel-local').value;
+  linhas.push(linhaNova(filtro || LOCAIS[0], AGENCIAS[0]));
+  render(); agendarSave();
+}
+function gerarTodas(){
+  const filtro = document.getElementById('sel-local').value;
+  const alvo = filtro ? [filtro] : LOCAIS;
+  const existe = {};
+  linhas.forEach(l => { existe[l.local+'|'+l.agencia] = true; });
+  let n = 0;
+  alvo.forEach(lo => AGENCIAS.forEach(a => {
+    if(!existe[lo+'|'+a]){ linhas.push(linhaNova(lo,a)); n++; }
+  }));
+  render(); agendarSave();
+  showToast(n ? n+' linha(s) criada(s).' : 'Todas as combinações já estão na lista.');
+}
+function rmLinha(i){ linhas.splice(i,1); render(); agendarSave(); }
+function limparDia(){
+  if(!linhas.length){ showToast('Não há nada para limpar.','error'); return; }
+  if(!confirm('Apagar todas as linhas deste dia?')) return;
+  linhas = []; render(); agendarSave();
+  showToast('Dia limpo.');
+}
+
+// ── Salvamento ──────────────────────────────────────────────────────────────
+function agendarSave(){
+  clearTimeout(saveTimer);
+  document.getElementById('saving-badge').style.display = '';
+  document.getElementById('saved-badge').style.display = 'none';
+  saveTimer = setTimeout(salvar, 1200);
+}
+async function salvar(){
+  const k = dateKey(); if(!k) return;
+  const r = await fetch('/api/leads_recebidos/'+k, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({rows: linhas})
+  });
+  document.getElementById('saving-badge').style.display = 'none';
+  if(r.ok){ document.getElementById('saved-badge').style.display = ''; }
+  else {
+    const e = await r.json().catch(()=>({}));
+    showToast('Erro ao salvar: ' + (e.error || r.status), 'error');
+  }
+}
+
+// ── CSV ─────────────────────────────────────────────────────────────────────
+function exportCsv(){
+  if(!linhas.length){ showToast('Não há linhas para exportar.','error'); return; }
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const mes = isNaN(mi) ? '' : MONTHS[mi];
+  const ano = document.getElementById('sel-year').value;
+  const dbr = dateBr();
+  const head = ['ANO','MÊS','DATA','LOCAL','AGENCIA','LEADS RECEBIDOS','AGENDAMENTOS','CONVERSÃO'];
+  const q = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
+  const L = [head.map(q).join(';')];
+  linhas.forEach(l => {
+    const lv = Number(l.leads)||0, av = Number(l.ag)||0;
+    const p = lv>0 ? Math.round(av/lv*100) : 0;
+    L.push([ano, mes, dbr, l.local, l.agencia, lv, av, p+'%'].map(q).join(';'));
+  });
+  const blob = new Blob(['﻿'+L.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'leads_recebidos_'+dateKey()+'.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// Se o base.html não disparar, inicializa mesmo assim
+if(typeof formatDateKey === 'function'){
+  setTimeout(() => { if(!document.getElementById('lr-body').innerHTML) onConstantsLoaded(); }, 900);
+}
+</script>
+{% endblock %}
