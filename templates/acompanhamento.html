@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .ac-wrap { overflow-x:auto; border-radius:10px; }
+  .ac-table { width:100%; border-collapse:separate; border-spacing:0; font-size:10.5px;
+              background:var(--card); min-width:1180px; table-layout:fixed; }
+  .ac-table thead th { background:var(--primary); color:var(--primary-fg); font-weight:800;
+              text-transform:uppercase; font-size:8.5px; letter-spacing:.2px; padding:8px 3px;
+              text-align:center; white-space:nowrap; border-right:1px solid rgba(0,0,0,.08); }
+  .ac-table thead th:last-child { border-right:none; }
+  .ac-table tbody td { padding:5px 3px; text-align:center; background:var(--card);
+              border-bottom:1px solid var(--border); vertical-align:middle; }
+  .ac-table tbody tr.alt td { background:var(--secondary); }
+  .ac-table tbody tr:hover td { background:var(--secondary); }
+  .ac-fx { color:var(--muted-fg); font-weight:500; text-transform:uppercase; font-size:9.5px;
+           white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ac-in { width:100%; background:transparent; border:1px solid var(--border); color:var(--muted-fg);
+           text-align:center; padding:4px 0; border-radius:5px; font-size:10.5px; font-weight:700; font-family:inherit; }
+  .ac-in:focus { outline:none; border-color:var(--primary); }
+  .ac-in.on { background:rgba(251,191,36,.15); border-color:rgba(251,191,36,.45); color:var(--primary); }
+  .ac-in.ex { background:rgba(34,197,94,.14); border-color:rgba(34,197,94,.4); color:var(--green); }
+  .ac-in.pa { background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.35); color:var(--destructive); }
+  .ac-dd { width:100%; background:transparent; border:1px solid var(--border); color:var(--fg);
+           border-radius:5px; padding:4px 16px 4px 6px; font-size:10.5px; font-family:inherit;
+           text-align:left; appearance:none; -webkit-appearance:none; cursor:pointer;
+           background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%23a1a1aa' d='M5 6L0 0h10z'/%3E%3C/svg%3E");
+           background-repeat:no-repeat; background-position:right 4px center; }
+  .ac-conv { display:inline-block; min-width:42px; padding:3px 6px; border-radius:999px;
+             font-weight:800; font-size:10.5px; background:var(--secondary); color:var(--muted-fg); }
+  .ac-conv.hi { background:rgba(34,197,94,.16); color:var(--green); }
+  .ac-conv.md { background:rgba(251,191,36,.16); color:var(--primary); }
+  .ac-conv.lo { background:rgba(239,68,68,.14); color:var(--destructive); }
+  .ac-del { background:none; border:none; color:var(--destructive); font-size:12px; cursor:pointer; opacity:.6; }
+  .ac-del:hover { opacity:1; }
+  .ac-table tfoot td { background:var(--secondary); font-weight:800; padding:8px 3px;
+             text-align:center; font-size:11px; border-top:2px solid var(--border); }
+  .ac-vazio { text-align:center; padding:40px; color:var(--muted-fg); font-style:italic; }
+</style>
+
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <div class="title-bar">
+        <div class="title-accent"></div>
+        <h1 class="page-title">🏥 Acompanhamento Unidades</h1>
+        <span class="saving-badge" id="saving-badge" style="display:none">💾 Salvando...</span>
+        <span class="saved-badge" id="saved-badge" style="display:none">✓ Salvo</span>
+      </div>
+      <p class="page-subtitle" style="margin-left:20px">Agendamentos, exames e ocorrências por unidade</p>
+    </div>
+    <div class="action-bar">
+      <button class="btn btn-primary" onclick="addLinha()">+ Adicionar Linha</button>
+      <button class="btn btn-outline" onclick="gerarTodas()">⚡ Gerar todas as unidades</button>
+      <button class="btn btn-outline" onclick="exportCsv()">⬇ Exportar CSV</button>
+      <button class="btn btn-danger" onclick="limparDia()">🗑 Limpar Dia</button>
+    </div>
+  </div>
+
+  <div class="card" style="padding:16px">
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label class="filter-label">MÊS</label>
+        <select class="select" id="sel-month" onchange="onDateChange()">
+          {% set months_list = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"] %}
+          {% for m in months_list %}<option value="{{ loop.index0 }}">{{ m }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">ANO</label>
+        <select class="select" id="sel-year" onchange="onDateChange()">
+          {% for y in range(2024, 2031) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">DIA</label>
+        <select class="select" id="sel-day" onchange="onDateChange()">
+          {% for d in range(1, 32) %}<option value="{{ d }}">{{ '%02d' % d }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">REGIÃO</label>
+        <select class="select" id="sel-regiao" onchange="render()">
+          <option value="">Todas</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card table-card" style="padding:0;overflow:hidden;margin-top:14px">
+    <div class="ac-wrap">
+      <table class="ac-table" id="ac-table">
+        <colgroup>
+          <col style="width:58px"><col style="width:82px"><col style="width:74px">
+          <col style="width:98px"><col style="width:126px">
+          <col style="width:76px"><col style="width:76px"><col style="width:68px"><col style="width:62px">
+          <col style="width:66px"><col style="width:76px"><col style="width:80px"><col style="width:76px"><col style="width:74px">
+          <col style="width:32px">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>ANO</th><th>MÊS</th><th>DATA</th><th>REGIÃO</th><th>UNIDADE</th>
+            <th>AGENDAM.</th><th>EXAMES</th><th>PATOL.</th><th>CONV.</th>
+            <th>DUPLIC.</th><th>UNID. ERR.</th><th>CANC. DIA ANT.</th><th>GEST./LACT.</th><th>NÃO AGEND.</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="ac-body"></tbody>
+        <tfoot id="ac-foot"></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CAMPOS = ['ag','ex','pa','du','ue','ca','ge','na'];
+let linhas = [];        // [{unidade, bairro, ag, ex, ...}]
+let mapaBairros = {};   // {'PARÁ': ['Augusto', ...]}
+let saveTimer = null;
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ── Datas ───────────────────────────────────────────────────────────────────
+function initDatas(){
+  const now = new Date();
+  document.getElementById('sel-month').value = String(now.getMonth());
+  document.getElementById('sel-year').value  = String(now.getFullYear());
+  updateDias(now.getDate());
+}
+function updateDias(prefer){
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  const sd = document.getElementById('sel-day');
+  if(isNaN(mi)||isNaN(y)) return;
+  const n = new Date(y, mi+1, 0).getDate();
+  const alvo = Math.min(parseInt(prefer)||parseInt(sd.value)||1, n) || 1;
+  sd.innerHTML = '';
+  for(let d=1; d<=n; d++){
+    const o = document.createElement('option');
+    o.value = d; o.textContent = String(d).padStart(2,'0');
+    if(d===alvo) o.selected = true;
+    sd.appendChild(o);
+  }
+}
+function dateKey(){
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  const d  = parseInt(document.getElementById('sel-day').value);
+  if(isNaN(mi)||isNaN(y)||isNaN(d)) return null;
+  return formatDateKey(y, mi, d);
+}
+function dateBr(){
+  const k = dateKey(); if(!k) return '—';
+  const p = k.split('-'); return `${p[2]}/${p[1]}/${p[0]}`;
+}
+initDatas();
+
+// ── Carga ───────────────────────────────────────────────────────────────────
+async function onConstantsLoaded(){
+  try {
+    const r = await fetch('/api/bairros/mapa');
+    mapaBairros = r.ok ? await r.json() : {};
+  } catch(e){ mapaBairros = {}; }
+  const sr = document.getElementById('sel-regiao');
+  (UNITS||[]).forEach(u => {
+    const o = document.createElement('option'); o.value = u; o.textContent = u; sr.appendChild(o);
+  });
+  await carregar();
+}
+// Unidades (bairros) disponíveis numa região. Sem bairro cadastrado, a própria região vira a opção.
+function opcoesDe(regiao){
+  const b = mapaBairros[regiao] || [];
+  return b.length ? b : [regiao];
+}
+async function carregar(){
+  const k = dateKey(); if(!k) return;
+  const r = await fetch('/api/acompanhamento/'+k);
+  if(r.status === 401){ window.location.href='/login'; return; }
+  if(!r.ok){ showToast('Erro ao carregar o dia.','error'); return; }
+  const d = await r.json().catch(()=>null);
+  linhas = (d && Array.isArray(d.rows)) ? d.rows : [];
+  render();
+}
+function onDateChange(){ updateDias(); carregar(); }
+
+// ── Render ──────────────────────────────────────────────────────────────────
+function convCls(p){ return p>=50?'ac-conv hi':p>=35?'ac-conv md':p>0?'ac-conv lo':'ac-conv'; }
+function render(){
+  const filtro = document.getElementById('sel-regiao').value;
+  const tb = document.getElementById('ac-body');
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const mes = isNaN(mi) ? '—' : MONTHS[mi];
+  const ano = document.getElementById('sel-year').value;
+  const dbr = dateBr();
+
+  const vis = linhas.map((l,i)=>({l,i})).filter(x => !filtro || x.l.unidade === filtro);
+  if(!vis.length){
+    tb.innerHTML = `<tr><td colspan="15" class="ac-vazio">Nenhuma linha neste dia. Clique em "+ Adicionar Linha" ou em "⚡ Gerar todas as unidades".</td></tr>`;
+    document.getElementById('ac-foot').innerHTML = '';
+    return;
+  }
+  tb.innerHTML = vis.map(({l,i},pos)=>{
+    const p = (Number(l.ag)||0) > 0 ? Math.round((Number(l.ex)||0)/(Number(l.ag)||1)*100) : 0;
+    const regOpts = (UNITS||[]).map(u=>`<option${u===l.unidade?' selected':''}>${esc(u)}</option>`).join('');
+    const uniOpts = opcoesDe(l.unidade).map(b=>`<option${b===l.bairro?' selected':''}>${esc(b)}</option>`).join('');
+    const campo = (k,cls)=>`<td><input class="ac-in ${(Number(l[k])||0)>0?cls:''}" inputmode="numeric" maxlength="6"
+        value="${l[k]||''}" oninput="setVal(${i},'${k}',this.value)"/></td>`;
+    return `<tr class="${pos%2?'alt':''}">
+      <td class="ac-fx">${ano}</td><td class="ac-fx">${mes}</td><td class="ac-fx">${dbr}</td>
+      <td><select class="ac-dd" onchange="setRegiao(${i},this.value)">${regOpts}</select></td>
+      <td><select class="ac-dd" onchange="setVal(${i},'bairro',this.value)">${uniOpts}</select></td>
+      ${campo('ag','on')}${campo('ex','ex')}${campo('pa','pa')}
+      <td><span class="${convCls(p)}">${p}%</span></td>
+      ${campo('du','on')}${campo('ue','on')}${campo('ca','on')}${campo('ge','on')}${campo('na','on')}
+      <td><button class="ac-del" onclick="rmLinha(${i})" title="Remover linha">🗑</button></td>
+    </tr>`;
+  }).join('');
+
+  const t = {}; CAMPOS.forEach(k => t[k] = vis.reduce((s,x)=>s+(Number(x.l[k])||0),0));
+  const p = t.ag>0 ? Math.round(t.ex/t.ag*100) : 0;
+  document.getElementById('ac-foot').innerHTML = `<tr>
+    <td colspan="5" style="text-align:left;padding-left:10px;color:var(--muted-fg)">TOTAL — ${vis.length} unidade(s)</td>
+    <td style="color:var(--primary)">${t.ag}</td>
+    <td style="color:var(--green)">${t.ex}</td>
+    <td style="color:var(--destructive)">${t.pa}</td>
+    <td><span class="${convCls(p)}">${p}%</span></td>
+    <td>${t.du}</td><td>${t.ue}</td><td>${t.ca}</td><td>${t.ge}</td><td>${t.na}</td><td></td></tr>`;
+}
+
+// ── Edição ──────────────────────────────────────────────────────────────────
+function setVal(i,k,v){
+  linhas[i][k] = (k==='bairro') ? v : (Number(v)||0);
+  render(); agendarSave();
+}
+function setRegiao(i,v){
+  linhas[i].unidade = v;
+  linhas[i].bairro  = opcoesDe(v)[0] || '';
+  render(); agendarSave();
+}
+function linhaNova(unidade, bairro){
+  const o = {unidade, bairro};
+  CAMPOS.forEach(k => o[k] = 0);
+  return o;
+}
+function addLinha(){
+  const reg = document.getElementById('sel-regiao').value || (UNITS||[])[0] || '';
+  if(!reg){ showToast('Nenhuma unidade cadastrada.','error'); return; }
+  linhas.push(linhaNova(reg, opcoesDe(reg)[0] || reg));
+  render(); agendarSave();
+}
+function gerarTodas(){
+  const filtro = document.getElementById('sel-regiao').value;
+  const alvo = filtro ? [filtro] : (UNITS||[]);
+  const existe = new Set(linhas.map(l => l.unidade+'|'+l.bairro));
+  let n = 0;
+  alvo.forEach(u => opcoesDe(u).forEach(b => {
+    if(!existe.has(u+'|'+b)){ linhas.push(linhaNova(u,b)); n++; }
+  }));
+  render(); agendarSave();
+  showToast(n ? `${n} linha(s) criada(s).` : 'Todas as unidades já estão na lista.');
+}
+function rmLinha(i){ linhas.splice(i,1); render(); agendarSave(); }
+function limparDia(){
+  if(!linhas.length){ showToast('Não há nada para limpar.','error'); return; }
+  if(!confirm('Apagar todas as linhas deste dia?')) return;
+  linhas = []; render(); agendarSave();
+  showToast('Dia limpo.');
+}
+
+// ── Salvamento ──────────────────────────────────────────────────────────────
+function agendarSave(){
+  clearTimeout(saveTimer);
+  document.getElementById('saving-badge').style.display = '';
+  document.getElementById('saved-badge').style.display = 'none';
+  saveTimer = setTimeout(salvar, 1200);
+}
+async function salvar(){
+  const k = dateKey(); if(!k) return;
+  const r = await fetch('/api/acompanhamento/'+k, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({rows: linhas})
+  });
+  document.getElementById('saving-badge').style.display = 'none';
+  if(r.ok){ document.getElementById('saved-badge').style.display = ''; }
+  else {
+    const e = await r.json().catch(()=>({}));
+    showToast('Erro ao salvar: ' + (e.error || r.status), 'error');
+  }
+}
+
+// ── CSV ─────────────────────────────────────────────────────────────────────
+function exportCsv(){
+  if(!linhas.length){ showToast('Não há linhas para exportar.','error'); return; }
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const mes = isNaN(mi) ? '' : MONTHS[mi];
+  const ano = document.getElementById('sel-year').value;
+  const dbr = dateBr();
+  const head = ['ANO','MÊS','DATA','REGIÃO','UNIDADE','AGENDAMENTOS','EXAMES REALIZADOS','PATOLOGIAS',
+                'CONVERSÃO','DUPLICADO','UNIDADE ERRADAS','CANCELAMENTO DIA ANTERIOR',
+                'GESTANTE, LACTANTE, LENTES','NÃO AGENDADO'];
+  const q = v => `"${String(v==null?'':v).replace(/"/g,'""')}"`;
+  const L = [head.map(q).join(';')];
+  linhas.forEach(l => {
+    const p = (Number(l.ag)||0)>0 ? Math.round((Number(l.ex)||0)/(Number(l.ag)||1)*100) : 0;
+    L.push([ano, mes, dbr, l.unidade, l.bairro, l.ag||0, l.ex||0, l.pa||0, p+'%',
+            l.du||0, l.ue||0, l.ca||0, l.ge||0, l.na||0].map(q).join(';'));
+  });
+  const blob = new Blob(['\uFEFF'+L.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `acompanhamento_${dateKey()}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// Se o base.html não disparar, inicializa mesmo assim
+if(typeof formatDateKey === 'function'){
+  setTimeout(() => { if(!document.getElementById('ac-body').innerHTML) onConstantsLoaded(); }, 900);
+}
+</script>
+{% endblock %}
