@@ -259,6 +259,97 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
     </div>
   </div>
 </div>
+<script>
+/*RANK-SORT*/
+(function(){
+  var estado = {};        // título da caixa -> {col, dir}
+  var ocupado = false;    // evita o observer reagir à própria reordenação
+  var MED = ['🥇','🥈','🥉'];
+
+  function boxId(box){
+    var t = box.querySelector('.rank-unit-title');
+    return t ? t.textContent.trim() : 'box';
+  }
+  function valor(row, idx){
+    var c = row.children[idx + 1];   // +1: a linha tem a coluna da medalha a mais
+    return c ? c.textContent.trim() : '';
+  }
+  function comparar(a, b, idx, dir){
+    var va = valor(a, idx), vb = valor(b, idx);
+    var na = parseFloat(String(va).replace(/[^0-9,.-]/g,'').replace(',','.'));
+    var nb = parseFloat(String(vb).replace(/[^0-9,.-]/g,'').replace(',','.'));
+    var r = (!isNaN(na) && !isNaN(nb)) ? (na - nb) : String(va).localeCompare(String(vb),'pt-BR');
+    return dir === 'asc' ? r : -r;
+  }
+  function seta(head, idx, dir){
+    [].forEach.call(head.children, function(sp, i){
+      var txt = sp.textContent.replace(/\s*[▲▼]\s*$/,'');
+      sp.textContent = (i === idx) ? txt + (dir === 'asc' ? ' ▲' : ' ▼') : txt;
+      sp.style.cursor = 'pointer';
+      sp.title = 'Clique para ordenar';
+    });
+  }
+  function ordenar(box, idx, dir){
+    var head = box.querySelector('.rank-header-row');
+    var rows = [].slice.call(box.querySelectorAll('.rank-row'));
+    if(!head || !rows.length) return;
+    rows.sort(function(a,b){ return comparar(a,b,idx,dir); });
+    var pai = rows[0].parentNode;
+    rows.forEach(function(r){ pai.appendChild(r); });
+    rows.forEach(function(r,i){
+      var p = r.querySelector('.rank-pos');
+      if(p) p.textContent = i < 3 ? MED[i] : (i+1) + 'º';
+    });
+    seta(head, idx, dir);
+  }
+  document.addEventListener('click', function(e){
+    if(!e.target || !e.target.closest) return;
+    var sp = e.target.closest('.rank-header-row > span');
+    if(!sp) return;
+    var head = sp.parentNode;
+    var box  = head.closest('.rank-unit-box') || head.parentNode;
+    var idx  = [].indexOf.call(head.children, sp);
+    var id   = boxId(box);
+    var at   = estado[id];
+    var dir  = (at && at.col === idx && at.dir === 'desc') ? 'asc' : 'desc';
+    estado[id] = {col: idx, dir: dir};
+    ocupado = true;
+    ordenar(box, idx, dir);
+    setTimeout(function(){ ocupado = false; }, 60);
+  });
+  function reaplicar(){
+    if(ocupado) return;
+    ocupado = true;
+    try {
+      [].forEach.call(document.querySelectorAll('.rank-unit-box'), function(box){
+        var head = box.querySelector('.rank-header-row');
+        if(head && !head.dataset.sortReady){
+          head.dataset.sortReady = '1';
+          [].forEach.call(head.children, function(sp){
+            sp.style.cursor = 'pointer';
+            sp.title = 'Clique para ordenar';
+          });
+        }
+        var st = estado[boxId(box)];
+        if(st) ordenar(box, st.col, st.dir);
+      });
+    } catch(e) {}
+    setTimeout(function(){ ocupado = false; }, 60);
+  }
+  function init(){
+    var alvos = ['ranking-grid','leader-ranking']
+      .map(function(id){ return document.getElementById(id); }).filter(Boolean);
+    if(!alvos.length) return setTimeout(init, 500);
+    alvos.forEach(function(el){
+      new MutationObserver(function(){ setTimeout(reaplicar, 60); })
+        .observe(el, {childList:true, subtree:true});
+    });
+    reaplicar();
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
 {% endblock %}
 
 {% block scripts %}
