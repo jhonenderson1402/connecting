@@ -745,9 +745,21 @@ def api_list_unidades():
 def api_create_unidade():
     data = request.get_json(silent=True) or {}
     try:
-        return jsonify(db.create_unidade(data.get('nome'))), 201
+        return jsonify(db.create_unidade(data.get('nome'), data.get('regiao'))), 201
     except ValueError as e:
         return _err(str(e))
+@app.route('/api/unidades/<int:uid>/regiao', methods=['POST'])
+@admin_required
+def api_set_regiao(uid):
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(db.set_regiao_unidade(uid, data.get('regiao')))
+    except ValueError as e:
+        return _err(str(e))
+@app.route('/api/regioes', methods=['GET'])
+@login_required
+def api_list_regioes():
+    return jsonify(db.get_regioes())
 @app.route('/api/unidades/<int:uid>', methods=['DELETE'])
 @admin_required
 def api_delete_unidade(uid):
