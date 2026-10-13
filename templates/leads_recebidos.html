@@ -121,6 +121,7 @@
 <script>
 let linhas = [];        // [{local, agencia, leads, ag}] — do dia selecionado
 let mesDados = [];      // todos os dias do mês — alimenta os indicadores do topo
+let anoDados = {};      // {mes: [dias com dados]} — pinta os seletores de MÊS e DIA
 let LOCAIS = [], AGENCIAS = [];
 let saveTimer = null;
 
@@ -173,6 +174,7 @@ async function onConstantsLoaded(){
   sf.innerHTML = '<option value="">Todos</option>' +
     LOCAIS.map(l=>`<option value="${esc(l)}">${esc(l)}</option>`).join('');
   await carregar();
+  carregarAno();   // em segundo plano, não trava a tela
 }
 async function carregar(){
   const k = dateKey(); if(!k) return;
@@ -194,8 +196,52 @@ async function carregarMes(){
     mesDados = r.ok ? await r.json() : [];
   } catch(e){ mesDados = []; }
 }
-function onDateChange(){ updateDias(); carregar(); }
-
+function onDateChange(){ updateDias(); marcarSeletores(); carregar(); }
+// Varre o ano inteiro para saber quais meses e dias têm lançamento
+async function carregarAno(){
+  const y = parseInt(document.getElementById('sel-year').value);
+  if(isNaN(y)){ anoDados = {}; return; }
+  const novo = {};
+  const buscas = [];
+  for(let m = 1; m <= 12; m++){
+    buscas.push(
+      fetch(`/api/leads_recebidos_mes?ano=${y}&mes=${m}`)
+        .then(r => r.ok ? r.json() : [])
+        .then(dias => {
+          const comDados = [];
+          dias.forEach(d => {
+            const tem = (d.rows||[]).some(l => (Number(l.leads)||0) > 0 || (Number(l.ag)||0) > 0);
+            if(tem) comDados.push(parseInt(d.date.split('-')[2]));
+          });
+          if(comDados.length) novo[m] = comDados;
+        })
+        .catch(()=>{})
+    );
+  }
+  await Promise.all(buscas);
+  anoDados = novo;
+  marcarSeletores();
+}
+function marcarSeletores(){
+  const sm = document.getElementById('sel-month');
+  const sd = document.getElementById('sel-day');
+  const mi = parseInt(sm.value);
+  // MÊS: amarelo nos meses que têm lançamento
+  [].forEach.call(sm.options, opt => {
+    const temDados = !!anoDados[parseInt(opt.value) + 1];
+    opt.style.backgroundColor = temDados ? 'rgba(251,191,36,0.28)' : '';
+    opt.style.color           = temDados ? '#fde68a' : '';
+    opt.style.fontWeight      = temDados ? '700' : '';
+  });
+  // DIA: amarelo nos dias do mês selecionado que têm lançamento
+  const dias = anoDados[mi + 1] || [];
+  [].forEach.call(sd.options, opt => {
+    const temDados = dias.indexOf(parseInt(opt.value)) >= 0;
+    opt.style.backgroundColor = temDados ? 'rgba(251,191,36,0.28)' : '';
+    opt.style.color           = temDados ? '#fde68a' : '';
+    opt.style.fontWeight      = temDados ? '700' : '';
+  });
+}
 // ── Render ──────────────────────────────────────────────────────────────────
 function convCls(p){ return p>=50?'lr-conv hi':p>=25?'lr-conv md':p>0?'lr-conv lo':'lr-conv'; }
 function render(){
@@ -312,6 +358,7 @@ async function salvar(){
     document.getElementById('saved-badge').style.display = '';
     await carregarMes();   // mantém os indicadores do mês em dia
     render();
+    carregarAno();         // atualiza as marcas de mês/dia
   }
   else {
     const e = await r.json().catch(()=>({}));
