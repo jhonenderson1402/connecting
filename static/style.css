@@ -326,3 +326,19 @@ body.tema-claro .toast               { box-shadow:0 8px 24px rgba(16,24,40,.12);
 .tema-btn.sol svg      { fill:#ffffff; stroke:#ffffff; }
 .tema-btn.on           { border-color:var(--primary); box-shadow:0 0 0 2px rgba(255,187,0,.18); }
 .tema-btn:not(.on)     { opacity:.55; }
+/* Lista aberta dos dropdowns — o Windows desenha ela com o fundo do sistema,
+   então precisa de cor explícita para o texto não sumir no branco. */
+select option,
+.select option,
+.ac-dd option,
+.cell-select option {
+  background: var(--secondary);
+  color: var(--fg);
+}
+body.tema-claro select option,
+body.tema-claro .select option,
+body.tema-claro .ac-dd option,
+body.tema-claro .cell-select option {
+  background: #ffffff;
+  color: #1e2330;
+}
