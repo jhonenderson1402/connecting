@@ -699,11 +699,11 @@ function renderLeaderRanking() {
     if (e.name?.trim()) employeeUnitMap[e.name.trim().toLowerCase()] = e.unit;
   });
 
-  // Função que retorna a unidade correta da líder:
-  // 1º tenta pelo cadastro de funcionários (match case-insensitive)
-  // 2º usa a unidade do agendamento como fallback
+  // A líder entra na caixa da unidade onde o agendamento foi feito.
+  // O cadastro de funcionários NÃO decide isso: a mesma líder pode atuar
+  // em mais de uma unidade e precisa aparecer em cada uma delas.
   function getLeaderUnit(leaderName, apptUnit) {
-    return employeeUnitMap[leaderName.toLowerCase()] || apptUnit;
+    return apptUnit;
   }
 
   const unitLeaderMap = {};
@@ -858,39 +858,40 @@ function _periodoLabelExt(periodo, monthIndex, year, day) {
 // Monta o ranking de líderes (nome do líder -> leads, ag, comp) a partir dos appointments
 function _buildLeaderRank(appts, leadsTmk) {
   leadsTmk = leadsTmk || {};
-  const employeeUnitMap = {};
-  allEmployees.forEach(e => { if (e.name?.trim()) employeeUnitMap[e.name.trim().toLowerCase()] = e.unit; });
-  const map = {};       // leader -> {ag, comp, unit}
-  const names = {};     // leader -> Set(nomes)
+  const map = {};       // unidade||lider -> {ag, comp, unit, leader}
+  const names = {};     // unidade||lider -> Set(nomes)
   appts.forEach(appt=>{
     const padrao = (appt.leader || '').trim().toUpperCase();
-    const liderDaPessoa = {};   // nome da pessoa -> líder
+    const liderDaPessoa = {};   // nome da pessoa -> chave unidade||lider
 
     (appt.rows||[]).forEach(r=>{
       const nm = r.name?.trim();
       // O líder vem da própria linha; o campo do topo é só fallback
       const leader = ((r.leader || padrao) || '').trim().toUpperCase();
       if(!nm || !leader) return;
-      const unit = employeeUnitMap[leader.toLowerCase()] || appt.unit;
-      if(!map[leader]) { map[leader] = {ag:0, comp:0, unit}; names[leader] = new Set(); }
-      map[leader].ag += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
-      names[leader].add(nm);
-      liderDaPessoa[nm] = leader;
+      // A unidade é onde o agendamento foi feito, não a do cadastro
+      const unit = appt.unit;
+      const k = unit + '||' + leader;
+      if(!map[k]) { map[k] = {ag:0, comp:0, unit, leader}; names[k] = new Set(); }
+      map[k].ag += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+      names[k].add(nm);
+      liderDaPessoa[nm] = k;
     });
     if(appt.comparecimento_data){
       Object.entries(appt.comparecimento_data).forEach(([nm,v])=>{
         if(/^__.*__$/.test(nm)) return;   // ignora chaves internas
-        const leader = liderDaPessoa[(nm||'').trim()];
-        if(!leader || !map[leader]) return;
-        map[leader].comp += Number(v)||0;
+        const k = liderDaPessoa[(nm||'').trim()];
+        if(!k || !map[k]) return;
+        map[k].comp += Number(v)||0;
       });
     }
   });
-  return Object.entries(map).map(([leader,d])=>{
+  return Object.keys(map).map(k=>{
+    const d = map[k];
     let leads = 0;
-    names[leader].forEach(nm => { leads += Number(leadsTmk[nm])||0; });
+    names[k].forEach(nm => { leads += Number(leadsTmk[nm])||0; });
     const conv = d.ag>0?Math.round((d.comp/d.ag)*100):0;
-    return {leader, unit:d.unit, leads, ag:d.ag, comp:d.comp, conv};
+    return {leader:d.leader, unit:d.unit, leads, ag:d.ag, comp:d.comp, conv};
   }).sort((a,b)=>b.ag-a.ag);
 }
 // Totais oficiais, iguais aos do Resumo Geral:
