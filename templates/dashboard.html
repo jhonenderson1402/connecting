@@ -15,14 +15,14 @@
   COLS.forEach(function(c){ if(!(c.key in active)) active[c.key]=true; });
 
   function save(){ try{ localStorage.setItem("rankCols",JSON.stringify(active)); }catch(e){} }
-  function rep(n){ var s=""; for(var i=0;i<n;i++) s+=" 2.6rem"; return s; }
+  function rep(n){ var s=""; for(var i=0;i<n;i++) s+=" 31px"; return s; }
   function nAtivas(){ var n=0; COLS.forEach(function(c){ if(active[c.key]) n++; }); return n; }
 
   function applyFilter(){
     var grid=document.getElementById("ranking-grid");
     if(!grid) return;
     var n=nAtivas();
-    var rowGTC="1.15rem 1fr"+rep(n);
+    var rowGTC="15px 1fr"+rep(n);
     var headGTC="1fr"+rep(n);
     grid.querySelectorAll(".rank-row").forEach(function(row){
       COLS.forEach(function(c){
@@ -126,7 +126,70 @@
   else init();
 })();
 </script>
-<style id="compact-ranks">/*COMPACT-RANKS*/#ranking-grid .rank-header-row{grid-template-columns:1fr 2.4rem 2.4rem 2.4rem 2.6rem 2.4rem 2.6rem !important;gap:3px !important}#ranking-grid .rank-row{grid-template-columns:1.15rem 1fr 2.4rem 2.4rem 2.4rem 2.6rem 2.4rem 2.6rem !important;gap:3px !important}#leader-ranking .rank-header-row{grid-template-columns:1fr 2.6rem 2.6rem 2.6rem 2.6rem 2.6rem !important;gap:3px !important}#leader-ranking .rank-row{grid-template-columns:1.15rem 1fr 2.6rem 2.6rem 2.6rem 2.6rem 2.6rem !important;gap:3px !important}.rank-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}</style>
+<style id="compact-ranks">/*RANK-DENSO*/
+#ranking-grid,
+#leader-ranking .units-ranking-grid{
+  grid-template-columns:repeat(auto-fit,minmax(286px,1fr)) !important; gap:9px !important;
+}
+.rank-unit-box{
+  border:1px solid var(--border); border-radius:8px; padding:0 !important;
+  background:rgba(255,255,255,.012); overflow:hidden;
+}
+#rank-geral-box{
+  border-color:rgba(251,191,36,.3) !important; background:rgba(251,191,36,.028) !important;
+}
+.rank-unit-title{
+  font-size:9.5px !important; font-weight:650 !important; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--muted-fg) !important;
+  padding:5px 9px !important; margin:0 !important;
+  border-bottom:1px solid var(--border) !important;
+}
+#rank-geral-box .rank-unit-title{ color:var(--primary) !important; }
+
+#ranking-grid .rank-header-row{ grid-template-columns:1fr 29px 32px 29px 31px 31px 31px !important; }
+#ranking-grid .rank-row{ grid-template-columns:15px 1fr 29px 32px 29px 31px 31px 31px !important; }
+#leader-ranking .rank-header-row{ grid-template-columns:1fr 29px 32px 29px 31px 31px !important; }
+#leader-ranking .rank-row{ grid-template-columns:15px 1fr 29px 32px 29px 31px 31px !important; }
+
+.rank-header-row{
+  gap:3px !important; padding:4px 9px !important; margin:0 !important;
+  border-bottom:1px solid var(--border) !important;
+}
+.rank-header-row span{
+  font-size:8px !important; font-weight:600; letter-spacing:.06em;
+  color:#3f3f46 !important; text-align:right;
+}
+.rank-header-row span:first-child{ text-align:left; }
+
+.rank-row{ gap:3px !important; padding:1px 9px !important; border:none !important; align-items:center; }
+.rank-row:nth-of-type(even){ background:rgba(255,255,255,.016); }
+.rank-row:hover{ background:rgba(255,255,255,.04); }
+body.tema-claro .rank-row:nth-of-type(even){ background:rgba(0,0,0,.018); }
+body.tema-claro .rank-row:hover{ background:rgba(0,0,0,.04); }
+
+.rank-pos{
+  font-size:9px !important; font-weight:500 !important; color:#3f3f46 !important;
+  font-variant-numeric:tabular-nums; text-align:left;
+}
+.rank-row.pod .rank-pos{ color:var(--primary) !important; font-weight:650 !important; }
+.rank-name{
+  font-size:10.5px !important; font-weight:450 !important; color:#b4b4bd !important;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;
+}
+body.tema-claro .rank-name{ color:#52525b !important; }
+.rank-row.pod .rank-name{ color:var(--fg) !important; font-weight:500 !important; }
+
+.rank-leads,.rank-ag,.rank-comp,.rank-vendas,.rank-conv,.rank-pun{
+  font-size:10px !important; font-weight:500 !important; text-align:right !important;
+  font-variant-numeric:tabular-nums;
+}
+.rank-leads,.rank-comp,.rank-vendas,.rank-pun{ color:#8f8f99 !important; }
+.rank-ag{ color:var(--fg) !important; font-weight:600 !important; }
+.rank-conv{ font-weight:600 !important; }
+.rank-zero{ color:#2e2e33 !important; }
+body.tema-claro .rank-zero{ color:#d4d4cd !important; }
+.no-data{ font-size:10.5px !important; padding:10px 9px !important; color:#52525b !important; }
+</style>
 <script>
 (function(){
   var MED=["🥇","🥈","🥉"];
@@ -136,7 +199,7 @@
     var pm={};
     apps.forEach(function(a){ (a.rows||[]).forEach(function(r){ var nm=(r.name||"").trim().toUpperCase(); if(!nm) return; if(!pm[nm])pm[nm]={ag:0,comp:0,pun:0,vendas:0}; pm[nm].ag+=Object.values(r.slots||{}).reduce(function(s,v){return s+(Number(v)||0);},0)+(Number(r.inclusao)||0); });; var cd=a.comparecimento_data||{}; var cpun=cd.__punicoes__||{}; Object.keys(cd).forEach(function(nm){ if(nm==="__vendas__"){ Object.keys(cd[nm]).forEach(function(e){ if(!pm[e])pm[e]={ag:0,comp:0,pun:0,vendas:0}; pm[e].vendas=(pm[e].vendas||0)+(Number(cd[nm][e])||0); }); return; } if(/^__.*__$/.test(nm)) return; nm=nm.trim().toUpperCase(); if(!pm[nm])pm[nm]={ag:0,comp:0,pun:0,vendas:0}; pm[nm].comp+=Number(cd[nm])||0; });; Object.keys(cpun).forEach(function(nm){ if(!pm[nm])pm[nm]={ag:0,comp:0,pun:0,vendas:0}; pm[nm].pun=(pm[nm].pun||0)+(Number(cpun[nm])||0); }); });
     var ranked=Object.keys(pm).map(function(nm){ return {name:nm, leads:Number(lm[nm])||0, ag:pm[nm].ag, comp:pm[nm].comp, pun:pm[nm].pun||0,vendas:pm[nm].vendas||0}; }).sort(function(a,b){return b.ag-a.ag;});
-    var rows=ranked.map(function(p,i){ var conv=p.ag>0?Math.round((p.comp/p.ag)*100):0; return "<div class=\"rank-row\"><span class=\"rank-pos\">"+(i<3?MED[i]:(i+1)+"\u00ba")+"</span><span class=\"rank-name\">"+p.name+"</span><span class=\"rank-leads blue\">"+p.leads+"</span><span class=\"rank-ag primary\">"+p.ag+"</span><span class=\"rank-comp green\">"+p.comp+"</span><span class=\"rank-vendas primary\" style=\"text-align:center\">"+(p.vendas||0)+"</span><span class=\"rank-conv yellow\">"+conv+"%</span><span class=\"rank-pun\" style=\"color:#f87171;font-weight:700;text-align:center\">"+(p.pun>0?"-"+p.pun:0)+"</span></div>"; }).join("");
+    var rows=ranked.map(function(p,i){ var conv=p.ag>0?Math.round((p.comp/p.ag)*100):0; var cc=conv>=50?"#22c55e":conv>=40?"#fbbf24":conv>0?"#ef4444":"#3f3f46"; var z=function(v){ return (Number(v)||0)===0?" rank-zero":""; }; return "<div class=\"rank-row"+(i<3?" pod":"")+"\"><span class=\"rank-pos\">"+(i+1)+"</span><span class=\"rank-name\" title=\""+p.name+"\">"+p.name+"</span><span class=\"rank-leads"+z(p.leads)+"\">"+p.leads+"</span><span class=\"rank-ag"+z(p.ag)+"\">"+p.ag+"</span><span class=\"rank-comp"+z(p.comp)+"\">"+p.comp+"</span><span class=\"rank-vendas"+z(p.vendas)+"\">"+(p.vendas||0)+"</span><span class=\"rank-conv\" style=\"color:"+cc+"\">"+conv+"%</span><span class=\"rank-pun"+(p.pun>0?"":" rank-zero")+"\" style=\""+(p.pun>0?"color:#f87171":"")+"\">"+(p.pun>0?"-"+p.pun:0)+"</span></div>"; }).join("");
     var inner=ranked.length===0?"<p class=\"no-data\">Sem dados</p>":"<div class=\"rank-header-row\"><span>NOME</span><span>LEADS</span><span>AGEND.</span><span>COMP.</span><span>VENDAS</span><span>CONV.%</span><span>PUN.</span></div>"+rows;
     return "<div class=\"rank-unit-box\" id=\"rank-geral-box\" style=\"border:1px solid rgba(251,191,36,.4)\"><div class=\"rank-unit-title\" style=\"color:#fbbf24\">\ud83c\udfc6 RANK GERAL \u2014 TODAS AS UNIDADES</div>"+inner+"</div>";
   }
@@ -421,9 +484,10 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
     rows.sort(function(a,b){ return comparar(a,b,idx,dir); });
     var pai = rows[0].parentNode;
     rows.forEach(function(r){ pai.appendChild(r); });
-    rows.forEach(function(r,i){
+     rows.forEach(function(r,i){
       var p = r.querySelector('.rank-pos');
-      if(p) p.textContent = i < 3 ? MED[i] : (i+1) + 'º';
+      if(p) p.textContent = (i+1);
+      r.classList.toggle('pod', i < 3);
     });
     seta(head, idx, dir);
   }
@@ -796,14 +860,17 @@ function renderRankingGrid(unitsData, leadsTmk) {
     const medals = ['🥇','🥈','🥉'];
     const rows = ranked.map((p,i)=>{
       const conv=p.ag>0?Math.round((p.comp/p.ag)*100):0;
-      return `<div class="rank-row">
-        <span class="rank-pos">${i<3?medals[i]:`${i+1}º`}</span>
-        <span class="rank-name">${p.name}</span>
-        <span class="rank-leads blue">${p.leads}</span>
-        <span class="rank-ag primary">${p.ag}</span>
-        <span class="rank-comp green">${p.comp}</span><span class="rank-vendas primary" style="text-align:center">${p.vendas||0}</span>
-        <span class="rank-conv yellow">${conv}%</span>
-        <span class="rank-pun" style="color:#f87171;font-weight:700;text-align:center">${p.pun>0?`-${p.pun}`:0}</span>
+      const cc = conv>=50?'#22c55e':conv>=40?'#fbbf24':conv>0?'#ef4444':'#3f3f46';
+      const z = v => (Number(v)||0)===0 ? ' rank-zero' : '';
+      return `<div class="rank-row${i<3?' pod':''}">
+        <span class="rank-pos">${i+1}</span>
+        <span class="rank-name" title="${p.name}">${p.name}</span>
+        <span class="rank-leads${z(p.leads)}">${p.leads}</span>
+        <span class="rank-ag${z(p.ag)}">${p.ag}</span>
+        <span class="rank-comp${z(p.comp)}">${p.comp}</span>
+        <span class="rank-vendas${z(p.vendas)}">${p.vendas||0}</span>
+        <span class="rank-conv" style="color:${cc}">${conv}%</span>
+        <span class="rank-pun${p.pun>0?'':' rank-zero'}" style="${p.pun>0?'color:#f87171':''}">${p.pun>0?`-${p.pun}`:0}</span>
       </div>`;
     }).join('');
     const box = document.createElement('div');
@@ -881,13 +948,16 @@ function renderLeaderRanking() {
 
     const rows = leaders.map((l,i) => {
       const conv = l.ag > 0 ? Math.round((l.comp/l.ag)*100) : 0;
-      return `<div class="rank-row">
-        <span class="rank-pos">${i<3?medals[i]:`${i+1}º`}</span>
-        <span class="rank-name">${l.name}</span>
-        <span class="rank-leads blue">${l.leads}</span>
-        <span class="rank-ag primary">${l.ag}</span>
-        <span class="rank-comp green">${l.comp}</span><span class="rank-vendas primary" style="text-align:center">${l.vendas||0}</span>
-        <span class="rank-conv yellow">${conv}%</span>
+      const cc = conv>=50?'#22c55e':conv>=40?'#fbbf24':conv>0?'#ef4444':'#3f3f46';
+      const z = v => (Number(v)||0)===0 ? ' rank-zero' : '';
+      return `<div class="rank-row${i<3?' pod':''}">
+        <span class="rank-pos">${i+1}</span>
+        <span class="rank-name" title="${l.name}">${l.name}</span>
+        <span class="rank-leads${z(l.leads)}">${l.leads}</span>
+        <span class="rank-ag${z(l.ag)}">${l.ag}</span>
+        <span class="rank-comp${z(l.comp)}">${l.comp}</span>
+        <span class="rank-vendas${z(l.vendas)}">${l.vendas||0}</span>
+        <span class="rank-conv" style="color:${cc}">${conv}%</span>
       </div>`;
     }).join('');
 
