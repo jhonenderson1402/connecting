@@ -893,7 +893,30 @@ function _buildLeaderRank(appts, leadsTmk) {
     return {leader, unit:d.unit, leads, ag:d.ag, comp:d.comp, conv};
   }).sort((a,b)=>b.ag-a.ag);
 }
-
+// Totais oficiais, iguais aos do Resumo Geral:
+// agendamentos e comparecimentos vêm do Acompanhamento Unidades,
+// leads vêm da tela Leads Recebidos (local × agência).
+async function _totaisOficiais(year, monthIndex, diaAlvo){
+  let ag = 0, comp = 0, leads = 0;
+  const alvo = diaAlvo ? formatDateKey(year, monthIndex, diaAlvo) : null;
+  try {
+    const r = await fetch(`/api/acompanhamento_mes?ano=${year}&mes=${monthIndex+1}`);
+    const d = r.ok ? await r.json() : [];
+    d.forEach(x => {
+      if(alvo && x.date !== alvo) return;
+      (x.rows||[]).forEach(l => { ag += Number(l.ag)||0; comp += Number(l.ex)||0; });
+    });
+  } catch(e) {}
+  try {
+    const r = await fetch(`/api/leads_recebidos_mes?ano=${year}&mes=${monthIndex+1}`);
+    const d = r.ok ? await r.json() : [];
+    d.forEach(x => {
+      if(alvo && x.date !== alvo) return;
+      (x.rows||[]).forEach(l => { leads += Number(l.leads)||0; });
+    });
+  } catch(e) {}
+  return {leads, ag, comp};
+}
 async function renderExtract() {
   const periodo = document.getElementById('ext-period').value;
   const monthIndex = parseInt(document.getElementById('ext-month').value);
@@ -918,6 +941,11 @@ async function renderExtract() {
   const tot = porUnidade.reduce((a,u)=>({
     leads:a.leads+u.leads, ag:a.ag+u.ag, comp:a.comp+u.comp
   }), {leads:0,ag:0,comp:0});
+  // Cards do topo: mesmas fontes do Resumo Geral
+  if(periodo !== 'week'){
+    const of = await _totaisOficiais(year, monthIndex, periodo === 'day' ? day : null);
+    tot.leads = of.leads; tot.ag = of.ag; tot.comp = of.comp;
+  }
   tot.conv = tot.ag>0?Math.round((tot.comp/tot.ag)*100):0;
 
   // Bairros da PARÁ (de comparecimento_data.__bairros__) para detalhar embaixo da PARÁ
@@ -972,9 +1000,8 @@ async function renderExtract() {
     const {ag, comp} = _aggUnit(ua);
     return {unit, ag, comp, leads:Number(prev.leads[unit])||0};
   });
-  const prevTot = prevPorUni.reduce((a,u)=>({
-    leads:a.leads+u.leads, ag:a.ag+u.ag, comp:a.comp+u.comp
-  }), {leads:0,ag:0,comp:0});
+  // mesma fonte oficial, para a comparação não misturar bases
+  const prevTot = await _totaisOficiais(prevYear, prevMonth, null);
 
   // Guarda para download
   extractData = {periodo, label:_periodoLabelExt(periodo,monthIndex,year,day), porUnidade, tot,
