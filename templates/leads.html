@@ -164,7 +164,9 @@ function buildColsFromFontes(fontes){
     LEAD_COLS.push({t:'in', k:kl, l:'LEADS ' + f.nome});
     LEAD_COLS.push({t:'in', k:ka, l:'AGS ' + f.nome});
     LEAD_COLS.push({t:'cv', num:ka, den:kl, l:'CONV. ' + f.nome});
-    AGS_KEYS.push(ka); LEAD_KEYS.push(kl);
+    AGS_KEYS.push(ka);
+    // ANTIGOS aparece na tela, mas não soma no total de leads
+    if(f.chave !== 'antigos') LEAD_KEYS.push(kl);
     CANAIS.push({k:f.nome, lead:kl, ags:ka});
   });
   LEAD_COLS.push({t:'in', k:'ind_ags', l:'AGS. IND.'});
