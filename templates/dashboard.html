@@ -1556,17 +1556,40 @@ function downloadExtractPDF() {
       <thead><tr><th>Líder</th><th style="text-align:right">Leads</th><th style="text-align:right">Agend.</th><th style="text-align:right">Comp.</th><th style="text-align:right">Conv.%</th></tr></thead>
       <tbody>${leaderRows}</tbody>
     </table>` : '';
-  const tmkRows = (tmkRank||[]).map((t,i)=>`<tr>
-    <td>${i+1}º ${t.nome} <span style="color:#888">· ${t.unit}</span></td>
-    <td style="text-align:right">${t.leads}</td>
-    <td style="text-align:right">${t.ag}</td><td style="text-align:right">${t.comp}</td>
-    <td style="text-align:right">${t.conv}%</td></tr>`).join('');
+  // Ranking de TMK no PDF: uma caixa por unidade, igual à tela
+  const _unidsPdf = (typeof UNITS !== 'undefined' && UNITS.length) ? UNITS : [];
+  const _geralMapPdf = {};
+  (tmkRank||[]).forEach(t=>{
+    if(!_geralMapPdf[t.nome]) _geralMapPdf[t.nome] = {nome:t.nome, leads:0, ag:0, comp:0};
+    _geralMapPdf[t.nome].ag   += t.ag;
+    _geralMapPdf[t.nome].comp += t.comp;
+    _geralMapPdf[t.nome].leads = Math.max(_geralMapPdf[t.nome].leads, Number(t.leads)||0);
+  });
+  const _geralPdf = Object.values(_geralMapPdf)
+    .map(d=>Object.assign(d,{conv: d.ag>0?Math.round(d.comp/d.ag*100):0}))
+    .sort((a,b)=>b.ag-a.ag);
+  function _pdfLinhas(lista){
+    return lista.map((t,i)=>`<tr${i%2?' class="z"':''}>
+      <td class="nm"><span class="pos">${i+1}</span>${t.nome}</td>
+      <td class="n">${t.leads}</td><td class="n b">${t.ag}</td>
+      <td class="n">${t.comp}</td><td class="n b">${t.conv}%</td></tr>`).join('');
+  }
+  function _pdfBox(titulo, lista){
+    if(!lista || !lista.length) return '';
+    return `<div class="tbox">
+      <div class="tbox-h">${titulo}<span>${lista.length}</span></div>
+      <table class="tmini">
+        <thead><tr><th>Nome</th><th style="width:30px">Lds</th><th style="width:34px">Agd</th><th style="width:32px">Cmp</th><th style="width:36px">Cnv</th></tr></thead>
+        <tbody>${_pdfLinhas(lista)}</tbody>
+      </table>
+    </div>`;
+  }
   const tmkBlock = (tmkRank && tmkRank.length) ? `
-    <h2 style="color:#b8860b;font-size:16px;margin:28px 0 8px">🏆 Ranking de TMK</h2>
-    <table>
-      <thead><tr><th>TMK</th><th style="text-align:right">Leads</th><th style="text-align:right">Agend.</th><th style="text-align:right">Comp.</th><th style="text-align:right">Conv.%</th></tr></thead>
-      <tbody>${tmkRows}</tbody>
-    </table>` : '';
+    <h2 style="color:#b8860b;font-size:14px;margin:22px 0 8px">Ranking de TMK</h2>
+    <div class="tgrid">
+      ${_pdfBox('Rank geral — todas as unidades', _geralPdf)}
+      ${_unidsPdf.map(u => _pdfBox(u, (tmkRank||[]).filter(t => t.unit === u))).join('')}
+    </div>` : '';
   const win = window.open('', '_blank');
   win.document.write(`<html><head><title>Connecting — ${label}</title>
     <style>
@@ -1577,6 +1600,26 @@ function downloadExtractPDF() {
       .card .v{font-size:24px;font-weight:800} .card .l{font-size:11px;color:#666;margin-top:4px}
       table{width:100%;border-collapse:collapse} th,td{padding:8px;border-bottom:1px solid #eee;font-size:13px}
       th{text-align:left;background:#faf6e9} tfoot td{font-weight:800;border-top:2px solid #b8860b}
+      .tgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;align-items:start}
+      .tbox{border:1px solid #e2e2dd;border-radius:6px;overflow:hidden;
+            break-inside:avoid;page-break-inside:avoid}
+      .tbox-h{display:flex;background:#faf6e9;padding:4px 8px;font-size:8.5px;font-weight:700;
+              letter-spacing:.06em;text-transform:uppercase;color:#8a6a12;
+              border-bottom:1px solid #e2e2dd}
+      .tbox-h span{margin-left:auto;color:#aaa;font-weight:600}
+      table.tmini{width:100%;border-collapse:collapse;table-layout:fixed;
+                  font-variant-numeric:tabular-nums}
+      table.tmini th{font-size:7.5px;padding:3px 5px;background:#fff;border-bottom:1px solid #eee;
+                     text-align:right;color:#aaa;letter-spacing:.04em;text-transform:uppercase}
+      table.tmini th:first-child{text-align:left}
+      table.tmini td{padding:1px 5px;border:none;font-size:9px}
+      table.tmini tr.z{background:#fafaf8}
+      table.tmini td.nm{text-align:left;white-space:nowrap;overflow:hidden;
+                        text-overflow:ellipsis;color:#333}
+      table.tmini td.n{text-align:right;color:#666}
+      table.tmini td.n.b{color:#111;font-weight:700}
+      table.tmini .pos{display:inline-block;width:16px;color:#bbb;font-size:8px}
+      @media print{ .tbox{break-inside:avoid;page-break-inside:avoid} }
     </style></head><body>
     <h1>📊 Relatório Connecting</h1>
     <p class="sub">${label} — comparado a ${prevLabel}</p>
