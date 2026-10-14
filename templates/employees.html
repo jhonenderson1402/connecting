@@ -1,41 +1,186 @@
 {% extends "base.html" %}
 {% block content %}
-<style>/*MULTI-UNIT*/.emp-card-multi{align-items:flex-start}.emp-units{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.emp-unit-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35);color:#fbbf24;font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px}.emp-unit-x{background:none;border:none;color:#f87171;cursor:pointer;font-size:11px;line-height:1;padding:0}.emp-addunit{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.4);color:#3d82f6;font-size:12px;font-weight:600;padding:6px 10px;border-radius:8px;cursor:pointer;white-space:nowrap;align-self:center}</style>
-<script>(function(){function coConfirm(msg,onOk){var ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;display:flex;align-items:center;justify-content:center";ov.innerHTML='<div style="background:#141414;border:1px solid rgba(251,191,36,.35);border-radius:14px;padding:22px 20px;min-width:280px;max-width:360px;box-shadow:0 12px 44px rgba(0,0,0,.6)"><div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="width:26px;height:26px;border-radius:50%;background:rgba(251,191,36,.15);color:#fbbf24;display:inline-flex;align-items:center;justify-content:center;font-weight:800">!</span><span style="color:#fbbf24;font-weight:700;font-size:14px;letter-spacing:.5px">CONNECTING</span></div><div style="color:#eef1f7;font-size:13.5px;line-height:1.5;margin-bottom:20px">'+msg+'</div><div style="display:flex;gap:8px;justify-content:flex-end"><button data-cancel="1" style="background:#222;border:1px solid #333;color:#cbd5e1;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">Cancelar</button><button data-ok="1" style="background:#fbbf24;border:none;color:#18181b;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700">Remover</button></div></div>';ov.addEventListener("click",function(ev){var t=ev.target;if(t===ov||t.getAttribute("data-cancel")){ov.remove();return;}if(t.getAttribute("data-ok")){ov.remove();onOk();}});document.body.appendChild(ov);}function renderGrouped(){var grid=document.getElementById("emp-grid"); if(!grid) return;var fuEl=document.getElementById("filter-unit"); var fUnit=fuEl?fuEl.value:"ALL";var all=(typeof allEmployees!=="undefined"&&allEmployees)?allEmployees:[];var map={}; all.forEach(function(e){ (map[e.name]=map[e.name]||[]).push(e); });var names=Object.keys(map);if(fUnit!=="ALL") names=names.filter(function(n){ return map[n].some(function(e){return e.unit===fUnit;}); });if(!names.length){ grid.innerHTML="<div class=\"empty-state\"><p>Nenhum funcionario encontrado.</p></div>"; return; }grid.innerHTML=names.sort().map(function(n){var rows=map[n];var badges=rows.map(function(e){ return "<span class=\"emp-unit-badge\">&#127970; "+e.unit+" <button class=\"emp-unit-x\" title=\"Remover unidade\" onclick=\"removeUnitRow("+e.id+")\">&#10005;</button></span>"; }).join("");var av=(n[0]||"?").toUpperCase();var nameAttr=n.split("\"").join("&quot;");return "<div class=\"emp-card emp-card-multi\"><div class=\"emp-avatar\">"+av+"</div><div class=\"emp-info\"><div class=\"emp-name\">"+n+" <span style=\"color:#fbbf24;font-size:11px;font-weight:700;margin-left:6px\">— "+((rows[0]&&rows[0].funcao==='LIDER')?'LÍDER':'ATENDENTE')+"</span></div><div class=\"emp-units\">"+badges+"</div></div><button class=\"emp-addunit\" data-name=\""+nameAttr+"\" onclick=\"openAddUnit(this)\">+ unidade</button></div>";}).join("");}window.openAddUnit=function(btn){var name=btn.getAttribute("data-name")||"";var units=(typeof UNITS!=="undefined")?UNITS:[];var has=(allEmployees||[]).filter(function(e){return e.name===name;}).map(function(e){return e.unit;});var avail=units.filter(function(u){return has.indexOf(u)<0;});if(!avail.length){ showToast("Ja esta em todas as unidades.","error"); return; }var ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center";ov.innerHTML="<div style=\"background:#141414;border:1px solid #333;border-radius:12px;padding:18px;min-width:260px\"><div style=\"color:#fbbf24;font-weight:600;margin-bottom:12px\">Adicionar unidade a "+name+"</div><div style=\"display:flex;flex-direction:column;gap:8px\">"+avail.map(function(u){return "<button class=\"btn\" style=\"width:100%\" data-u=\""+u+"\">&#127970; "+u+"</button>";}).join("")+"</div><button class=\"btn\" style=\"margin-top:12px;width:100%\" data-cancel=\"1\">Cancelar</button></div>";ov.addEventListener("click",function(ev){ var t=ev.target; if(t===ov||t.getAttribute("data-cancel")){ ov.remove(); return; } var u=t.getAttribute("data-u"); if(u){ t.disabled=true; fetch("/api/employees",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name,unit:u,active:true})}).then(function(){ ov.remove(); loadEmployees(); showToast("Unidade adicionada!"); }); } });document.body.appendChild(ov);};window.removeUnitRow=function(id){var e=(allEmployees||[]).find(function(x){return x.id===id;});var name=e?e.name:""; var cnt=(allEmployees||[]).filter(function(x){return x.name===name;}).length;var msg=cnt<=1?("Remover o funcionario "+name+"?"):("Remover a unidade "+(e?e.unit:"")+" de "+name+"?");coConfirm(msg,function(){ fetch("/api/employees/"+id+"?hard=true",{method:"DELETE"}).then(function(){ loadEmployees(); showToast("Removido!"); }); });};function install(){if(typeof loadEmployees!=="function"){ return setTimeout(install,120); }window.filterEmployees=renderGrouped;window.renderEmployees=function(){ renderGrouped(); };loadEmployees();}if(document.readyState==="loading"){ document.addEventListener("DOMContentLoaded",function(){ setTimeout(install,300); }); } else { setTimeout(install,300); }})();</script>
-<div class="page-content">
+<style>
+  /* ══════════ FUNCIONÁRIOS — lista única ══════════ */
+  .fn-page{ font-size:13px }
+
+  .fn-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+  .fn-search{ position:relative }
+  .fn-search svg{
+    position:absolute; left:10px; top:50%; transform:translateY(-50%);
+    width:14px; height:14px; stroke-width:1.7; color:var(--muted-fg); pointer-events:none;
+  }
+  .fn-input{
+    background:var(--secondary); border:1px solid var(--border); color:var(--fg);
+    border-radius:8px; height:34px; padding:0 12px 0 31px; font-size:12.5px;
+    outline:none; width:210px; font-family:inherit;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .fn-input::placeholder{ color:var(--muted-fg) }
+  .fn-input:focus{ border-color:var(--primary); box-shadow:0 0 0 3px rgba(251,191,36,.08) }
+  .fn-select{
+    background:var(--secondary); border:1px solid var(--border); color:var(--fg);
+    border-radius:8px; height:34px; padding:0 10px; font-size:12.5px;
+    outline:none; cursor:pointer; font-family:inherit;
+  }
+  .fn-select:focus{ border-color:var(--primary) }
+  .fn-add{
+    height:34px; padding:0 14px; border:none; border-radius:8px; cursor:pointer;
+    background:var(--primary); color:var(--primary-fg); font-size:12.5px; font-weight:600;
+    font-family:inherit; display:inline-flex; align-items:center; gap:6px;
+    transition:filter .15s;
+  }
+  .fn-add svg{ width:14px; height:14px; stroke-width:2.2 }
+  .fn-add:hover{ filter:brightness(1.08) }
+
+  .fn-wrap{
+    background:var(--card); border:1px solid var(--border);
+    border-radius:12px; overflow:hidden;
+  }
+  .fn-tbl{ width:100%; border-collapse:collapse }
+  .fn-tbl thead th{
+    font-size:9.5px; font-weight:600; letter-spacing:.11em; text-transform:uppercase;
+    color:var(--muted-fg); text-align:left; padding:11px 16px; white-space:nowrap;
+    border-bottom:1px solid var(--border); background:rgba(255,255,255,.015);
+    position:sticky; top:0; z-index:2;
+  }
+  body.tema-claro .fn-tbl thead th{ background:rgba(0,0,0,.015) }
+  .fn-tbl thead th.ord{ cursor:pointer; user-select:none; transition:color .14s }
+  .fn-tbl thead th.ord:hover{ color:var(--fg) }
+  .fn-seta{ opacity:.9; margin-left:3px }
+
+  .fn-tbl tbody td{
+    padding:9px 16px; border-bottom:1px solid rgba(255,255,255,.045);
+    vertical-align:middle;
+  }
+  body.tema-claro .fn-tbl tbody td{ border-bottom-color:rgba(0,0,0,.05) }
+  .fn-tbl tbody tr:last-child td{ border-bottom:none }
+  .fn-tbl tbody tr{ transition:background .13s }
+  .fn-tbl tbody tr:hover{ background:rgba(255,255,255,.022) }
+  body.tema-claro .fn-tbl tbody tr:hover{ background:rgba(0,0,0,.022) }
+
+  .fn-nome-cel{ display:flex; align-items:center; gap:10px; min-width:0 }
+  .fn-av{
+    width:26px; height:26px; border-radius:7px; flex:0 0 auto;
+    display:grid; place-items:center; font-size:11px; font-weight:650;
+    background:var(--secondary); color:var(--muted-fg);
+  }
+  .fn-av.lider{ background:rgba(251,191,36,.12); color:var(--primary) }
+  .fn-nome{
+    font-size:13px; font-weight:500; color:var(--fg); letter-spacing:-.005em;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .fn-func{
+    display:inline-block; font-size:9.5px; font-weight:600; letter-spacing:.08em;
+    text-transform:uppercase; padding:2.5px 8px; border-radius:5px;
+    background:var(--secondary); color:var(--muted-fg); white-space:nowrap;
+  }
+  .fn-func.lider{ background:rgba(251,191,36,.1); color:var(--primary) }
+  .fn-princ{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--fg) }
+  .fn-princ i{
+    width:5px; height:5px; border-radius:50%; background:var(--primary);
+    display:block; flex:0 0 auto;
+  }
+  .fn-chips{ display:flex; flex-wrap:wrap; gap:4px }
+  .fn-chip{
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:10px; font-weight:500; color:var(--muted-fg);
+    background:var(--secondary); border:1px solid var(--border);
+    padding:1.5px 4px 1.5px 6px; border-radius:5px; white-space:nowrap; line-height:1.5;
+  }
+  .fn-chip-x{
+    border:none; background:transparent; color:var(--muted-fg); cursor:pointer;
+    font-size:9px; line-height:1; padding:1px 2px; border-radius:3px; transition:all .13s;
+  }
+  .fn-chip-x:hover{ background:rgba(239,68,68,.18); color:#f87171 }
+  .fn-vazio{ color:var(--muted-fg); opacity:.5 }
+
+  .fn-acoes{ display:flex; gap:3px; justify-content:flex-end; opacity:0; transition:opacity .13s }
+  .fn-tbl tbody tr:hover .fn-acoes{ opacity:1 }
+  .fn-ib{
+    width:25px; height:25px; border:none; background:transparent; color:var(--muted-fg);
+    border-radius:6px; cursor:pointer; display:grid; place-items:center; transition:all .13s;
+  }
+  .fn-ib svg{ width:14px; height:14px; stroke-width:1.8 }
+  .fn-ib:hover{ background:var(--secondary); color:var(--fg) }
+  .fn-ib.danger:hover{ background:rgba(239,68,68,.14); color:#f87171 }
+
+  .fn-foot{
+    padding:10px 16px; font-size:11.5px; color:var(--muted-fg);
+    border-top:1px solid var(--border); display:flex;
+    justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+  }
+  .fn-nada{ padding:40px 16px; text-align:center; color:var(--muted-fg); font-size:13px }
+
+  @media (max-width:900px){
+    .fn-input{ width:160px }
+    .fn-tbl thead th, .fn-tbl tbody td{ padding-left:10px; padding-right:10px }
+  }
+</style>
+
+<div class="page-content fn-page">
   <div class="page-header">
     <div>
       <div class="title-bar">
         <div class="title-accent"></div>
         <h1 class="page-title">Funcionários</h1>
       </div>
-      <p class="page-subtitle" style="margin-left:20px">Gerencie a equipe de cada unidade</p>
+      <p class="page-subtitle" style="margin-left:20px" id="fn-sub">Carregando...</p>
     </div>
-    <div class="filter-bar">
-      <select class="select" id="filter-unit" onchange="filterEmployees()">
+    <div class="filter-bar fn-bar">
+      <div class="fn-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input class="fn-input" id="fn-busca" placeholder="Buscar pessoa..." oninput="renderFuncionarios()"/>
+      </div>
+      <select class="fn-select" id="filter-unit" onchange="renderFuncionarios()">
         <option value="ALL">Todas unidades</option>
       </select>
-      <button class="btn btn-primary" onclick="openAddModal()">+ Adicionar</button>
+      <select class="fn-select" id="filter-funcao" onchange="renderFuncionarios()">
+        <option value="ALL">Todas funções</option>
+        <option value="LIDER">Líder</option>
+        <option value="ATENDENTE">Atendente</option>
+      </select>
+      <button class="fn-add" onclick="openAddModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        Adicionar
+      </button>
     </div>
   </div>
 
-  <div class="emp-grid" id="emp-grid">
-    <div class="loading">Carregando...</div>
+  <div class="fn-wrap">
+    <table class="fn-tbl">
+      <thead>
+        <tr>
+          <th class="ord" data-col="nome"   style="width:28%" onclick="ordenarFn('nome')">Nome</th>
+          <th class="ord" data-col="funcao" style="width:12%" onclick="ordenarFn('funcao')">Função</th>
+          <th class="ord" data-col="unidade" style="width:17%" onclick="ordenarFn('unidade')">Unidade principal</th>
+          <th>Também atua em</th>
+          <th style="width:70px"></th>
+        </tr>
+      </thead>
+      <tbody id="fn-corpo">
+        <tr><td colspan="5" class="fn-nada">Carregando...</td></tr>
+      </tbody>
+    </table>
+    <div class="fn-foot">
+      <span id="fn-contagem">—</span>
+      <span>Clique no cabeçalho para ordenar</span>
+    </div>
   </div>
 </div>
 
-<!-- Add Modal -->
+<!-- Modal: novo funcionário -->
 <div class="modal-overlay" id="modal-add" onclick="closeAddModal()">
   <div class="modal" style="max-width:360px" onclick="event.stopPropagation()">
     <div class="modal-header">
-      <span>👤 Novo Funcionário</span>
+      <span>Novo funcionário</span>
       <button class="modal-close" onclick="closeAddModal()">✕</button>
     </div>
     <div class="modal-body">
       <div class="filter-group" style="margin-bottom:12px">
         <label class="filter-label">NOME</label>
         <input class="input" id="new-name" placeholder="Nome completo" style="width:100%"
-          onkeydown="if(event.key==='Enter')addEmployee()"/>
+               onkeydown="if(event.key==='Enter')addEmployee()"/>
       </div>
       <div class="filter-group" style="margin-bottom:12px">
         <label class="filter-label">FUNÇÃO</label>
@@ -60,118 +205,262 @@
 {% block scripts %}
 <script>
 let allEmployees = [];
+let fnOrdem = {col:'nome', dir:'asc'};
+
+const ICO_MAIS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>';
+const ICO_LIXO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>';
+
+const fnEsc = s => String(s==null?'':s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 function onConstantsLoaded() {
-  // Populate unit filters
   const filterUnit = document.getElementById('filter-unit');
   const newUnit = document.getElementById('new-unit');
-  UNITS.forEach(u=>{
-    const o1=document.createElement('option'); o1.value=u; o1.textContent=u; filterUnit.appendChild(o1);
-    const o2=document.createElement('option'); o2.value=u; o2.textContent=u; newUnit.appendChild(o2);
+  UNITS.forEach(u => {
+    const o1 = document.createElement('option'); o1.value = u; o1.textContent = u; filterUnit.appendChild(o1);
+    const o2 = document.createElement('option'); o2.value = u; o2.textContent = u; newUnit.appendChild(o2);
   });
   loadEmployees();
 }
 
 async function loadEmployees() {
-  const res = await fetch('/api/employees');
-  allEmployees = await res.json();
-  filterEmployees();
+  try {
+    const res = await fetch('/api/employees');
+    if(res.status === 401){ window.location.href = '/login'; return; }
+    allEmployees = res.ok ? await res.json() : [];
+  } catch(e) {
+    allEmployees = [];
+  }
+  renderFuncionarios();
 }
 
-function filterEmployees() {
-  const unit = document.getElementById('filter-unit').value;
-  const list = unit==='ALL' ? allEmployees : allEmployees.filter(e=>e.unit===unit);
-  renderEmployees(list);
+// Agrupa os registros por pessoa.
+// A unidade PRINCIPAL é a primeira na ordem das unidades (a mesma do menu).
+function agruparPorPessoa() {
+  const ordemUnidade = {};
+  (typeof UNITS !== 'undefined' ? UNITS : []).forEach((u,i) => ordemUnidade[u] = i);
+  const pos = u => (u in ordemUnidade) ? ordemUnidade[u] : 999;
+
+  const mapa = {};
+  allEmployees.forEach(e => {
+    const nome = String(e.name || '').trim();
+    if(!nome) return;
+    if(!mapa[nome]) mapa[nome] = {nome, registros:[], lider:false};
+    mapa[nome].registros.push(e);
+    if(e.funcao === 'LIDER') mapa[nome].lider = true;
+  });
+
+  return Object.keys(mapa).map(nome => {
+    const p = mapa[nome];
+    p.registros.sort((a,b) => pos(a.unit) - pos(b.unit));
+    const principal = p.registros[0];
+    return {
+      nome: p.nome,
+      funcao: p.lider ? 'LIDER' : 'ATENDENTE',
+      principal: principal.unit,
+      principalId: principal.id,
+      outras: p.registros.slice(1).map(r => ({unit:r.unit, id:r.id})),
+      unidades: p.registros.map(r => r.unit)
+    };
+  });
 }
 
-function renderEmployees(list) {
-  const grid = document.getElementById('emp-grid');
-  if(list.length===0){
-    grid.innerHTML='<div class="empty-state"><p>Nenhum funcionário encontrado.</p></div>';
+function ordenarFn(col) {
+  fnOrdem = (fnOrdem.col === col && fnOrdem.dir === 'asc')
+    ? {col, dir:'desc'} : {col, dir:'asc'};
+  renderFuncionarios();
+}
+
+function renderFuncionarios() {
+  const corpo = document.getElementById('fn-corpo');
+  if(!corpo) return;
+
+  const fUnit   = (document.getElementById('filter-unit')   || {}).value || 'ALL';
+  const fFuncao = (document.getElementById('filter-funcao') || {}).value || 'ALL';
+  const termo   = ((document.getElementById('fn-busca') || {}).value || '')
+                    .trim().toLowerCase();
+
+  let pessoas = agruparPorPessoa();
+  const totalGeral = pessoas.length;
+
+  if(fUnit   !== 'ALL') pessoas = pessoas.filter(p => p.unidades.indexOf(fUnit) >= 0);
+  if(fFuncao !== 'ALL') pessoas = pessoas.filter(p => p.funcao === fFuncao);
+  if(termo)             pessoas = pessoas.filter(p => p.nome.toLowerCase().indexOf(termo) >= 0);
+
+  const dir = fnOrdem.dir === 'asc' ? 1 : -1;
+  pessoas.sort((a,b) => {
+    let va, vb;
+    if(fnOrdem.col === 'funcao')       { va = a.funcao;    vb = b.funcao; }
+    else if(fnOrdem.col === 'unidade') { va = a.principal; vb = b.principal; }
+    else                               { va = a.nome;      vb = b.nome; }
+    const r = String(va).localeCompare(String(vb), 'pt-BR');
+    return (r !== 0 ? r : String(a.nome).localeCompare(String(b.nome), 'pt-BR')) * dir;
+  });
+
+  // Setas no cabeçalho
+  document.querySelectorAll('.fn-tbl thead th.ord').forEach(th => {
+    const base = th.textContent.replace(/\s*[▲▼]\s*$/, '');
+    th.innerHTML = (th.dataset.col === fnOrdem.col)
+      ? base + '<span class="fn-seta">' + (fnOrdem.dir === 'asc' ? '▲' : '▼') + '</span>'
+      : base;
+  });
+
+  document.getElementById('fn-sub').textContent =
+    totalGeral + (totalGeral === 1 ? ' pessoa' : ' pessoas') +
+    ' em ' + (typeof UNITS !== 'undefined' ? UNITS.length : 0) + ' unidades';
+  document.getElementById('fn-contagem').textContent =
+    'Mostrando ' + pessoas.length + ' de ' + totalGeral;
+
+  if(!pessoas.length){
+    corpo.innerHTML = '<tr><td colspan="5" class="fn-nada">Nenhum funcionário encontrado.</td></tr>';
     return;
   }
-  grid.innerHTML=list.map(emp=>`
-    <div class="emp-card">
-      <div class="emp-avatar">${emp.name[0]?.toUpperCase()||'?'}</div>
-      <div class="emp-info">
-        <div class="emp-name">${emp.name} <span style="color:#fbbf24;font-size:11px;font-weight:700;margin-left:6px">— ${(emp.funcao==='LIDER')?'LÍDER':'ATENDENTE'}</span></div>
-        <div class="emp-unit">🏢 ${emp.unit}</div>
-      </div>
-      <button class="del-btn emp-del" onclick="deleteEmployee(${emp.id})">🗑</button>
-    </div>`
-  ).join('');
+
+  corpo.innerHTML = pessoas.map(p => {
+    const inicial = (p.nome[0] || '?').toUpperCase();
+    const ehLider = p.funcao === 'LIDER';
+    const chips = p.outras.length
+      ? '<div class="fn-chips">' + p.outras.map(o =>
+          '<span class="fn-chip">' + fnEsc(o.unit) +
+          '<button class="fn-chip-x" title="Tirar de ' + fnEsc(o.unit) + '" ' +
+          'onclick="removerDaUnidade(' + o.id + ')">&#10005;</button></span>'
+        ).join('') + '</div>'
+      : '<span class="fn-vazio">—</span>';
+
+    return '<tr>' +
+      '<td><div class="fn-nome-cel">' +
+        '<div class="fn-av' + (ehLider ? ' lider' : '') + '">' + fnEsc(inicial) + '</div>' +
+        '<span class="fn-nome" title="' + fnEsc(p.nome) + '">' + fnEsc(p.nome) + '</span>' +
+      '</div></td>' +
+      '<td><span class="fn-func' + (ehLider ? ' lider' : '') + '">' +
+        (ehLider ? 'Líder' : 'Atendente') + '</span></td>' +
+      '<td><span class="fn-princ"><i></i>' + fnEsc(p.principal) + '</span></td>' +
+      '<td>' + chips + '</td>' +
+      '<td><div class="fn-acoes">' +
+        '<button class="fn-ib" title="Adicionar unidade" ' +
+          'data-name="' + fnEsc(p.nome) + '" onclick="openAddUnit(this)">' + ICO_MAIS + '</button>' +
+        '<button class="fn-ib danger" title="Remover de ' + fnEsc(p.principal) + '" ' +
+          'onclick="removerDaUnidade(' + p.principalId + ')">' + ICO_LIXO + '</button>' +
+      '</div></td>' +
+    '</tr>';
+  }).join('');
 }
 
-function openAddModal() { document.getElementById('modal-add').classList.add('show'); document.getElementById('new-name').focus(); }
-function closeAddModal() { document.getElementById('modal-add').classList.remove('show'); document.getElementById('new-name').value=''; var f=document.getElementById('new-funcao'); if(f)f.value='ATENDENTE'; }
-
-async function addEmployee() {
-  const name=document.getElementById('new-name').value.trim();
-  const unit=document.getElementById('new-unit').value;
-  const funcao=document.getElementById('new-funcao').value;
-  if(!name){ showToast('Digite um nome.','error'); return; }
-  await fetch('/api/employees',{
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({name,unit,active:true,funcao})
+// ── Diálogo de confirmação no padrão do sistema ──
+function fnConfirm(msg, onOk) {
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay show';
+  ov.style.zIndex = 10000;
+  ov.innerHTML =
+    '<div class="modal" style="max-width:340px">' +
+      '<div class="modal-header"><span>Confirmar</span></div>' +
+      '<div class="modal-body">' +
+        '<p style="font-size:13px;line-height:1.55;color:var(--fg);margin-bottom:18px">' + msg + '</p>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+          '<button class="btn btn-outline" data-cancel="1">Cancelar</button>' +
+          '<button class="btn btn-primary" data-ok="1">Remover</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  ov.addEventListener('click', ev => {
+    const t = ev.target;
+    if(t === ov || t.getAttribute('data-cancel')) { ov.remove(); return; }
+    if(t.getAttribute('data-ok')) { ov.remove(); onOk(); }
   });
-  closeAddModal();
-  await loadEmployees();
-  showToast('Funcionário adicionado!');
+  document.body.appendChild(ov);
 }
 
-async function deleteEmployee(id) {
-  if(!confirm('Remover este funcionário?')) return;
-  await fetch(`/api/employees/${id}`,{method:'DELETE'});
-  await loadEmployees();
-  showToast('Funcionário removido.');
+function removerDaUnidade(id) {
+  const reg = allEmployees.find(x => x.id === id);
+  if(!reg) return;
+  const quantas = allEmployees.filter(x => x.name === reg.name).length;
+  const msg = quantas <= 1
+    ? 'Remover <b>' + fnEsc(reg.name) + '</b> do sistema? É a última unidade dessa pessoa.'
+    : 'Tirar <b>' + fnEsc(reg.name) + '</b> da unidade <b>' + fnEsc(reg.unit) + '</b>?' +
+      '<br><span style="color:var(--muted-fg);font-size:12px">Ela continua nas outras ' +
+      (quantas - 1) + ' unidade' + (quantas - 1 === 1 ? '' : 's') + '.</span>';
+  fnConfirm(msg, async () => {
+    try {
+      await fetch('/api/employees/' + id + '?hard=true', {method:'DELETE'});
+      await loadEmployees();
+      showToast('Removido.');
+    } catch(e) { showToast('Erro ao remover.', 'error'); }
+  });
 }
-</script>
-<script>
-(function(){
-  window.openAddUnit=function(btn){
-    var name=btn.getAttribute('data-name')||'';
-    var all=(typeof allEmployees!=='undefined'&&allEmployees)?allEmployees:[];
-    var units=(typeof UNITS!=='undefined')?UNITS.slice():[];
-    var mine=all.filter(function(e){return e.name===name;});
-    var has=mine.map(function(e){return e.unit;});
-    var funcao=(mine[0]&&mine[0].funcao)||'ATENDENTE';
-    var avail=units.filter(function(u){return has.indexOf(u)<0;});
-    if(!avail.length){ if(typeof showToast==='function') showToast('Já está em todas as unidades.','error'); return; }
-    var ov=document.createElement('div');
-    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center';
-    ov.innerHTML='<div style="background:#141414;border:1px solid #333;border-radius:12px;padding:18px;min-width:260px"><div style="color:#fbbf24;font-weight:600;margin-bottom:12px">Adicionar unidade a '+name+'</div><div style="display:flex;flex-direction:column;gap:8px">'+avail.map(function(u){return '<button class="btn" style="width:100%" data-u="'+u+'">&#127970; '+u+'</button>';}).join('')+'</div><button class="btn" style="margin-top:12px;width:100%" data-cancel="1">Cancelar</button></div>';
-    ov.addEventListener('click',function(ev){ var t=ev.target; if(t===ov||t.getAttribute('data-cancel')){ ov.remove(); return; } var u=t.getAttribute('data-u'); if(u){ t.disabled=true; fetch('/api/employees',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,unit:u,active:true,funcao:funcao})}).then(function(){ ov.remove(); if(typeof loadEmployees==='function') loadEmployees(); if(typeof showToast==='function') showToast('Unidade adicionada!'); }); } });
-    document.body.appendChild(ov);
-  };
-  function renderByUnit(){
-    var grid=document.getElementById('emp-grid'); if(!grid) return; grid.style.display='block';
-    var fuEl=document.getElementById('filter-unit'); var fUnit=fuEl?fuEl.value:'ALL';
-    var all=(typeof allEmployees!=='undefined'&&allEmployees)?allEmployees:[];
-    var units=(typeof UNITS!=='undefined')?UNITS.slice():[];
-    all.forEach(function(e){ if(units.indexOf(e.unit)<0) units.push(e.unit); });
-    var byUnit={}; all.forEach(function(e){ (byUnit[e.unit]=byUnit[e.unit]||[]).push(e); });
-    var unitsByName={}; all.forEach(function(e){ (unitsByName[e.name]=unitsByName[e.name]||[]).push(e.unit); });
-    var showUnits = (fUnit!=='ALL') ? [fUnit] : units.filter(function(u){ return (byUnit[u]||[]).length>0; });
-    if(!showUnits.length){ grid.innerHTML='<div class="empty-state"><p>Nenhum funcionário encontrado.</p></div>'; return; }
-    var cols = showUnits.map(function(u){
-      var emps=(byUnit[u]||[]).slice().sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); });
-      var cards = emps.length ? emps.map(function(e){
-        var av=(String(e.name)[0]||'?').toUpperCase();
-        var isLider=(e.funcao==='LIDER'); var func=isLider?'LÍDER':'ATENDENTE'; var col=isLider?'#fbbf24':'#a1a1aa';
-        var others=(unitsByName[e.name]||[]).filter(function(x){ return x!==u; });
-        var othersHtml = others.length ? '<div class="emp-otherunits">também em: '+others.map(function(x){ return '<span class="emp-unit-badge-sm">&#127970; '+x+'</span>'; }).join('')+'</div>' : '';
-        var nameAttr=String(e.name).split('"').join('&quot;');
-        return '<div class="emp-card emp-card-col" style="margin-bottom:8px"><div class="emp-avatar">'+av+'</div><div class="emp-info"><div class="emp-name">'+e.name+' <span style="font-size:11px;font-weight:700;margin-left:4px;color:'+col+'">— '+func+'</span></div>'+othersHtml+'</div><div class="emp-col-actions"><button class="emp-addunit-sm" data-name="'+nameAttr+'" onclick="openAddUnit(this)">+ unidade</button><button class="del-btn emp-del" title="Remover desta unidade" onclick="removeUnitRow('+e.id+')">&#128465;</button></div></div>';
-      }).join('') : '<div style="color:#52525b;font-size:12px;padding:6px 2px">Nenhum funcionário</div>';
-      return '<div class="emp-unit-col"><div class="emp-unit-col-head">&#127970; '+u+' <span style="color:#71717a;font-weight:500;font-size:12px">('+emps.length+')</span></div>'+cards+'</div>';
-    }).join('');
-    grid.innerHTML='<div class="emp-unit-cols">'+cols+'</div>';
-  }
-  var st=document.createElement('style');
-  st.textContent='.emp-unit-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;align-items:start}.emp-unit-col{background:#141414;border:1px solid #262626;border-radius:12px;padding:12px}.emp-unit-col-head{color:#fbbf24;font-weight:700;font-size:13px;letter-spacing:.5px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #262626}.emp-card-col{align-items:flex-start}.emp-otherunits{margin-top:5px;display:flex;flex-wrap:wrap;gap:4px;font-size:10px;color:#71717a;align-items:center}.emp-unit-badge-sm{display:inline-flex;align-items:center;gap:3px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.35);color:#60a5fa;font-size:10px;font-weight:600;padding:2px 6px;border-radius:999px}.emp-col-actions{display:flex;flex-direction:column;gap:5px;align-items:flex-end;margin-left:auto}.emp-addunit-sm{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.4);color:#3d82f6;font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;cursor:pointer;white-space:nowrap}';
-  document.head.appendChild(st);
-  function hook(){ if(typeof allEmployees==='undefined'){ return setTimeout(hook,150); } window.filterEmployees=renderByUnit; window.renderEmployees=function(){ renderByUnit(); }; renderByUnit(); }
-  setTimeout(hook,600);
-})();
+
+// ── Adicionar a pessoa a outra unidade ──
+function openAddUnit(btn) {
+  const nome = btn.getAttribute('data-name') || '';
+  const meus = allEmployees.filter(e => e.name === nome);
+  const tem = meus.map(e => e.unit);
+  const funcao = (meus[0] && meus[0].funcao) || 'ATENDENTE';
+  const livres = (typeof UNITS !== 'undefined' ? UNITS : []).filter(u => tem.indexOf(u) < 0);
+  if(!livres.length) { showToast('Já está em todas as unidades.', 'error'); return; }
+
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay show';
+  ov.style.zIndex = 10000;
+  ov.innerHTML =
+    '<div class="modal" style="max-width:300px">' +
+      '<div class="modal-header"><span>Adicionar unidade</span></div>' +
+      '<div class="modal-body">' +
+        '<p style="font-size:12px;color:var(--muted-fg);margin-bottom:12px">' + fnEsc(nome) + '</p>' +
+        '<div style="display:flex;flex-direction:column;gap:6px">' +
+          livres.map(u => '<button class="btn btn-outline" style="width:100%;justify-content:flex-start" data-u="' + fnEsc(u) + '">' + fnEsc(u) + '</button>').join('') +
+        '</div>' +
+        '<button class="btn btn-outline" style="margin-top:12px;width:100%" data-cancel="1">Cancelar</button>' +
+      '</div>' +
+    '</div>';
+  ov.addEventListener('click', async ev => {
+    const t = ev.target;
+    if(t === ov || t.getAttribute('data-cancel')) { ov.remove(); return; }
+    const u = t.getAttribute('data-u');
+    if(!u) return;
+    t.disabled = true;
+    try {
+      await fetch('/api/employees', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({name:nome, unit:u, active:true, funcao:funcao})
+      });
+      ov.remove();
+      await loadEmployees();
+      showToast('Unidade adicionada.');
+    } catch(e) { ov.remove(); showToast('Erro ao adicionar.', 'error'); }
+  });
+  document.body.appendChild(ov);
+}
+
+// ── Novo funcionário ──
+function openAddModal() {
+  document.getElementById('modal-add').classList.add('show');
+  document.getElementById('new-name').focus();
+}
+function closeAddModal() {
+  document.getElementById('modal-add').classList.remove('show');
+  document.getElementById('new-name').value = '';
+  const f = document.getElementById('new-funcao');
+  if(f) f.value = 'ATENDENTE';
+}
+async function addEmployee() {
+  const name = document.getElementById('new-name').value.trim();
+  const unit = document.getElementById('new-unit').value;
+  const funcao = document.getElementById('new-funcao').value;
+  if(!name) { showToast('Digite um nome.', 'error'); return; }
+  try {
+    const r = await fetch('/api/employees', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name, unit, active:true, funcao})
+    });
+    if(!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d.error || 'Erro ao adicionar.', 'error');
+      return;
+    }
+    closeAddModal();
+    await loadEmployees();
+    showToast('Funcionário adicionado.');
+  } catch(e) { showToast('Erro ao adicionar.', 'error'); }
+}
 </script>
 {% endblock %}
