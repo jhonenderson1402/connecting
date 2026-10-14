@@ -374,6 +374,17 @@ def set_regiao_unidade(uid, regiao):
         s.execute(update(Unidade).where(Unidade.id == uid).values(regiao=regiao))
         s.commit()
     return {'id': uid, 'regiao': regiao}
+def reordenar_unidades(ids):
+    """Regrava o campo ordem conforme a sequencia de ids recebida.
+    So muda a posicao de exibicao — nenhum dado de agendamento e tocado."""
+    with SessionLocal() as s:
+        for i, uid in enumerate(ids, start=1):
+            try:
+                s.execute(update(Unidade).where(Unidade.id == int(uid)).values(ordem=i))
+            except (TypeError, ValueError):
+                continue
+        s.commit()
+    return get_unidades()
 def _appt_tem_dados(a):
     """True se o registro tem algo de verdade (nome, horario, lead ou comparecimento)."""
     for r in _safe_json_loads(a.rows, []):
