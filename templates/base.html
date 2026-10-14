@@ -11,71 +11,113 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/static/style.css"/>
   <style>
-    /* Estilo do bloco de usuário no rodapé da sidebar */
-    .user-box {
-      padding: 12px 16px;
-      border-top: 1px solid #262626;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: auto;
-    }
-    .user-avatar {
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      background: #fbbf24;
-      color: #18181b;
-      font-weight: 800;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      flex-shrink: 0;
-    }
-    .user-info { flex: 1; min-width: 0; }
-    .user-name {
-      font-size: 13px;
-      font-weight: 600;
-      color: #e4e4e7;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .user-role {
-      font-size: 10px;
-      color: #71717a;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .logout-btn {
-      background: transparent;
-      border: 1px solid #2a2a2a;
-      color: #a1a1aa;
-      padding: 6px 8px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 12px;
-      transition: all 0.15s;
-    }
-    .logout-btn:hover {
-      background: rgba(239,68,68,0.1);
-      border-color: rgba(239,68,68,0.4);
-      color: #fca5a5;
-    }
-    .sidebar { display: flex; flex-direction: column; }
+    /* ══════════ MENU LATERAL ══════════ */
+    :root{ --sidebar-w: 248px; }
+    @media (max-width:900px){ :root{ --sidebar-w: 212px; } }
 
-    /* Logo Connecting na sidebar */
-    .logo-img {
-      width: 100%;
-      max-width: 160px;
-      height: auto;
-      display: block;
-      margin: 0 auto;
+    .sidebar{
+      display:flex; flex-direction:column;
+      background:#0e0e10; border-right:1px solid #1c1c1f;
     }
-    .sidebar-logo {
-      padding: 16px;
-      text-align: center;
+    body.tema-claro .sidebar{ background:#fbfbfa; border-right-color:#e8e8e4; }
+
+    /* Logo */
+    .sidebar-logo{ padding:10px 16px 4px; border-bottom:none; display:block; text-align:center; }
+    .logo-img{ width:196px; max-width:100%; height:auto; display:block; margin:-30px auto; }
+    body.tema-claro .sidebar-logo{ padding:18px 16px 14px; }
+    body.tema-claro .logo-img{
+      width:124px; height:124px; margin:0 auto; border-radius:50%;
+      background:#0d0d0f;
+      box-shadow:0 0 0 2px #fbbf24, 0 2px 10px rgba(0,0,0,.14);
     }
+
+    /* Navegação */
+    .sidebar-nav{ flex:1; padding:0 12px 8px; overflow-y:auto; }
+    .sidebar-nav::-webkit-scrollbar{ width:0; }
+
+    .sidebar .nav-label{
+      font-size:9.5px; font-weight:600; letter-spacing:.13em; text-transform:uppercase;
+      color:#52525b; padding:18px 10px 8px;
+    }
+    body.tema-claro .sidebar .nav-label{ color:#a1a1aa; }
+
+    .sidebar .nav-item{
+      display:flex; align-items:center; gap:11px; height:36px; padding:0 10px;
+      border-radius:7px; position:relative; cursor:pointer; text-decoration:none;
+      font-size:13px; font-weight:450; letter-spacing:-.005em; color:#a1a1aa;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      transition:background .14s, color .14s;
+    }
+    .sidebar .nav-item:hover{ background:#17171a; color:#e4e4e7; }
+    .sidebar .nav-item:hover .nav-icon{ color:#a1a1aa; }
+    .sidebar .nav-item.active{ background:#1a1a1d; color:#fafafa; font-weight:550; }
+    .sidebar .nav-item.active .nav-icon{ color:#fbbf24; }
+    .sidebar .nav-item.active::before{
+      content:''; position:absolute; left:-12px; top:9px; bottom:9px; width:2px;
+      background:#fbbf24; border-radius:0 2px 2px 0;
+    }
+    body.tema-claro .sidebar .nav-item{ color:#52525b; }
+    body.tema-claro .sidebar .nav-item:hover{ background:#f1f1ee; color:#18181b; }
+    body.tema-claro .sidebar .nav-item:hover .nav-icon{ color:#52525b; }
+    body.tema-claro .sidebar .nav-item.active{
+      background:#fff; color:#18181b;
+      box-shadow:0 1px 2px rgba(0,0,0,.05), 0 0 0 1px #e8e8e4;
+    }
+    body.tema-claro .sidebar .nav-item.active::before{ background:#a16207; }
+    body.tema-claro .sidebar .nav-item.active .nav-icon{ color:#a16207; }
+
+    .sidebar .nav-icon{
+      width:17px; height:17px; flex:0 0 auto; color:#52525b;
+      display:inline-flex; align-items:center; justify-content:center;
+      font-size:13px; transition:color .14s;
+    }
+    .sidebar .nav-icon svg{ width:17px; height:17px; stroke-width:1.6; display:block; }
+    body.tema-claro .sidebar .nav-icon{ color:#a1a1aa; }
+
+    .nav-sub .nav-item{ padding-left:32px; height:33px; font-size:12.5px; }
+    .nav-caret{ margin-left:auto; width:13px; height:13px; transition:transform .18s; }
+    .nav-caret.open{ transform:rotate(90deg); }
+
+    /* Rodapé do usuário */
+    .user-box{
+      display:flex; align-items:center; gap:10px; margin:0 12px;
+      padding:9px 10px; border-radius:8px; border-top:none;
+      transition:background .14s;
+    }
+    .user-box:hover{ background:#17171a; }
+    body.tema-claro .user-box:hover{ background:#f1f1ee; }
+    .user-avatar{
+      width:28px; height:28px; border-radius:7px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+      background:#1f1f23; color:#fbbf24; font-size:12px; font-weight:650;
+    }
+    body.tema-claro .user-avatar{ background:#18181b; color:#fbbf24; }
+    .user-info{ flex:1; min-width:0; }
+    .user-name{
+      font-size:12.5px; font-weight:550; color:#e4e4e7;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    body.tema-claro .user-name{ color:#27272a; }
+    .user-role{
+      font-size:9.5px; color:#52525b; text-transform:uppercase;
+      letter-spacing:.1em; margin-top:1px;
+    }
+    body.tema-claro .user-role{ color:#a1a1aa; }
+    .logout-btn{
+      width:27px; height:27px; flex-shrink:0; padding:0; border:none;
+      background:transparent; color:#52525b; border-radius:7px; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; transition:all .14s;
+    }
+    .logout-btn svg{ width:14px; height:14px; stroke-width:1.7; }
+    .logout-btn:hover{ background:#2a1416; color:#f87171; }
+    body.tema-claro .logout-btn{ color:#a1a1aa; }
+    body.tema-claro .logout-btn:hover{ background:#fee2e2; color:#dc2626; }
+
+    .sidebar-footer{
+      padding:12px 16px 16px; border-top:none;
+      font-size:9.5px; color:#3f3f46; text-align:center;
+    }
+    body.tema-claro .sidebar-footer{ color:#c4c4bd; }
   </style>
 </head>
 <body>
@@ -87,34 +129,46 @@
       </div>
       <nav class="sidebar-nav">
         {% if current_role in ('agendamento', 'all', 'admin') %}
-        <p class="nav-label">EQUIPE AGENDAMENTO</p>
+        <p class="nav-label">Equipe agendamento</p>
         <a href="/" class="nav-item" data-path="/">
-          <span class="nav-icon">📊</span> Resumo Geral
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
+          Resumo Geral
         </a>
         <div id="unit-links"></div>
+
+        <p class="nav-label">Relatórios</p>
         <a href="/acompanhamento" class="nav-item" data-path="/acompanhamento">
-          <span class="nav-icon">🏥</span> Acompanhamento Unidades
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></span>
+          Acompanhamento
         </a>
         <a href="/leads-recebidos" class="nav-item" data-path="/leads-recebidos">
-          <span class="nav-icon">📥</span> Leads Recebidos
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 19h16"/></svg></span>
+          Leads Recebidos
         </a>
         <a href="/employees" class="nav-item" data-path="/employees">
-          <span class="nav-icon">👥</span> Funcionários
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="3"/><path d="M22 20v-2a4 4 0 0 0-3-3.87"/></svg></span>
+          Funcionários
         </a>
         {% endif %}
         {% if current_role in ('all', 'admin') %}
-        <a href="#" class="nav-item" id="cfg-toggle" onclick="toggleConfig(event)" style="margin-top:12px">
-          <span class="nav-icon">⚙️</span> CONFIGURAÇÃO <span id="cfg-arrow" style="font-size:10px;opacity:.7">▸</span>
+        <p class="nav-label">Configuração</p>
+        <a href="#" class="nav-item" id="cfg-toggle" onclick="toggleConfig(event)">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6 1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V10a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg></span>
+          Ajustes
+          <svg class="nav-caret" id="cfg-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </a>
-        <div id="cfg-sub" style="display:none">
-          <a href="/users" class="nav-item" data-path="/users" style="padding-left:34px">
-            <span class="nav-icon">🔐</span> Usuários
+        <div id="cfg-sub" class="nav-sub" style="display:none">
+          <a href="/users" class="nav-item" data-path="/users">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg></span>
+            Usuários
           </a>
-          <a href="/configuracao/fontes" class="nav-item" data-path="/configuracao/fontes" style="padding-left:34px">
-            <span class="nav-icon">🏷️</span> Fonte
+          <a href="/configuracao/fontes" class="nav-item" data-path="/configuracao/fontes">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 12 22l-9-9V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg></span>
+            Fontes de lead
           </a>
-          <a href="/configuracao/unidades" class="nav-item" data-path="/configuracao/unidades" style="padding-left:34px">
-            <span class="nav-icon">🏢</span> Unidades
+          <a href="/configuracao/unidades" class="nav-item" data-path="/configuracao/unidades">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V7l6-4 6 4v14"/><path d="M10 10h4M10 14h4"/></svg></span>
+            Unidades
           </a>
         </div>
         <script>
@@ -123,7 +177,7 @@
           var s=document.getElementById('cfg-sub'), a=document.getElementById('cfg-arrow');
           var open = s.style.display !== 'none';
           s.style.display = open ? 'none' : 'block';
-          if(a) a.textContent = open ? '▸' : '▾';
+          if(a) a.classList.toggle('open', !open);
         }
         if(location.pathname === '/users' || location.pathname.indexOf('/configuracao') === 0){ toggleConfig(); }
         </script>
@@ -137,7 +191,9 @@
           <div class="user-name">{{ current_user }}</div>
           <div class="user-role">{% if current_role == "agendamento" %}Agendamento{% elif current_role == "confirmacao" %}Confirmação{% else %}Admin{% endif %}</div>
         </div>
-        <a href="/logout" class="logout-btn" title="Sair">⎋ Sair</a>
+        <a href="/logout" class="logout-btn" title="Sair">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        </a>
       </div>
       {% endif %}
 
@@ -188,7 +244,12 @@
         a.href = '/unit/' + encodeURIComponent(u);
         a.className = 'nav-item';
         a.dataset.path = '/unit/' + encodeURIComponent(u);
-        const _uf = {'PARÁ':'PA','MANAUS':'AM','MANOA':'AM','SÃO LUIZ':'MA','FORTALEZA':'CE'}[u]; a.innerHTML = '<span class="nav-icon">' + (_uf ? '<span style="display:inline-block;width:17px;height:17px;background:currentColor;-webkit-mask:url(/static/'+_uf+'.svg) center/contain no-repeat;mask:url(/static/'+_uf+'.svg) center/contain no-repeat;vertical-align:-3px"></span>' : '🏢') + '</span> ' + u;
+        const _uf = {'PARÁ':'PA','MANAUS':'AM','MANOA':'AM','SÃO LUIZ':'MA','FORTALEZA':'CE','MANAUS CENTRO':'AM'}[u];
+        const _predio = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="M10 21v-5h4v5"/></svg>';
+        const _mapa = '<span style="display:block;width:17px;height:17px;background:currentColor;'
+                    + '-webkit-mask:url(/static/' + _uf + '.svg) center/contain no-repeat;'
+                    + 'mask:url(/static/' + _uf + '.svg) center/contain no-repeat"></span>';
+        a.innerHTML = '<span class="nav-icon">' + (_uf ? _mapa : _predio) + '</span> ' + u;
         container.appendChild(a);
       });
       highlightNav();
