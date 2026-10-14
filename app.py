@@ -729,7 +729,7 @@ def api_list_fontes():
 def api_create_fonte():
     data = request.get_json(silent=True) or {}
     try:
-        return jsonify(db.create_fonte(data.get('nome'), data.get('chave'))), 201
+        return jsonify(db.set_regiao_unidade(uid, data.get('regiao')))
     except ValueError as e:
         return _err(str(e))
 @app.route('/api/fontes/<int:fid>', methods=['DELETE'])
@@ -1026,20 +1026,6 @@ def api_set_user_role(uid):
     try:
         db.set_user_role(uid, data.get('role', 'all'))
         return jsonify({'ok': True})
-    except ValueError as e:
-        return _err(str(e))
-    except ValueError as e:
-        return _err(str(e))
-
-@app.route('/api/unidades/ordem', methods=['POST'])
-@admin_required
-def api_ordem_unidades():
-    data = request.get_json(silent=True) or {}
-    ids = data.get('ids') or []
-    if not isinstance(ids, list) or not ids:
-        return _err('Lista de unidades vazia.')
-    try:
-        return jsonify(db.reordenar_unidades(ids))
     except ValueError as e:
         return _err(str(e))
 
