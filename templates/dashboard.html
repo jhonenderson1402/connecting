@@ -15,7 +15,7 @@
   COLS.forEach(function(c){ if(!(c.key in active)) active[c.key]=true; });
 
   function save(){ try{ localStorage.setItem("rankCols",JSON.stringify(active)); }catch(e){} }
-  function rep(n){ var s=""; for(var i=0;i<n;i++) s+=" 33px"; return s; 
+  function rep(n){ var s=""; for(var i=0;i<n;i++) s+=" 33px"; return s; }
   function nAtivas(){ var n=0; COLS.forEach(function(c){ if(active[c.key]) n++; }); return n; }
 
   function applyFilter(){
@@ -1567,6 +1567,241 @@ function downloadExtractPDF() {
       <tbody>${leaderRows}</tbody>
     </table>` : '';
 
+  // ── Ranking de atendentes: uma caixa por unidade ──
+  const _unidsPdf = (typeof UNITS !== 'undefined' && UNITS.length) ? UNITS : [];
+  const _geralMapPdf = {};
+  (tmkRank||[]).forEach(t=>{
+    if(!_geralMapPdf[t.nome]) _geralMapPdf[t.nome] = {nome:t.nome, leads:0, ag:0, comp:0};
+    _geralMapPdf[t.nome].ag   += t.ag;
+    _geralMapPdf[t.nome].comp += t.comp;
+    _geralMapPdf[t.nome].leads = Math.max(_geralMapPdf[t.nome].leads, Number(t.leads)||0);
+  });
+  const _geralPdf = Object.values(_geralMapPdf)
+    .map(d=>Object.assign(d,{conv: d.ag>0?Math.round(d.comp/d.ag*100):0}))
+    .sort((a,b)=>b.ag-a.ag);
+  function _pdfLinhas(lista){
+    return lista.map((t,i)=>`<tr${i%2?' class="z"':''}>
+      <td class="nm"><span class="pos">${i+1}</span>${t.nome}</td>
+      <td class="n">${_n(t.leads)}</td><td class="n b">${_n(t.ag)}</td>
+      <td class="n">${_n(t.comp)}</td><td class="n b">${t.conv}%</td></tr>`).join('');
+  }
+  function _pdfBox(titulo, lista){
+    if(!lista || !lista.length) return '';
+    return `<div class="tbox">
+      <div class="tbox-h">${titulo}<span>${lista.length}</span></div>
+      <table class="tmini">
+        <thead><tr><th>Nome</th><th class="n">Lds</th><th class="n">Agd</th><th class="n">Cmp</th><th class="n">Cnv</th></tr></thead>
+        <tbody>${_pdfLinhas(lista)}</tbody>
+      </table>
+    </div>`;
+  }
+  const tmkBlock = (tmkRank && tmkRank.length) ? `
+    <h2>Ranking de atendentes</h2>
+    <div class="tgrid">
+      ${_pdfBox('Geral — todas as unidades', _geralPdf)}
+      ${_unidsPdf.map(u => _pdfBox(u, (tmkRank||[]).filter(t => t.unit === u))).join('')}
+    </div>` : '';
+
+  const _hoje = new Date().toLocaleDateString('pt-BR',
+    {day:'2-digit', month:'long', year:'numeric'});
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="utf-8"><title>Connecting — ${label}</title>
+<style>
+  @page{ size:A4 portrait; margin:12mm 13mm 14mm; }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    color:#1c1c1e; font-size:9.5pt; line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ── Moldura: o thead se repete em toda página impressa ── */
+  table.sheet{ width:100%; border-collapse:collapse; }
+  table.sheet > thead > tr > th{ padding:0 0 6mm; border:none; text-align:left; }
+  table.sheet > tbody > tr > td{ padding:0; border:none; vertical-align:top; }
+
+  .hd{
+    display:flex; align-items:center; gap:4.5mm;
+    border-bottom:1pt solid #c9a227; padding-bottom:3mm;
+  }
+  .hd img{ height:17mm; width:auto; display:block; flex:0 0 auto; }
+  .hd-t b{ display:block; font-size:11pt; font-weight:600;
+           letter-spacing:-.015em; color:#141416; }
+  .hd-t span{ display:block; font-size:6.5pt; letter-spacing:.14em;
+              text-transform:uppercase; color:#a09a88; margin-top:1mm; }
+  .hd-p{ margin-left:auto; text-align:right; }
+  .hd-p b{ display:block; font-size:10pt; font-weight:600;
+           letter-spacing:-.01em; color:#141416; }
+  .hd-p span{ display:block; font-size:6.5pt; color:#a8a8ac; margin-top:1mm; }
+
+  .lede{ font-size:7.5pt; color:#9a9a9f; margin-bottom:6mm; }
+
+  h2{
+    font-size:7.5pt; font-weight:700; letter-spacing:.13em; text-transform:uppercase;
+    color:#8a6a12; margin:8mm 0 2.5mm; padding-bottom:1.5mm;
+    border-bottom:0.5pt solid #e6e2d8;
+    break-after:avoid; page-break-after:avoid;
+  }
+  h2:first-of-type{ margin-top:0; }
+
+  /* ── Indicadores ── */
+  .kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:3mm; margin-bottom:1mm; }
+  .kpi{ border:0.5pt solid #e4e4e0; border-radius:1.6mm; padding:3mm 3.5mm; }
+  .kpi .k{ font-size:6pt; letter-spacing:.12em; text-transform:uppercase;
+           color:#a0a0a5; margin-bottom:1.6mm; }
+  .kpi .v{ font-size:17pt; font-weight:650; letter-spacing:-.035em; line-height:1;
+           font-variant-numeric:tabular-nums; }
+  .kpi .d{ font-size:6.5pt; color:#9a9a9f; margin-top:1.8mm; }
+  .kpi .d i{ font-style:normal; font-weight:650; }
+  .up{ color:#2d7a43; } .down{ color:#b4342c; } .flat{ color:#a0a0a5; }
+
+  /* ── Tabela principal ── */
+  table.t-main{ width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  .t-main th{
+    font-size:6pt; font-weight:700; letter-spacing:.11em; text-transform:uppercase;
+    color:#a0a0a5; text-align:left; padding:2mm; border-bottom:0.8pt solid #dcdcd6;
+  }
+  .t-main th.n{ text-align:right; }
+  .t-main td{ padding:1.5mm 2mm; border-bottom:0.4pt solid #f0f0eb; font-size:8.5pt; }
+  .t-main td.u{ color:#1c1c1e; font-weight:500; }
+  .t-main td.n{ text-align:right; color:#58585e; }
+  .t-main td.n.b{ color:#111; font-weight:650; }
+  .t-main td.dim{ color:#cfcfca; }
+  .t-main tr.sub td{ font-size:7.5pt; color:#7a7a80; border-bottom:0.3pt solid #f6f6f2; }
+  .t-main tr.sub td.u{ padding-left:7mm; font-weight:400; position:relative; }
+  .t-main tr.sub td.u::before{
+    content:''; position:absolute; left:3.5mm; top:50%;
+    width:2mm; height:0.4pt; background:#dcdcd6;
+  }
+  .t-main tfoot td{
+    border-top:1pt solid #c9a227; border-bottom:none; padding-top:2.2mm;
+    font-weight:700; font-size:9pt; color:#111;
+  }
+  .pos{ display:inline-block; width:6mm; color:#b4b4b8; font-size:7pt; font-weight:500; }
+  .meta{ color:#aeaeb2; font-size:6.5pt; font-weight:400; margin-left:2mm; }
+
+  /* ── Caixas do ranking de atendentes ── */
+  .tgrid{ display:grid; grid-template-columns:1fr 1fr; gap:3mm; align-items:start; }
+  .tbox{
+    border:0.5pt solid #e4e4e0; border-radius:1.6mm; overflow:hidden;
+    break-inside:avoid; page-break-inside:avoid;
+  }
+  .tbox-h{
+    display:flex; align-items:center; gap:2mm; padding:1.8mm 2.5mm;
+    background:#faf8f2; border-bottom:0.5pt solid #ebe7dc;
+    font-size:6pt; font-weight:700; letter-spacing:.11em;
+    text-transform:uppercase; color:#8a6a12;
+  }
+  .tbox-h span{ margin-left:auto; color:#b5ad92; font-weight:600; }
+  table.tmini{ width:100%; border-collapse:collapse; table-layout:fixed;
+               font-variant-numeric:tabular-nums; }
+  table.tmini th{
+    font-size:5.5pt; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color:#aeaeb2; padding:1.4mm 2mm; border-bottom:0.4pt solid #f0f0eb; text-align:left;
+  }
+  table.tmini th.n{ text-align:right; width:10mm; }
+  table.tmini td{ padding:0.6mm 2mm; border:none; font-size:7.5pt; }
+  table.tmini tr.z{ background:#fbfbf8; }
+  table.tmini td.nm{
+    text-align:left; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; color:#2c2c30;
+  }
+  table.tmini td.n{ text-align:right; color:#6e6e74; }
+  table.tmini td.n.b{ color:#111; font-weight:650; }
+  table.tmini .pos{ width:5mm; font-size:6pt; }
+
+  .foot{
+    margin-top:8mm; padding-top:2.5mm; border-top:0.4pt solid #f0f0eb;
+    font-size:6pt; letter-spacing:.06em; color:#b8b8bc;
+    display:flex; justify-content:space-between;
+  }
+</style></head><body>
+
+<table class="sheet">
+  <thead><tr><th>
+    <div class="hd">
+      <img class="rep-logo" src="/static/logo.png" alt="Connecting">
+      <div class="hd-t">
+        <b>Relatório de desempenho</b>
+        <span>Equipe de agendamento</span>
+      </div>
+      <div class="hd-p"><b>${label}</b><span>Emitido em ${_hoje}</span></div>
+    </div>
+  </th></tr></thead>
+  <tbody><tr><td>
+
+    <p class="lede">Comparativo com ${prevLabel} · dados do Acompanhamento Unidades e Leads Recebidos</p>
+
+    <div class="kpis">
+      <div class="kpi"><div class="k">Leads recebidos</div><div class="v">${_n(tot.leads)}</div>
+        <div class="d">vs ${prevLabel}: ${_pdfDelta(tot.leads, prevTot.leads)}</div></div>
+      <div class="kpi"><div class="k">Agendamentos</div><div class="v">${_n(tot.ag)}</div>
+        <div class="d">vs ${prevLabel}: ${_pdfDelta(tot.ag, prevTot.ag)}</div></div>
+      <div class="kpi"><div class="k">Comparecimentos</div><div class="v">${_n(tot.comp)}</div>
+        <div class="d">vs ${prevLabel}: ${_pdfDelta(tot.comp, prevTot.comp)}</div></div>
+      <div class="kpi"><div class="k">Conversão</div><div class="v">${tot.conv}%</div>
+        <div class="d">agendamentos × comparecimentos</div></div>
+    </div>
+
+    <h2>Detalhamento por unidade</h2>
+    <table class="t-main">
+      <thead><tr><th>Unidade</th><th class="n">Leads</th><th class="n">Agend.</th><th class="n">Comp.</th><th class="n">Conv.</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr>
+        <td class="u">Total</td><td class="n">${_n(tot.leads)}</td>
+        <td class="n">${_n(tot.ag)}</td><td class="n">${_n(tot.comp)}</td>
+        <td class="n">${tot.conv}%</td>
+      </tr></tfoot>
+    </table>
+
+    ${leaderBlock}
+    ${tmkBlock}
+
+    <div class="foot">
+      <span>Connecting · Sistema de Agendamentos</span>
+      <span>${_hoje}</span>
+    </div>
+
+  </td></tr></tbody>
+</table>
+</body></html>`);
+  win.document.close();
+
+  // Espera a logo carregar antes de abrir a impressão
+  const _img = win.document.querySelector('.rep-logo');
+  const _go = () => setTimeout(() => win.print(), 300);
+  if (_img && !_img.complete) { _img.onload = _go; _img.onerror = _go; }
+  else _go();
+}
+
+// Variação percentual formatada para o PDF (em texto, sem setas)
+function _pdfDelta(cur, prev) {
+  if(!prev) return cur > 0 ? '<i class="up">novo</i>' : '<i class="flat">—</i>';
+  const d = Math.round(((cur - prev) / prev) * 100);
+  if(d > 0) return `<i class="up">+${d}%</i>`;
+  if(d < 0) return `<i class="down">${d}%</i>`;
+  return '<i class="flat">0%</i>';
+}
+    return l;
+  }).join('');
+
+  // ── Ranking de líderes ──
+  const leaderRows = (leaderRank||[]).map((l,i)=>`<tr>
+    <td class="u"><span class="pos">${i+1}</span>${l.leader}<span class="meta">${l.unit}</span></td>
+    <td class="n">${_n(l.leads)}</td>
+    <td class="n b">${_n(l.ag)}</td>
+    <td class="n">${_n(l.comp)}</td>
+    <td class="n b">${l.conv}%</td></tr>`).join('');
+  const leaderBlock = (leaderRank && leaderRank.length) ? `
+    <h2>Ranking de líderes</h2>
+    <table class="t-main">
+      <thead><tr><th>Líder</th><th class="n">Leads</th><th class="n">Agend.</th><th class="n">Comp.</th><th class="n">Conv.</th></tr></thead>
+      <tbody>${leaderRows}</tbody>
+    </table>` : '';
+
   // ── Ranking de TMK: uma caixa por unidade ──
   const _unidsPdf = (typeof UNITS !== 'undefined' && UNITS.length) ? UNITS : [];
   const _geralMapPdf = {};
@@ -1761,13 +1996,6 @@ ${tmkBlock}
 }
 
 // Variação percentual formatada para o PDF (sem emoji, em texto)
-function _pdfDelta(cur, prev) {
-  if(!prev) return cur > 0 ? '<i class="up">novo</i>' : '<i class="flat">—</i>';
-  const d = Math.round(((cur - prev) / prev) * 100);
-  if(d > 0) return `<i class="up">+${d}%</i>`;
-  if(d < 0) return `<i class="down">${d}%</i>`;
-  return '<i class="flat">0%</i>';
-}
 // Fecha modal ao clicar fora
 document.addEventListener('click', e=>{
   if(e.target && e.target.id === 'extract-modal') closeExtract();
