@@ -39,7 +39,7 @@
       head.style.setProperty("grid-template-columns",headGTC,"important");
     });
     var b=document.getElementById("rank-col-btn");
-    if(b) b.textContent = "Colunas (" + n + ")";
+    if(b) b.textContent = "Filtro (" + n + ")";
   }
 
   // O botão agora mora no cabeçalho do card do ranking,
@@ -58,7 +58,7 @@
     var btn=document.createElement("button");
     btn.type="button";
     btn.id="rank-col-btn";
-    btn.textContent="Colunas";
+    btn.textContent="Filtro";
     btn.style.cssText="height:26px;padding:0 10px;border-radius:7px;cursor:pointer;"
       + "background:var(--secondary);border:1px solid var(--border);color:var(--muted-fg);"
       + "font-size:11px;font-weight:600;font-family:inherit;white-space:nowrap;transition:all .14s";
