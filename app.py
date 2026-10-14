@@ -479,10 +479,15 @@ def api_clear_leads(unit, date):
 def api_constants():
     return jsonify({'units': _units(), 'months': MONTHS, 'time_slots': TIME_SLOTS})
 # Chaves de leads que entraram — montadas a partir das fontes cadastradas.
-LEAD_KEYS_FALLBACK = ['wbp_lead', 'vbot_lead', 'antigos_lead', 'mkt_lead', 'whats_lead', 'mabe_lead']
+# A fonte ANTIGOS continua sendo lançada e exibida, mas NÃO soma no total de leads.
+FONTES_FORA_DO_TOTAL = {'antigos'}
+LEAD_KEYS_FALLBACK = ['wbp_lead', 'vbot_lead', 'mkt_lead', 'whats_lead', 'mabe_lead']
 def _lead_keys():
+    """Chaves que somam no total de leads recebidos."""
     try:
-        return [f"{f['chave']}_lead" for f in db.get_fontes()] or LEAD_KEYS_FALLBACK
+        chaves = [f"{f['chave']}_lead" for f in db.get_fontes()
+                  if f['chave'] not in FONTES_FORA_DO_TOTAL]
+        return chaves or LEAD_KEYS_FALLBACK
     except Exception:
         return LEAD_KEYS_FALLBACK
 @app.route('/api/leads_totais', methods=['GET'])
