@@ -202,7 +202,7 @@ body.tema-claro .rank-zero{ color:#d4d4cd !important; }
     var ranked=Object.keys(pm).map(function(nm){ return {name:nm, leads:Number(lm[nm])||0, ag:pm[nm].ag, comp:pm[nm].comp, pun:pm[nm].pun||0,vendas:pm[nm].vendas||0}; }).sort(function(a,b){return b.ag-a.ag;});
     var rows=ranked.map(function(p,i){ var conv=p.ag>0?Math.round((p.comp/p.ag)*100):0; var cc=conv>=50?"#22c55e":conv>=40?"#fbbf24":conv>0?"#ef4444":"#3f3f46"; var z=function(v){ return (Number(v)||0)===0?" rank-zero":""; }; return "<div class=\"rank-row"+(i<3?" pod":"")+"\"><span class=\"rank-pos\">"+(i+1)+"</span><span class=\"rank-name\" title=\""+p.name+"\">"+p.name+"</span><span class=\"rank-leads"+z(p.leads)+"\">"+p.leads+"</span><span class=\"rank-ag"+z(p.ag)+"\">"+p.ag+"</span><span class=\"rank-comp"+z(p.comp)+"\">"+p.comp+"</span><span class=\"rank-vendas"+z(p.vendas)+"\">"+(p.vendas||0)+"</span><span class=\"rank-conv\" style=\"color:"+cc+"\">"+conv+"%</span><span class=\"rank-pun"+(p.pun>0?"":" rank-zero")+"\" style=\""+(p.pun>0?"color:#f87171":"")+"\">"+(p.pun>0?"-"+p.pun:0)+"</span></div>"; }).join("");
     var inner=ranked.length===0?"<p class=\"no-data\">Sem dados</p>":"<div class=\"rank-header-row\"><span>NOME</span><span>LDS</span><span>AGD</span><span>CMP</span><span>VND</span><span>CNV</span><span>PUN</span></div>"+rows;
-    return "<div class=\"rank-unit-box\" id=\"rank-geral-box\" style=\"border:1px solid rgba(251,191,36,.4)\"><div class=\"rank-unit-title\" style=\"color:#fbbf24\">\ud83c\udfc6 RANK GERAL \u2014 TODAS AS UNIDADES</div>"+inner+"</div>";
+    return "<div class=\"rank-unit-box\" id=\"rank-geral-box\" style=\"border:1px solid rgba(251,191,36,.4)\"><div class=\"rank-unit-title\" style=\"color:#fbbf24\">🏆 RANK GERAL — TODAS AS UNIDADES</div>"+inner+"</div>";
   }
   function ensure(){ var g=document.getElementById("ranking-grid"); if(!g) return; if(g.querySelector("#rank-geral-box")) return; if(!g.children.length) return; g.insertAdjacentHTML("afterbegin", buildGeral()); }
   function init(){ var g=document.getElementById("ranking-grid"); if(!g){ setTimeout(init,500); return; } new MutationObserver(function(){ ensure(); }).observe(g,{childList:true}); ensure(); }
@@ -453,14 +453,13 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
 (function(){
   var estado = {};        // título da caixa -> {col, dir}
   var ocupado = false;    // evita o observer reagir à própria reordenação
-  var MED = ['🥇','🥈','🥉'];
 
   function boxId(box){
     var t = box.querySelector('.rank-unit-title');
     return t ? t.textContent.trim() : 'box';
   }
   function valor(row, idx){
-    var c = row.children[idx + 1];   // +1: a linha tem a coluna da medalha a mais
+    var c = row.children[idx + 1];   // +1: a linha tem a coluna da posição a mais
     return c ? c.textContent.trim() : '';
   }
   function comparar(a, b, idx, dir){
@@ -485,7 +484,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
     rows.sort(function(a,b){ return comparar(a,b,idx,dir); });
     var pai = rows[0].parentNode;
     rows.forEach(function(r){ pai.appendChild(r); });
-     rows.forEach(function(r,i){
+    rows.forEach(function(r,i){
       var p = r.querySelector('.rank-pos');
       if(p) p.textContent = (i+1);
       r.classList.toggle('pod', i < 3);
@@ -859,7 +858,6 @@ function renderRankingGrid(unitsData, leadsTmk) {
     const ranked = Object.entries(personMap)
       .map(([name,d])=>({name, leads:Number(leadsTmk[name])||0, ...d}))
       .sort((a,b)=>b.ag-a.ag);
-    const medals = ['🥇','🥈','🥉'];
     const rows = ranked.map((p,i)=>{
       const conv=p.ag>0?Math.round((p.comp/p.ag)*100):0;
       const cc = conv>=50?'#22c55e':conv>=40?'#fbbf24':conv>0?'#ef4444':'#3f3f46';
@@ -887,12 +885,6 @@ function renderRankingGrid(unitsData, leadsTmk) {
 }
 
 function renderLeaderRanking() {
-  // Monta mapa nome -> unidade a partir do cadastro de funcionários
-  const employeeUnitMap = {};
-  allEmployees.forEach(e => {
-    if (e.name?.trim()) employeeUnitMap[e.name.trim().toLowerCase()] = e.unit;
-  });
-
   // A líder entra na caixa da unidade onde o agendamento foi feito.
   // O cadastro de funcionários NÃO decide isso: a mesma líder pode atuar
   // em mais de uma unidade e precisa aparecer em cada uma delas.
@@ -931,7 +923,6 @@ function renderLeaderRanking() {
         unitLeaderMap[info.unit][info.leader].comp += Number(v)||0;
       });
   });
-  const medals = ['🥇','🥈','🥉'];
   const el = document.getElementById('leader-ranking');
 
   const hasAny = UNITS.some(u => Object.keys(unitLeaderMap[u]).length > 0);
@@ -1116,7 +1107,7 @@ async function _totaisOficiais(year, monthIndex, diaAlvo){
   return {leads, ag, comp};
 }
 function _norm(s){
-  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase();
+  return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toUpperCase();
 }
 // Detalhamento por unidade usando as MESMAS fontes do Resumo Geral.
 // Os leads existem por REGIÃO (local), então vão para a primeira unidade de cada região.
@@ -1287,15 +1278,9 @@ async function renderExtract() {
   // Ranking de Líderes (com leads somados das pessoas sob cada líder)
   const leaderRank = _buildLeaderRank(appts, leadsTmk);
 
-  // Comparação com o mês anterior (só faz sentido em modo mês; nos outros, compara mês atual vs anterior dos totais)
+  // Comparação com o mês anterior
   const prevMonth = monthIndex>0?monthIndex-1:11;
   const prevYear  = monthIndex>0?year:year-1;
-  const prev = await _fetchPeriodo('month', prevMonth, prevYear, 1);
-  const prevPorUni = UNITS.map(unit=>{
-    const ua = prev.appts.filter(a=>a.unit===unit);
-    const {ag, comp} = _aggUnit(ua);
-    return {unit, ag, comp, leads:Number(prev.leads[unit])||0};
-  });
   // mesma fonte oficial, para a comparação não misturar bases
   const prevTot = await _totaisOficiais(prevYear, prevMonth, null);
 
@@ -1520,7 +1505,7 @@ function downloadExtractExcel() {
     csv += `Posição;TMK;Unidade;Leads;Agendamentos;Comparecimentos;Conversão%\n`;
     tmkRank.forEach((t,i)=>{ csv += `${i+1}º;${t.nome};${t.unit};${t.leads};${t.ag};${t.comp};${t.conv}%\n`; });
   }
-  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8'});
+  const blob = new Blob(["﻿"+csv], {type:'text/csv;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `connecting_${label.replace(/[^\w]+/g,'_')}.csv`;
@@ -1785,217 +1770,7 @@ function _pdfDelta(cur, prev) {
   if(d < 0) return `<i class="down">${d}%</i>`;
   return '<i class="flat">0%</i>';
 }
-    return l;
-  }).join('');
 
-  // ── Ranking de líderes ──
-  const leaderRows = (leaderRank||[]).map((l,i)=>`<tr>
-    <td class="u"><span class="pos">${i+1}</span>${l.leader}<span class="meta">${l.unit}</span></td>
-    <td class="n">${_n(l.leads)}</td>
-    <td class="n b">${_n(l.ag)}</td>
-    <td class="n">${_n(l.comp)}</td>
-    <td class="n b">${l.conv}%</td></tr>`).join('');
-  const leaderBlock = (leaderRank && leaderRank.length) ? `
-    <h2>Ranking de líderes</h2>
-    <table class="t-main">
-      <thead><tr><th>Líder</th><th class="n">Leads</th><th class="n">Agend.</th><th class="n">Comp.</th><th class="n">Conv.</th></tr></thead>
-      <tbody>${leaderRows}</tbody>
-    </table>` : '';
-
-  // ── Ranking de TMK: uma caixa por unidade ──
-  const _unidsPdf = (typeof UNITS !== 'undefined' && UNITS.length) ? UNITS : [];
-  const _geralMapPdf = {};
-  (tmkRank||[]).forEach(t=>{
-    if(!_geralMapPdf[t.nome]) _geralMapPdf[t.nome] = {nome:t.nome, leads:0, ag:0, comp:0};
-    _geralMapPdf[t.nome].ag   += t.ag;
-    _geralMapPdf[t.nome].comp += t.comp;
-    _geralMapPdf[t.nome].leads = Math.max(_geralMapPdf[t.nome].leads, Number(t.leads)||0);
-  });
-  const _geralPdf = Object.values(_geralMapPdf)
-    .map(d=>Object.assign(d,{conv: d.ag>0?Math.round(d.comp/d.ag*100):0}))
-    .sort((a,b)=>b.ag-a.ag);
-  function _pdfLinhas(lista){
-    return lista.map((t,i)=>`<tr${i%2?' class="z"':''}>
-      <td class="nm"><span class="pos">${i+1}</span>${t.nome}</td>
-      <td class="n">${_n(t.leads)}</td><td class="n b">${_n(t.ag)}</td>
-      <td class="n">${_n(t.comp)}</td><td class="n b">${t.conv}%</td></tr>`).join('');
-  }
-  function _pdfBox(titulo, lista){
-    if(!lista || !lista.length) return '';
-    return `<div class="tbox">
-      <div class="tbox-h">${titulo}<span>${lista.length}</span></div>
-      <table class="tmini">
-        <thead><tr><th>Nome</th><th class="n">Lds</th><th class="n">Agd</th><th class="n">Cmp</th><th class="n">Cnv</th></tr></thead>
-        <tbody>${_pdfLinhas(lista)}</tbody>
-      </table>
-    </div>`;
-  }
-  const tmkBlock = (tmkRank && tmkRank.length) ? `
-    <h2>Ranking de atendentes</h2>
-    <div class="tgrid">
-      ${_pdfBox('Geral — todas as unidades', _geralPdf)}
-      ${_unidsPdf.map(u => _pdfBox(u, (tmkRank||[]).filter(t => t.unit === u))).join('')}
-    </div>` : '';
-
-  const _hoje = new Date().toLocaleDateString('pt-BR',
-    {day:'2-digit', month:'long', year:'numeric'});
-
-  const win = window.open('', '_blank');
-  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head>
-<meta charset="utf-8"><title>Connecting — ${label}</title>
-<style>
-  @page{ size:A4 portrait; margin:28mm 14mm 16mm; }
-
-  *{ box-sizing:border-box; margin:0; padding:0; }
-  body{
-    font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
-    color:#1c1c1e; font-size:9.5pt; line-height:1.45;
-    -webkit-font-smoothing:antialiased;
-  }
-
-  /* Cabeçalho repetido em todas as páginas */
-  .rep-head{
-    position:fixed; top:-20mm; left:0; right:0; height:16mm;
-    display:flex; align-items:center; gap:9px;
-    border-bottom:0.8pt solid #c9a227; padding-bottom:3mm;
-  }
-  .rep-head img{ height:11mm; width:auto; display:block; }
-  .rep-head .ttl{ font-size:10.5pt; font-weight:600; letter-spacing:-.01em; color:#111; }
-  .rep-head .sub{ font-size:7pt; color:#8a8a8f; letter-spacing:.09em;
-                  text-transform:uppercase; margin-top:1px; }
-  .rep-head .per{ margin-left:auto; text-align:right; }
-  .rep-head .per b{ display:block; font-size:9pt; font-weight:600; color:#1c1c1e; }
-  .rep-head .per span{ font-size:7pt; color:#9a9a9f; }
-
-  h1{ font-size:15pt; font-weight:600; letter-spacing:-.02em; margin-bottom:2mm; }
-  .lede{ font-size:8pt; color:#8a8a8f; margin-bottom:7mm; }
-  h2{
-    font-size:8pt; font-weight:600; letter-spacing:.11em; text-transform:uppercase;
-    color:#8a6a12; margin:9mm 0 2.5mm; padding-bottom:1.5mm;
-    border-bottom:0.5pt solid #e6e2d8;
-  }
-  h2:first-of-type{ margin-top:0; }
-
-  /* Indicadores */
-  .kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:3mm; margin-bottom:2mm; }
-  .kpi{ border:0.5pt solid #e4e4e0; border-radius:2mm; padding:3mm 3.5mm; }
-  .kpi .k{ font-size:6.5pt; letter-spacing:.11em; text-transform:uppercase;
-           color:#9a9a9f; margin-bottom:1.5mm; }
-  .kpi .v{ font-size:16pt; font-weight:650; letter-spacing:-.03em; line-height:1;
-           font-variant-numeric:tabular-nums; }
-  .kpi .d{ font-size:7pt; color:#8a8a8f; margin-top:1.5mm; }
-  .kpi .d i{ font-style:normal; font-weight:600; }
-  .up{ color:#2d7a43; } .down{ color:#b4342c; } .flat{ color:#9a9a9f; }
-
-  /* Tabelas */
-  table{ width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
-  .t-main th{
-    font-size:6.5pt; font-weight:600; letter-spacing:.09em; text-transform:uppercase;
-    color:#9a9a9f; text-align:left; padding:2mm 2mm; border-bottom:0.8pt solid #d8d8d2;
-  }
-  .t-main th.n{ text-align:right; }
-  .t-main td{ padding:1.6mm 2mm; border-bottom:0.4pt solid #efefea; font-size:9pt; }
-  .t-main td.u{ color:#1c1c1e; font-weight:500; }
-  .t-main td.n{ text-align:right; color:#55555a; }
-  .t-main td.n.b{ color:#111; font-weight:650; }
-  .t-main td.dim{ color:#c8c8c4; }
-  .t-main tr.sub td{ font-size:8pt; color:#77777c; border-bottom:0.3pt solid #f5f5f1; }
-  .t-main tr.sub td.u{ padding-left:7mm; font-weight:400; position:relative; }
-  .t-main tr.sub td.u::before{
-    content:''; position:absolute; left:3.5mm; top:50%; width:2mm; height:0.4pt; background:#d8d8d2;
-  }
-  .t-main tfoot td{
-    border-top:1pt solid #c9a227; border-bottom:none; padding-top:2.2mm;
-    font-weight:700; font-size:9.5pt; color:#111;
-  }
-  .pos{ display:inline-block; width:6mm; color:#b0b0b4; font-size:7.5pt; font-weight:500; }
-  .meta{ color:#a8a8ac; font-size:7pt; font-weight:400; margin-left:2mm; }
-
-  /* Caixas do ranking de atendentes */
-  .tgrid{ display:grid; grid-template-columns:1fr 1fr; gap:3mm; align-items:start; }
-  .tbox{
-    border:0.5pt solid #e4e4e0; border-radius:2mm; overflow:hidden;
-    break-inside:avoid; page-break-inside:avoid;
-  }
-  .tbox-h{
-    display:flex; align-items:center; gap:2mm; padding:1.8mm 2.5mm;
-    background:#faf8f2; border-bottom:0.5pt solid #e9e5da;
-    font-size:6.5pt; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:#8a6a12;
-  }
-  .tbox-h span{ margin-left:auto; color:#b0a88c; font-weight:600; }
-  table.tmini{ table-layout:fixed; }
-  table.tmini th{
-    font-size:6pt; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
-    color:#a8a8ac; padding:1.5mm 2mm; border-bottom:0.4pt solid #efefea; text-align:left;
-  }
-  table.tmini th.n{ text-align:right; width:11mm; }
-  table.tmini td{ padding:0.7mm 2mm; border:none; font-size:8pt; }
-  table.tmini tr.z{ background:#fbfbf8; }
-  table.tmini td.nm{
-    text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#2c2c30;
-  }
-  table.tmini td.n{ text-align:right; color:#6a6a70; }
-  table.tmini td.n.b{ color:#111; font-weight:650; }
-  table.tmini .pos{ width:5mm; font-size:6.5pt; }
-
-  .foot{
-    margin-top:9mm; padding-top:2.5mm; border-top:0.4pt solid #efefea;
-    font-size:6.5pt; color:#b0b0b4; display:flex; justify-content:space-between;
-  }
-</style></head><body>
-
-<div class="rep-head">
-  <img class="rep-logo" src="/static/logo.png" alt="">
-  <div>
-    <div class="ttl">Connecting</div>
-    <div class="sub">Relatório de desempenho</div>
-  </div>
-  <div class="per"><b>${label}</b><span>Emitido em ${_hoje}</span></div>
-</div>
-
-<h1>${label}</h1>
-<p class="lede">Comparativo com ${prevLabel} · dados do Acompanhamento Unidades e Leads Recebidos</p>
-
-<div class="kpis">
-  <div class="kpi"><div class="k">Leads recebidos</div><div class="v">${_n(tot.leads)}</div>
-    <div class="d">vs ${prevLabel}: ${_pdfDelta(tot.leads, prevTot.leads)}</div></div>
-  <div class="kpi"><div class="k">Agendamentos</div><div class="v">${_n(tot.ag)}</div>
-    <div class="d">vs ${prevLabel}: ${_pdfDelta(tot.ag, prevTot.ag)}</div></div>
-  <div class="kpi"><div class="k">Comparecimentos</div><div class="v">${_n(tot.comp)}</div>
-    <div class="d">vs ${prevLabel}: ${_pdfDelta(tot.comp, prevTot.comp)}</div></div>
-  <div class="kpi"><div class="k">Conversão</div><div class="v">${tot.conv}%</div>
-    <div class="d">agendamentos × comparecimentos</div></div>
-</div>
-
-<h2>Detalhamento por unidade</h2>
-<table class="t-main">
-  <thead><tr><th>Unidade</th><th class="n">Leads</th><th class="n">Agend.</th><th class="n">Comp.</th><th class="n">Conv.</th></tr></thead>
-  <tbody>${rows}</tbody>
-  <tfoot><tr>
-    <td class="u">Total</td><td class="n">${_n(tot.leads)}</td>
-    <td class="n">${_n(tot.ag)}</td><td class="n">${_n(tot.comp)}</td>
-    <td class="n">${tot.conv}%</td>
-  </tr></tfoot>
-</table>
-
-${leaderBlock}
-${tmkBlock}
-
-<div class="foot">
-  <span>Connecting · Sistema de Agendamentos</span>
-  <span>${_hoje}</span>
-</div>
-</body></html>`);
-  win.document.close();
-
-  // Espera a logo carregar antes de abrir a impressão
-  const _img = win.document.querySelector('.rep-logo');
-  const _go = () => setTimeout(() => win.print(), 250);
-  if (_img && !_img.complete) { _img.onload = _go; _img.onerror = _go; }
-  else _go();
-}
-
-// Variação percentual formatada para o PDF (sem emoji, em texto)
 // Fecha modal ao clicar fora
 document.addEventListener('click', e=>{
   if(e.target && e.target.id === 'extract-modal') closeExtract();
