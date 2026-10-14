@@ -793,6 +793,7 @@ function renderUnitsGrid() {
     }
 
     const card = document.createElement('a');
+    card.className = 'unit-card';
     card.href = '/unit/' + encodeURIComponent(unit);
     const _uf = {'PARÁ':'PA','MANAUS':'AM','MANOA':'AM','SÃO LUIZ':'MA','FORTALEZA':'CE'}[unit];
     card.innerHTML = `
