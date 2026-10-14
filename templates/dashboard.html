@@ -1055,40 +1055,40 @@ function _periodoLabelExt(periodo, monthIndex, year, day) {
 // Monta o ranking de líderes (nome do líder -> leads, ag, comp) a partir dos appointments
 function _buildLeaderRank(appts, leadsTmk) {
   leadsTmk = leadsTmk || {};
-  const map = {};       // unidade||lider -> {ag, comp, unit, leader}
-  const names = {};     // unidade||lider -> Set(nomes)
+  // Aqui o líder é único por NOME: se ela cuida de mais de uma unidade,
+  // os números somam numa linha só e as unidades viram legenda.
+  const map = {};     // lider -> {ag, comp, units:Set}
+  const names = {};   // lider -> Set(nomes de TMK sob ela)
   appts.forEach(appt=>{
     const padrao = (appt.leader || '').trim().toUpperCase();
-    const liderDaPessoa = {};   // nome da pessoa -> chave unidade||lider
+    const liderDaPessoa = {};   // nome da pessoa -> líder (dentro deste dia/unidade)
 
     (appt.rows||[]).forEach(r=>{
       const nm = r.name?.trim();
       // O líder vem da própria linha; o campo do topo é só fallback
       const leader = ((r.leader || padrao) || '').trim().toUpperCase();
       if(!nm || !leader) return;
-      // A unidade é onde o agendamento foi feito, não a do cadastro
-      const unit = appt.unit;
-      const k = unit + '||' + leader;
-      if(!map[k]) { map[k] = {ag:0, comp:0, unit, leader}; names[k] = new Set(); }
-      map[k].ag += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
-      names[k].add(nm);
-      liderDaPessoa[nm] = k;
+      if(!map[leader]) { map[leader] = {ag:0, comp:0, units:new Set()}; names[leader] = new Set(); }
+      map[leader].units.add(appt.unit);
+      map[leader].ag += Object.values(r.slots||{}).reduce((s,v)=>s+(Number(v)||0),0);
+      names[leader].add(nm);
+      liderDaPessoa[nm] = leader;
     });
     if(appt.comparecimento_data){
       Object.entries(appt.comparecimento_data).forEach(([nm,v])=>{
         if(/^__.*__$/.test(nm)) return;   // ignora chaves internas
-        const k = liderDaPessoa[(nm||'').trim()];
-        if(!k || !map[k]) return;
-        map[k].comp += Number(v)||0;
+        const leader = liderDaPessoa[(nm||'').trim()];
+        if(!leader || !map[leader]) return;
+        map[leader].comp += Number(v)||0;
       });
     }
   });
-  return Object.keys(map).map(k=>{
-    const d = map[k];
+  return Object.keys(map).map(leader=>{
+    const d = map[leader];
     let leads = 0;
-    names[k].forEach(nm => { leads += Number(leadsTmk[nm])||0; });
+    names[leader].forEach(nm => { leads += Number(leadsTmk[nm])||0; });
     const conv = d.ag>0?Math.round((d.comp/d.ag)*100):0;
-    return {leader:d.leader, unit:d.unit, leads, ag:d.ag, comp:d.comp, conv};
+    return {leader, unit:Array.from(d.units).join(' · '), leads, ag:d.ag, comp:d.comp, conv};
   }).sort((a,b)=>b.ag-a.ag);
 }
 // Totais oficiais, iguais aos do Resumo Geral:
