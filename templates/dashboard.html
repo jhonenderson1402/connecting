@@ -15,7 +15,7 @@
   COLS.forEach(function(c){ if(!(c.key in active)) active[c.key]=true; });
 
   function save(){ try{ localStorage.setItem("rankCols",JSON.stringify(active)); }catch(e){} }
-  function rep(n){ var s=""; for(var i=0;i<n;i++) s+=" 31px"; return s; }
+  function rep(n){ var s=""; for(var i=0;i<n;i++) s+=" 33px"; return s; 
   function nAtivas(){ var n=0; COLS.forEach(function(c){ if(active[c.key]) n++; }); return n; }
 
   function applyFilter(){
@@ -129,7 +129,7 @@
 <style id="compact-ranks">/*RANK-DENSO*/
 #ranking-grid,
 #leader-ranking .units-ranking-grid{
-  grid-template-columns:repeat(auto-fit,minmax(286px,1fr)) !important; gap:9px !important;
+  grid-template-columns:repeat(auto-fit,minmax(322px,1fr)) !important; gap:9px !important;
 }
 .rank-unit-box{
   border:1px solid var(--border); border-radius:8px; padding:0 !important;
@@ -146,18 +146,19 @@
 }
 #rank-geral-box .rank-unit-title{ color:var(--primary) !important; }
 
-#ranking-grid .rank-header-row{ grid-template-columns:1fr 29px 32px 29px 31px 31px 31px !important; }
-#ranking-grid .rank-row{ grid-template-columns:15px 1fr 29px 32px 29px 31px 31px 31px !important; }
-#leader-ranking .rank-header-row{ grid-template-columns:1fr 29px 32px 29px 31px 31px !important; }
-#leader-ranking .rank-row{ grid-template-columns:15px 1fr 29px 32px 29px 31px 31px !important; }
+#ranking-grid .rank-header-row{ grid-template-columns:1fr 33px 33px 33px 33px 33px 33px !important; }
+#ranking-grid .rank-row{ grid-template-columns:15px 1fr 33px 33px 33px 33px 33px 33px !important; }
+#leader-ranking .rank-header-row{ grid-template-columns:1fr 33px 33px 33px 33px 33px !important; }
+#leader-ranking .rank-row{ grid-template-columns:15px 1fr 33px 33px 33px 33px 33px !important; }
 
 .rank-header-row{
   gap:3px !important; padding:4px 9px !important; margin:0 !important;
   border-bottom:1px solid var(--border) !important;
 }
 .rank-header-row span{
-  font-size:8px !important; font-weight:600; letter-spacing:.06em;
+  font-size:7.5px !important; font-weight:600; letter-spacing:.02em;
   color:#3f3f46 !important; text-align:right;
+  overflow:hidden; white-space:nowrap;
 }
 .rank-header-row span:first-child{ text-align:left; }
 
@@ -200,7 +201,7 @@ body.tema-claro .rank-zero{ color:#d4d4cd !important; }
     apps.forEach(function(a){ (a.rows||[]).forEach(function(r){ var nm=(r.name||"").trim().toUpperCase(); if(!nm) return; if(!pm[nm])pm[nm]={ag:0,comp:0,pun:0,vendas:0}; pm[nm].ag+=Object.values(r.slots||{}).reduce(function(s,v){return s+(Number(v)||0);},0)+(Number(r.inclusao)||0); });; var cd=a.comparecimento_data||{}; var cpun=cd.__punicoes__||{}; Object.keys(cd).forEach(function(nm){ if(nm==="__vendas__"){ Object.keys(cd[nm]).forEach(function(e){ if(!pm[e])pm[e]={ag:0,comp:0,pun:0,vendas:0}; pm[e].vendas=(pm[e].vendas||0)+(Number(cd[nm][e])||0); }); return; } if(/^__.*__$/.test(nm)) return; nm=nm.trim().toUpperCase(); if(!pm[nm])pm[nm]={ag:0,comp:0,pun:0,vendas:0}; pm[nm].comp+=Number(cd[nm])||0; });; Object.keys(cpun).forEach(function(nm){ if(!pm[nm])pm[nm]={ag:0,comp:0,pun:0,vendas:0}; pm[nm].pun=(pm[nm].pun||0)+(Number(cpun[nm])||0); }); });
     var ranked=Object.keys(pm).map(function(nm){ return {name:nm, leads:Number(lm[nm])||0, ag:pm[nm].ag, comp:pm[nm].comp, pun:pm[nm].pun||0,vendas:pm[nm].vendas||0}; }).sort(function(a,b){return b.ag-a.ag;});
     var rows=ranked.map(function(p,i){ var conv=p.ag>0?Math.round((p.comp/p.ag)*100):0; var cc=conv>=50?"#22c55e":conv>=40?"#fbbf24":conv>0?"#ef4444":"#3f3f46"; var z=function(v){ return (Number(v)||0)===0?" rank-zero":""; }; return "<div class=\"rank-row"+(i<3?" pod":"")+"\"><span class=\"rank-pos\">"+(i+1)+"</span><span class=\"rank-name\" title=\""+p.name+"\">"+p.name+"</span><span class=\"rank-leads"+z(p.leads)+"\">"+p.leads+"</span><span class=\"rank-ag"+z(p.ag)+"\">"+p.ag+"</span><span class=\"rank-comp"+z(p.comp)+"\">"+p.comp+"</span><span class=\"rank-vendas"+z(p.vendas)+"\">"+(p.vendas||0)+"</span><span class=\"rank-conv\" style=\"color:"+cc+"\">"+conv+"%</span><span class=\"rank-pun"+(p.pun>0?"":" rank-zero")+"\" style=\""+(p.pun>0?"color:#f87171":"")+"\">"+(p.pun>0?"-"+p.pun:0)+"</span></div>"; }).join("");
-    var inner=ranked.length===0?"<p class=\"no-data\">Sem dados</p>":"<div class=\"rank-header-row\"><span>NOME</span><span>LEADS</span><span>AGEND.</span><span>COMP.</span><span>VENDAS</span><span>CONV.%</span><span>PUN.</span></div>"+rows;
+    var inner=ranked.length===0?"<p class=\"no-data\">Sem dados</p>":"<div class=\"rank-header-row\"><span>NOME</span><span>LDS</span><span>AGD</span><span>CMP</span><span>VND</span><span>CNV</span><span>PUN</span></div>"+rows;
     return "<div class=\"rank-unit-box\" id=\"rank-geral-box\" style=\"border:1px solid rgba(251,191,36,.4)\"><div class=\"rank-unit-title\" style=\"color:#fbbf24\">\ud83c\udfc6 RANK GERAL \u2014 TODAS AS UNIDADES</div>"+inner+"</div>";
   }
   function ensure(){ var g=document.getElementById("ranking-grid"); if(!g) return; if(g.querySelector("#rank-geral-box")) return; if(!g.children.length) return; g.insertAdjacentHTML("afterbegin", buildGeral()); }
@@ -878,7 +879,7 @@ function renderRankingGrid(unitsData, leadsTmk) {
     box.innerHTML = `<div class="rank-unit-title">${unit}</div>
       ${ranked.length===0?'<p class="no-data">Sem dados</p>':`
       <div class="rank-header-row">
-        <span>NOME</span><span>LEADS</span><span>AGEND.</span><span>COMP.</span><span>VENDAS</span><span>CONV.%</span><span>PUN.</span>
+      <span>NOME</span><span>LDS</span><span>AGD</span><span>CMP</span><span>VND</span><span>CNV</span><span>PUN</span>
       </div>${rows}`}`;
     grid.appendChild(box);
   });
@@ -965,7 +966,7 @@ function renderLeaderRanking() {
       <div class="rank-unit-title">${unit}</div>
       ${leaders.length === 0 ? '<p class="no-data">Sem dados</p>' : `
       <div class="rank-header-row leader-header">
-        <span>LÍDER</span><span>LEADS</span><span>AGEND.</span><span>COMP.</span><span>VENDAS</span><span>CONV.%</span>
+      <span>LÍDER</span><span>LDS</span><span>AGD</span><span>CMP</span><span>VND</span><span>CNV</span>
       </div>${rows}`}
     </div>`;
   }).join('') + `</div>`;
