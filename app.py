@@ -760,6 +760,17 @@ def api_set_regiao(uid):
     data = request.get_json(silent=True) or {}
     try:
         return jsonify(db.set_regiao_unidade(uid, data.get('regiao')))
+        except ValueError as e:
+            return _err(str(e))
+@app.route('/api/unidades/ordem', methods=['POST'])
+@admin_required
+def api_ordem_unidades():
+    data = request.get_json(silent=True) or {}
+    ids = data.get('ids') or []
+    if not isinstance(ids, list) or not ids:
+        return _err('Lista de unidades vazia.')
+    try:
+        return jsonify(db.reordenar_unidades(ids))
     except ValueError as e:
         return _err(str(e))
 @app.route('/api/regioes', methods=['GET'])
