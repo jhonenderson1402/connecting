@@ -49,6 +49,12 @@
   .uni-head::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
                     background:linear-gradient(180deg,var(--u-gold),var(--u-gold-dim))}
   .uni-ord{font-size:10.5px;font-weight:600;color:var(--u-muted);min-width:14px;font-variant-numeric:tabular-nums}
+  .uni-drag{cursor:grab;color:var(--u-muted);font-size:14px;line-height:1;padding:2px 3px;
+            border-radius:5px;user-select:none;transition:color .15s,background .15s}
+  .uni-drag:hover{color:var(--u-gold);background:rgba(128,128,128,.14)}
+  .uni-drag:active{cursor:grabbing}
+  .uni-card.arrastando{opacity:.4;border-color:var(--u-gold)}
+  .uni-card.alvo{box-shadow:0 -2px 0 0 var(--u-gold)}
   .uni-nome{font-size:14.5px;font-weight:650;letter-spacing:.01em;color:var(--u-fg)}
 
   .uni-reg{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 4px 0 11px;
@@ -184,8 +190,9 @@ function render(){
            <button class="uni-lapis" title="Renomear região" onclick="abreReg(${u.id})">✎</button></span>`
       : `<span class="uni-reg vazia">sem região
            <button class="uni-lapis" title="Definir região" onclick="abreReg(${u.id})">✎</button></span>`;
-    return `<div class="uni-card">
+    return `<div class="uni-card" data-id="${u.id}">
       <div class="uni-head">
+        <span class="uni-drag" title="Arraste para reordenar">⠿</span>
         <span class="uni-ord">${u.ordem}</span>
         <span class="uni-nome">${esc(u.nome)}</span>
         ${reg}
@@ -281,6 +288,86 @@ async function delBairro(bid){
   loadTudo();
 }
 
-document.addEventListener('DOMContentLoaded', loadTudo);
+// ── Arrastar para reordenar ─────────────────────────────────────────────────
+let arrastado = null;
+
+function ligaArrasto(){
+  const box = document.getElementById('lista-unidades');
+  if(!box || box.dataset.dragPronto) return;
+  box.dataset.dragPronto = '1';
+
+  // So fica arrastavel quando o clique comeca na alca (senao atrapalha os inputs)
+  box.addEventListener('mousedown', e => {
+    const h = e.target.closest('.uni-drag');
+    const card = e.target.closest('.uni-card');
+    if(h && card) card.draggable = true;
+  });
+  box.addEventListener('mouseup', () => {
+    box.querySelectorAll('.uni-card').forEach(c => c.draggable = false);
+  });
+
+  box.addEventListener('dragstart', e => {
+    const card = e.target.closest('.uni-card');
+    if(!card) return;
+    arrastado = card;
+    card.classList.add('arrastando');
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', card.dataset.id); } catch(err){}
+  });
+
+  box.addEventListener('dragover', e => {
+    if(!arrastado) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const alvo = e.target.closest('.uni-card');
+    box.querySelectorAll('.uni-card.alvo').forEach(c => c.classList.remove('alvo'));
+    if(!alvo || alvo === arrastado) return;
+    const r = alvo.getBoundingClientRect();
+    const depois = (e.clientY - r.top) > r.height / 2;
+    alvo.classList.add('alvo');
+    box.insertBefore(arrastado, depois ? alvo.nextSibling : alvo);
+  });
+
+  box.addEventListener('drop', e => { e.preventDefault(); });
+
+  box.addEventListener('dragend', () => {
+    if(!arrastado) return;
+    arrastado.classList.remove('arrastando');
+    arrastado.draggable = false;
+    arrastado = null;
+    box.querySelectorAll('.uni-card.alvo').forEach(c => c.classList.remove('alvo'));
+    salvarOrdem();
+  });
+}
+
+async function salvarOrdem(){
+  const box = document.getElementById('lista-unidades');
+  const ids = [...box.querySelectorAll('.uni-card')]
+                .map(c => parseInt(c.dataset.id)).filter(Boolean);
+  if(!ids.length) return;
+  // atualiza o numerinho na hora, sem esperar o servidor
+  box.querySelectorAll('.uni-card').forEach((c,i) => {
+    const n = c.querySelector('.uni-ord'); if(n) n.textContent = i + 1;
+  });
+  try {
+    const r = await fetch('/api/unidades/ordem', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ids})
+    });
+    if(!r.ok){
+      const d = await r.json().catch(()=>({}));
+      showToast(d.error || 'Erro ao salvar a ordem.', 'error');
+      loadTudo();
+      return;
+    }
+    unidades = await r.json();
+    showToast('Ordem salva! Recarregue (F5) para atualizar o menu.');
+  } catch(e){
+    showToast('Erro ao salvar a ordem.', 'error');
+    loadTudo();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => { loadTudo(); ligaArrasto(); });
 </script>
 {% endblock %}
