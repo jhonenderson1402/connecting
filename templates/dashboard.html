@@ -511,11 +511,11 @@ async function loadDashboard() {
 
 async function loadRanking() {
   const now = new Date();
-  const monthIndex = parseInt(document.getElementById('rank-month').value);
+  // Usa o MESMO filtro do topo do Resumo Geral
+  const monthIndex = parseInt(document.getElementById('filter-month').value);
   const year = now.getFullYear();
-  const filterType = document.getElementById('rank-type').value;
-  const day = parseInt(document.getElementById('rank-day').value) || now.getDate();
-
+  const filterType = document.getElementById('filter-type').value;
+  const day = parseInt(document.getElementById('filter-day').value) || now.getDate();
   // Leads por nome (TMK) para o período selecionado no ranking
   let leadsTmk = {};
   try {
