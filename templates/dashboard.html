@@ -917,6 +917,99 @@ async function _totaisOficiais(year, monthIndex, diaAlvo){
   } catch(e) {}
   return {leads, ag, comp};
 }
+function _norm(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase();
+}
+// Detalhamento por unidade usando as MESMAS fontes do Resumo Geral.
+// Os leads existem por REGIÃO (local), então vão para a primeira unidade de cada região.
+const REGIAO_FALLBACK = {
+  'PARA':'PARÁ', 'AMAZONAS':'MANAUS', 'MARANHAO':'SÃO LUIZ',
+  'CEARA':'FORTALEZA', 'ACAO':'AÇÃO'
+};
+async function _detalheOficial(year, monthIndex, diaAlvo){
+  const alvo = diaAlvo ? formatDateKey(year, monthIndex, diaAlvo) : null;
+  let unidades = [];
+  try {
+    const r = await fetch('/api/unidades');
+    if(r.ok) unidades = await r.json();
+  } catch(e){}
+  if(!unidades.length) unidades = (UNITS||[]).map(function(n){ return {nome:n, regiao:''}; });
+  const nomeDe = function(u){ return u.nome || u.name || ''; };
+  const donoDaRegiao = {};
+  unidades.forEach(function(u){
+    const rg = _norm(u.regiao || u.region);
+    if(rg && !donoDaRegiao[rg]) donoDaRegiao[rg] = nomeDe(u);
+  });
+  Object.keys(REGIAO_FALLBACK).forEach(function(rg){
+    if(!donoDaRegiao[rg]) donoDaRegiao[rg] = REGIAO_FALLBACK[rg];
+  });
+
+  const porUni = {}, bairros = {};
+  unidades.forEach(function(u){ porUni[nomeDe(u)] = {ag:0, comp:0, leads:0}; });
+
+  // AGENDAMENTOS e COMPARECIMENTOS -> Acompanhamento Unidades
+  try {
+    const r = await fetch(`/api/acompanhamento_mes?ano=${year}&mes=${monthIndex+1}`);
+    const d = r.ok ? await r.json() : [];
+    d.forEach(function(x){
+      if(alvo && x.date !== alvo) return;
+      (x.rows||[]).forEach(function(l){
+        const un = l.unidade || '';
+        if(!porUni[un]) porUni[un] = {ag:0, comp:0, leads:0};
+        porUni[un].ag   += Number(l.ag)||0;
+        porUni[un].comp += Number(l.ex)||0;
+        if(un === 'PARÁ'){
+          const b = l.bairro || '';
+          if(!b) return;
+          if(!bairros[b]) bairros[b] = {ag:0, comp:0};
+          bairros[b].ag   += Number(l.ag)||0;
+          bairros[b].comp += Number(l.ex)||0;
+        }
+      });
+    });
+  } catch(e){}
+
+  // LEADS -> tela Leads Recebidos (por local)
+  const semDono = {};
+  try {
+    const r = await fetch(`/api/leads_recebidos_mes?ano=${year}&mes=${monthIndex+1}`);
+    const d = r.ok ? await r.json() : [];
+    d.forEach(function(x){
+      if(alvo && x.date !== alvo) return;
+      (x.rows||[]).forEach(function(l){
+        const v = Number(l.leads)||0;
+        if(!v) return;
+        const dono = donoDaRegiao[_norm(l.local)];
+        if(dono){
+          if(!porUni[dono]) porUni[dono] = {ag:0, comp:0, leads:0};
+          porUni[dono].leads += v;
+        } else {
+          const nm = (l.local||'OUTROS').toUpperCase();
+          semDono[nm] = (semDono[nm]||0) + v;
+        }
+      });
+    });
+  } catch(e){}
+
+  const lista = unidades.map(function(u){
+    const n = nomeDe(u);
+    const d = porUni[n] || {ag:0, comp:0, leads:0};
+    return {unit:n, leads:d.leads, ag:d.ag, comp:d.comp,
+            conv: d.ag>0 ? Math.round(d.comp/d.ag*100) : 0};
+  });
+  // locais de lead sem unidade correspondente (GERAL, MABE, RD CONVERSAS...)
+  Object.keys(semDono).forEach(function(nm){
+    lista.push({unit:nm, leads:semDono[nm], ag:0, comp:0, conv:0});
+  });
+
+  const bairrosPara = Object.keys(bairros).map(function(nm){
+    const d = bairros[nm];
+    return {nome:nm, ag:d.ag, comp:d.comp,
+            conv: d.ag>0 ? Math.round(d.comp/d.ag*100) : 0};
+  }).sort(function(a,b){ return b.ag - a.ag; });
+
+  return {porUnidade: lista, bairrosPara: bairrosPara};
+}
 async function renderExtract() {
   const periodo = document.getElementById('ext-period').value;
   const monthIndex = parseInt(document.getElementById('ext-month').value);
@@ -930,14 +1023,16 @@ async function renderExtract() {
   // Dados do período atual
   const {appts, leads, leadsTmk} = await _fetchPeriodo(periodo, monthIndex, year, day);
 
-  // Por unidade
-  const porUnidade = UNITS.map(unit=>{
-    const ua = appts.filter(a=>a.unit===unit);
-    const {ag, comp} = _aggUnit(ua);
-    const ld = Number(leads[unit])||0;
-    const conv = ag>0?Math.round((comp/ag)*100):0;
-    return {unit, leads:ld, ag, comp, conv};
-  });
+  // Por unidade — Acompanhamento Unidades (agend/comp) + Leads Recebidos (leads)
+  const _det = (periodo === 'week')
+    ? {porUnidade: UNITS.map(unit=>{
+         const ua = appts.filter(a=>a.unit===unit);
+         const {ag, comp} = _aggUnit(ua);
+         return {unit, leads:Number(leads[unit])||0, ag, comp,
+                 conv: ag>0?Math.round((comp/ag)*100):0};
+       }), bairrosPara: null}
+    : await _detalheOficial(year, monthIndex, periodo === 'day' ? day : null);
+  const porUnidade = _det.porUnidade;
   const tot = porUnidade.reduce((a,u)=>({
     leads:a.leads+u.leads, ag:a.ag+u.ag, comp:a.comp+u.comp
   }), {leads:0,ag:0,comp:0});
@@ -948,21 +1043,24 @@ async function renderExtract() {
   }
   tot.conv = tot.ag>0?Math.round((tot.comp/tot.ag)*100):0;
 
-  // Bairros da PARÁ (de comparecimento_data.__bairros__) para detalhar embaixo da PARÁ
-  const bairrosMap = {};
-  appts.filter(a=>a.unit==='PARÁ').forEach(appt=>{
-    const bd = appt.comparecimento_data && appt.comparecimento_data.__bairros__;
-    if(bd){
-      Object.entries(bd).forEach(([nome,v])=>{
-        if(!bairrosMap[nome]) bairrosMap[nome] = {ag:0, comp:0, vendas:0};
-        bairrosMap[nome].ag   += Number(v?.ag)   || 0;
-        bairrosMap[nome].comp += Number(v?.comp) || 0;
-      });
-    }
-  });
-  const bairrosPara = Object.entries(bairrosMap).map(([nome,d])=>({
-    nome, ag:d.ag, comp:d.comp, conv: d.ag>0?Math.round((d.comp/d.ag)*100):0
-  }));
+  // Bairros da PARÁ — também do Acompanhamento Unidades
+  let bairrosPara = _det.bairrosPara;
+  if(!bairrosPara){
+    const bairrosMap = {};
+    appts.filter(a=>a.unit==='PARÁ').forEach(appt=>{
+      const bd = appt.comparecimento_data && appt.comparecimento_data.__bairros__;
+      if(bd){
+        Object.entries(bd).forEach(([nome,v])=>{
+          if(!bairrosMap[nome]) bairrosMap[nome] = {ag:0, comp:0};
+          bairrosMap[nome].ag   += Number(v?.ag)   || 0;
+          bairrosMap[nome].comp += Number(v?.comp) || 0;
+        });
+      }
+    });
+    bairrosPara = Object.entries(bairrosMap).map(([nome,d])=>({
+      nome, ag:d.ag, comp:d.comp, conv: d.ag>0?Math.round((d.comp/d.ag)*100):0
+    }));
+  }
 
   // Ranking de TMK por unidade: a chave é unidade + nome (mesma pessoa em 2 unidades não se funde)
   const tmkMap = {};
