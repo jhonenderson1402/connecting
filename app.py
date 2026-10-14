@@ -729,7 +729,7 @@ def api_list_fontes():
 def api_create_fonte():
     data = request.get_json(silent=True) or {}
     try:
-        return jsonify(db.set_regiao_unidade(uid, data.get('regiao')))
+        return jsonify(db.create_fonte(data.get('nome'), data.get('chave'))), 201
     except ValueError as e:
         return _err(str(e))
 @app.route('/api/fontes/<int:fid>', methods=['DELETE'])
@@ -746,12 +746,12 @@ def unidades_page():
 @login_required
 def api_list_unidades():
     return jsonify(db.get_unidades())
-@app.route('/api/unidades', methods=['POST'])
+@app.route('/api/unidades/<int:uid>/regiao', methods=['POST'])
 @admin_required
-def api_create_unidade():
+def api_set_regiao(uid):
     data = request.get_json(silent=True) or {}
     try:
-        return jsonify(db.create_unidade(data.get('nome'), data.get('regiao'))), 201
+        return jsonify(db.set_regiao_unidade(uid, data.get('regiao')))
     except ValueError as e:
         return _err(str(e))
 @app.route('/api/unidades/<int:uid>/regiao', methods=['POST'])
