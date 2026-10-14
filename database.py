@@ -818,7 +818,8 @@ def get_stats_publicas():
     leads recebidos, agendamentos feitos e comparecimentos.
     Não expõe nenhum dado individual — apenas os 3 totais somados."""
     LEADS_PREFIX = "LEADS::"
-    LEAD_KEYS = ['wbp_lead', 'vbot_lead', 'antigos_lead', 'mkt_lead', 'whats_lead', 'mabe_lead']
+    # ANTIGOS não entra no total de leads
+    LEAD_KEYS = ['wbp_lead', 'vbot_lead', 'mkt_lead', 'whats_lead', 'mabe_lead']
     total_leads = 0
     total_agend = 0
     total_comp = 0
