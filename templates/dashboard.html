@@ -301,27 +301,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
 .rank-row { grid-template-columns: 1.5rem 1fr 3.5rem 3.5rem 3.5rem 3.5rem !important; }
 .rank-leads { font-size: 11px; font-weight: 700; text-align: center; color: #3d82f6; }
 </style>
-<style>
-.bairros-btn {
-  width: 100%; margin-top: 10px; padding: 8px;
-  background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.25);
-  color: #60a5fa; border-radius: 8px; font-size: 12px; font-weight: 600;
-  cursor: pointer; transition: all 0.15s;
-}
-.bairros-btn:hover { background: rgba(59,130,246,0.16); border-color: #3b82f6; }
-.bairros-box { margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 8px; }
-.bairro-row {
-  display: grid; grid-template-columns: 1fr 3rem 3rem 2.6rem; gap: 6px;
-  align-items: center; padding: 6px 6px; border-bottom: 1px solid rgba(255,255,255,0.04);
-}
-.bairro-row:last-child { border-bottom: none; }
-.bairro-head span { font-size: 9px; font-weight: 700; color: #52525b; letter-spacing: 0.05em; text-align: center; }
-.bairro-head span:first-child { text-align: left; }
-.bairro-nome { font-size: 12px; color: #d4d4d8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bairro-ag { text-align: center; font-size: 12px; font-weight: 700; color: #fbbf24; }
-.bairro-comp { text-align: center; font-size: 12px; font-weight: 700; color: #22c55e; }
-.bairro-pct { text-align: right; font-size: 12px; font-weight: 700; }
-</style>
+
 <div class="page-content">
   <!-- Header -->
   <div class="page-header">
@@ -755,42 +735,6 @@ function renderUnitsGrid() {
     const diff       = leads - comp;                              // Diferença (entrou - saiu) em número
     const leader = appts.length>0?(appts[appts.length-1].leader||''):'';
 
-    // Coleta os bairros da PARÁ (de comparecimento_data.__bairros__)
-    let bairrosHtml = '';
-    if(unit === 'PARÁ') {
-      const bairrosMap = {};
-      appts.forEach(appt=>{
-        const bd = appt.comparecimento_data && appt.comparecimento_data.__bairros__;
-        if(bd) {
-          Object.entries(bd).forEach(([nome, v])=>{
-            if(!bairrosMap[nome]) bairrosMap[nome] = {ag:0, comp:0, vendas:0};
-            bairrosMap[nome].ag   += Number(v?.ag)   || 0;
-            bairrosMap[nome].comp += Number(v?.comp) || 0;
-          });
-        }
-      });
-      const bairros = Object.entries(bairrosMap).map(([nome,d])=>({nome,...d}));
-      const rowsB = bairros.map(b=>{
-        const pct = b.ag>0?Math.round((b.comp/b.ag)*100):0;
-        const pctColor = pct>=70?'#22c55e':pct>=40?'#f59e0b':'#ef4444';
-        const dim = (b.ag===0 && b.comp===0)?'opacity:0.4;':'';
-        return `<div class="bairro-row" style="${dim}">
-          <span class="bairro-nome">${b.nome}</span>
-          <span class="bairro-ag">${b.ag}</span>
-          <span class="bairro-comp">${b.comp}</span>
-          <span class="bairro-pct" style="color:${pctColor}">${pct}%</span>
-        </div>`;
-      }).join('');
-      bairrosHtml = `
-        <button class="bairros-btn" onclick="toggleBairros(event, this)">🏘️ Ver bairros</button>
-        <div class="bairros-box" style="display:none">
-          <div class="bairro-row bairro-head">
-            <span>BAIRRO</span><span>AGEND.</span><span>COMP.</span><span>%</span>
-          </div>
-          ${rowsB || '<p style="color:#52525b;font-size:11px;text-align:center;padding:8px">Nenhum bairro preenchido.</p>'}
-        </div>`;
-    }
-
     const card = document.createElement('a');
     card.className = 'unit-card';
     card.href = '/unit/' + encodeURIComponent(unit);
@@ -816,18 +760,9 @@ function renderUnitsGrid() {
         <div class="unit-stat"><div class="unit-stat-val green">${agsXcomp}%</div><div class="unit-stat-lbl">Agend. × Compar.</div></div>
         <div class="unit-stat"><div class="unit-stat-val yellow">${diff}</div><div class="unit-stat-lbl">Diff (entrou − saiu)</div></div>
       </div>
-      ${bairrosHtml}`;
+      `;
     grid.appendChild(card);
   });
-}
-
-function toggleBairros(event, btn) {
-  event.preventDefault();
-  event.stopPropagation();
-  const box = btn.nextElementSibling;
-  const open = box.style.display !== 'none';
-  box.style.display = open ? 'none' : 'block';
-  btn.textContent = open ? '🏘️ Ver bairros' : '🏘️ Ocultar bairros';
 }
 
 function renderRankingGrid(unitsData, leadsTmk) {
@@ -1232,25 +1167,7 @@ async function renderExtract() {
   }
   tot.conv = tot.ag>0?Math.round((tot.comp/tot.ag)*100):0;
 
-  // Bairros da PARÁ — também do Acompanhamento Unidades
-  let bairrosPara = _det.bairrosPara;
-  if(!bairrosPara){
-    const bairrosMap = {};
-    appts.filter(a=>a.unit==='PARÁ').forEach(appt=>{
-      const bd = appt.comparecimento_data && appt.comparecimento_data.__bairros__;
-      if(bd){
-        Object.entries(bd).forEach(([nome,v])=>{
-          if(!bairrosMap[nome]) bairrosMap[nome] = {ag:0, comp:0};
-          bairrosMap[nome].ag   += Number(v?.ag)   || 0;
-          bairrosMap[nome].comp += Number(v?.comp) || 0;
-        });
-      }
-    });
-    bairrosPara = Object.entries(bairrosMap).map(([nome,d])=>({
-      nome, ag:d.ag, comp:d.comp, conv: d.ag>0?Math.round((d.comp/d.ag)*100):0
-    }));
-  }
-
+  const bairrosPara = _det.bairrosPara || [];
   // Ranking de TMK por unidade: a chave é unidade + nome (mesma pessoa em 2 unidades não se funde)
   const tmkMap = {};
   appts.forEach(appt=>{
