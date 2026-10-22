@@ -150,6 +150,19 @@
     </div>
   </div>
 </div>
+<div class="uni-ov" id="nom-ov" onclick="if(event.target===this)fechaNome()">
+  <div class="uni-dlg">
+    <h3 id="nom-tit">Renomear unidade</h3>
+    <p>O nome novo vale para todo o histórico — Hora a Hora, funcionários, metas, bairros,
+       confirmações e Acompanhamento acompanham a mudança.</p>
+    <input class="uni-in" id="nom-in" placeholder="Nome da unidade"
+           onkeydown="if(event.key==='Enter')salvaNome()"/>
+    <div class="uni-dlg-ft">
+      <button class="uni-btn uni-btn-s" style="height:34px" onclick="fechaNome()">Cancelar</button>
+      <button class="uni-btn uni-btn-p" style="height:34px" onclick="salvaNome()">Renomear</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -195,6 +208,7 @@ function render(){
         <span class="uni-drag" title="Arraste para reordenar">⠿</span>
         <span class="uni-ord">${u.ordem}</span>
         <span class="uni-nome">${esc(u.nome)}</span>
+        <button class="uni-lapis" title="Renomear unidade" onclick="abreNome(${u.id})">✎</button>
         ${reg}
         <div class="uni-meta">
           <span class="uni-cnt"><b>${meus.length}</b> bairro${meus.length===1?'':'s'}</span>
@@ -237,6 +251,31 @@ async function salvaReg(){
   if(!r.ok){ showToast(d.error||'Erro ao salvar a região.','error'); return; }
   fechaReg();
   showToast(regiao ? `Região definida como "${regiao}".` : 'Região removida.');
+  loadTudo();
+}
+
+// ── Renomear unidade ────────────────────────────────────────────────────────
+let nomeEditando = null;
+function abreNome(id){
+  const u = unidades.find(x=>x.id===id); if(!u) return;
+  nomeEditando = id;
+  document.getElementById('nom-tit').textContent = 'Renomear ' + u.nome;
+  document.getElementById('nom-in').value = u.nome;
+  document.getElementById('nom-ov').classList.add('show');
+  setTimeout(()=>{ const e=document.getElementById('nom-in'); e.focus(); e.select(); }, 40);
+}
+function fechaNome(){ document.getElementById('nom-ov').classList.remove('show'); nomeEditando = null; }
+async function salvaNome(){
+  if(nomeEditando === null) return fechaNome();
+  const nome = document.getElementById('nom-in').value.trim();
+  if(!nome){ showToast('Informe o novo nome.','error'); return; }
+  const r = await fetch('/api/unidades/'+nomeEditando+'/nome', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({nome})
+  });
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ showToast(d.error||'Erro ao renomear.','error'); return; }
+  fechaNome();
+  showToast(`Unidade renomeada para "${d.nome}".`);
   loadTudo();
 }
 
