@@ -24,16 +24,17 @@
   }
   .schedule-table *{ box-sizing:border-box; min-width:0; }
   
-  /* Cabeçalho discreto — a faixa dourada saiu */
+  /* Faixa dourada (vem do thead tr, no style.css) com texto quase preto.
+     O th fica transparente de propósito: assim a faixa passa inteira por baixo. */
   .schedule-table thead th{
-    background:rgba(255,255,255,.015); color:var(--muted-fg);
-    font-size:8.5px; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+    background:transparent; color:#17120a;
+    font-size:8.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
     padding:9px 4px; text-align:center; white-space:nowrap;
-    border-bottom:1px solid var(--border); border-right:none;
+    border-bottom:none; border-right:none;
   }
-  body.tema-claro .schedule-table thead th{ background:rgba(0,0,0,.015); }
+  body.tema-claro .schedule-table thead th{ background:transparent; color:#17120a; }
   .schedule-table thead th.th-l{ text-align:left; padding-left:12px; }
-  .schedule-table thead th.th-tot{ color:var(--primary); }
+  .schedule-table thead th.th-tot{ color:#17120a; }
   
   /* Linhas — só filete horizontal, sem alternância */
   .schedule-table tbody td{
