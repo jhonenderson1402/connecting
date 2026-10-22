@@ -35,6 +35,21 @@
   body.tema-claro .schedule-table thead th{ background:transparent; color:#17120a; }
   .schedule-table thead th.th-l{ text-align:left; padding-left:12px; }
   .schedule-table thead th.th-tot{ color:#17120a; }
+
+    /* Rodapé de totais por coluna */
+  .schedule-table tfoot td{
+    background:rgba(251,191,36,.06); border-top:1px solid rgba(251,191,36,.3);
+    padding:7px 4px; font-size:11.5px; font-weight:700;
+    font-variant-numeric:tabular-nums; text-align:center;
+  }
+  body.tema-claro .schedule-table tfoot td{ background:#fdf6e3; border-top-color:#e8c766; }
+  .schedule-table tfoot td.foot-lbl{
+    text-align:left; padding-left:12px; font-size:8.5px; font-weight:700;
+    letter-spacing:.09em; color:var(--muted-fg);
+  }
+  .schedule-table tfoot td.foot-num{ color:#2e2e33; }
+  body.tema-claro .schedule-table tfoot td.foot-num{ color:#d6d6cf; }
+  .schedule-table tfoot td.foot-num.on{ color:var(--primary); }
   
   /* Linhas — só filete horizontal, sem alternância */
   .schedule-table tbody td{
@@ -303,6 +318,7 @@
         <table class="schedule-table" id="schedule-table">
           <thead id="table-head"></thead>
           <tbody id="table-body"></tbody>
+          <tfoot id="table-foot"></tfoot>
         </table>
       </div>
     </div>
@@ -632,6 +648,7 @@
   
     if(rows.length === 0) {
       tbody.innerHTML = `<tr><td colspan="${colspan}" class="empty-row">Nenhuma linha. Clique em "+ Adicionar Linha" para começar.</td></tr>`;
+      renderFoot();
       return;
     }
   
@@ -702,6 +719,27 @@
         </td>
       </tr>`;
     }).join('');
+    renderFoot();
+  }
+   
+  // ── Rodapé com o total de cada coluna ──────────────────────────────────────
+  // Soma só na tela: não grava nada e não vai para a API.
+  function renderFoot() {
+    const foot = document.getElementById('table-foot');
+    if(!foot) return;
+    if(!rows.length){ foot.innerHTML = ''; return; }
+
+    const somaSlot = k => rows.reduce((s,r) => s + (Number((r.slots||{})[k]) || 0), 0);
+    const somaInc  = rows.reduce((s,r) => s + (Number(r.inclusao) || 0), 0);
+    const somaTudo = rows.reduce((s,r) => s + rowTotal(r), 0);
+    const cel = v => `<td class="foot-num${v>0?' on':''}">${v}</td>`;
+
+    foot.innerHTML = `<tr>
+      <td class="foot-lbl" colspan="2">TOTAL DO DIA</td>
+      ${TIME_SLOTS.map(s => cel(somaSlot(s.key))).join('')}
+      ${cel(somaInc)}
+      ${cel(somaTudo)}
+    </tr>`;
   }
   function rowNameChange(i, val) { rows[i].name=val; scheduleSave(); }
   function rowLeaderChange(i, val) { rows[i].leader=val.toUpperCase(); scheduleSave(); }
@@ -862,6 +900,7 @@ function toggleNameDropdown(i, event) {
     const total = rowTotal(rows[i]);
     const badge = trs[i].querySelector('.total-badge');
     if(badge){ badge.textContent=total; badge.className='total-badge'+(total>0?' total-active':''); }
+    renderFoot();
   }
   
   function addRow() {
