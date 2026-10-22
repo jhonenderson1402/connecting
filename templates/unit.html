@@ -35,6 +35,12 @@
   body.tema-claro .schedule-table thead th{ background:transparent; color:#17120a; }
   .schedule-table thead th.th-l{ text-align:left; padding-left:12px; }
   .schedule-table thead th.th-tot{ color:#17120a; }
+    .schedule-table thead th .th-seta{
+    display:inline-block; margin-left:3px; font-size:8px;
+    opacity:.3; vertical-align:1px;
+  }
+  .schedule-table thead th:hover .th-seta{ opacity:.65; }
+  .schedule-table thead th .th-seta.on{ opacity:1; }
 
     /* Rodapé de totais por coluna */
   .schedule-table tfoot td{
@@ -600,12 +606,12 @@
       const base = th.dataset.base || th.textContent;
       th.dataset.base = base;
       const i = Number(th.dataset.col);
-      th.textContent = (ordemAtual && ordemAtual.col === i)
-        ? base + (ordemAtual.dir === 'asc' ? ' ▲' : ' ▼')
-        : base;
+      const ativa = ordemAtual && ordemAtual.col === i;
+      // Coluna ativa mostra a direcao; as outras mostram o simbolo apagado
+      const seta = ativa ? (ordemAtual.dir === 'asc' ? '▲' : '▼') : '⇅';
+      th.innerHTML = base + ' <span class="th-seta' + (ativa ? ' on' : '') + '">' + seta + '</span>';
     });
   }
-
   function ligaOrdenacao(){
     const head = document.getElementById('table-head');
     if(!head) return;
@@ -622,6 +628,7 @@
       if(!th) return;
       ordenarPor(Number(th.dataset.col));
     });
+    marcarSeta();
   }
   async function loadEmployees() {
     const res = await fetch(`/api/employees?unit=${encodeURIComponent(UNIT)}&active=true`);
