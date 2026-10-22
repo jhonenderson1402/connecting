@@ -762,6 +762,14 @@ def api_set_regiao(uid):
         return jsonify(db.set_regiao_unidade(uid, data.get('regiao')))
     except ValueError as e:
         return _err(str(e))
+@app.route('/api/unidades/<int:uid>/nome', methods=['POST'])
+@admin_required
+def api_rename_unidade(uid):
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(db.renomear_unidade(uid, data.get('nome')))
+    except ValueError as e:
+        return _err(str(e))
 @app.route('/api/unidades/ordem', methods=['POST'])
 @admin_required
 def api_ordem_unidades():
