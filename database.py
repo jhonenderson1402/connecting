@@ -374,6 +374,45 @@ def set_regiao_unidade(uid, regiao):
         s.execute(update(Unidade).where(Unidade.id == uid).values(regiao=regiao))
         s.commit()
     return {'id': uid, 'regiao': regiao}
+def renomear_unidade(uid, novo_nome):
+    """Renomeia a unidade e arrasta junto TODO o historico.
+    O nome e a chave do sistema: se so trocar em 'unidades', os dados viram orfaos."""
+    novo = (novo_nome or '').strip().upper()
+    if not novo:
+        raise ValueError("Informe o novo nome da unidade.")
+    if len(novo) > 100:
+        raise ValueError("Nome da unidade muito longo.")
+    with SessionLocal() as s:
+        u = s.scalar(select(Unidade).where(Unidade.id == uid))
+        if not u:
+            raise ValueError("Unidade nao encontrada.")
+        antigo = u.nome
+        if antigo == novo:
+            return {'id': uid, 'nome': novo}
+        if s.scalar(select(Unidade).where(Unidade.nome == novo)):
+            raise ValueError(f"Ja existe uma unidade chamada '{novo}'.")
+        # 1) colunas que guardam o nome direto
+        s.execute(update(Appointment).where(Appointment.unit == antigo).values(unit=novo))
+        s.execute(update(Appointment).where(Appointment.unit == 'LEADS::' + antigo)
+                  .values(unit='LEADS::' + novo))
+        s.execute(update(Employee).where(Employee.unit == antigo).values(unit=novo))
+        s.execute(update(Meta).where(Meta.unidade == antigo).values(unidade=novo))
+        s.execute(update(Bairro).where(Bairro.unidade == antigo).values(unidade=novo))
+        s.execute(update(Confirmacao).where(Confirmacao.unidade == antigo).values(unidade=novo))
+        # 2) o nome tambem vive DENTRO do JSON do Acompanhamento
+        acomp = s.scalars(select(Appointment).where(Appointment.unit == 'ACOMP::GERAL')).all()
+        for a in acomp:
+            linhas = _safe_json_loads(a.rows, [])
+            mudou = False
+            for r in linhas:
+                if isinstance(r, dict) and r.get('unidade') == antigo:
+                    r['unidade'] = novo
+                    mudou = True
+            if mudou:
+                a.rows = json.dumps(linhas, ensure_ascii=False)
+        u.nome = novo
+        s.commit()
+    return {'id': uid, 'nome': novo}
 def reordenar_unidades(ids):
     """Regrava o campo ordem conforme a sequencia de ids recebida.
     So muda a posicao de exibicao — nenhum dado de agendamento e tocado."""
