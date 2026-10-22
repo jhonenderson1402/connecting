@@ -558,8 +558,71 @@
     });
     html += '<th>INCL.</th><th class="th-tot">TOTAL</th></tr>';
     head.innerHTML = html;
+    ligaOrdenacao();
   }
-  
+  // ── Ordenar clicando no cabecalho ──────────────────────────────────────────
+  // 1o clique: crescente (A-Z / menor-maior). 2o clique na mesma coluna: inverte.
+  // A ordem escolhida e salva junto com o dia, entao ela permanece ao reabrir.
+  let ordemAtual = null;   // {col, dir}
+
+  function _valorDaColuna(r, col){
+    if(col === 0) return (r.leader || '').toString();
+    if(col === 1) return (r.name   || '').toString();
+    const nSlots = TIME_SLOTS.length;
+    if(col >= 2 && col < 2 + nSlots) return Number((r.slots||{})[TIME_SLOTS[col-2].key]) || 0;
+    if(col === 2 + nSlots) return Number(r.inclusao) || 0;
+    return rowTotal(r);                      // ultima coluna: TOTAL
+  }
+
+  function ordenarPor(col){
+    const dir = (ordemAtual && ordemAtual.col === col && ordemAtual.dir === 'asc') ? 'desc' : 'asc';
+    ordemAtual = {col: col, dir: dir};
+    rows.sort(function(a, b){
+      // Linha sem nome vai sempre para o fim, nas duas direcoes
+      const vazioA = !(a.name || '').trim(), vazioB = !(b.name || '').trim();
+      if(vazioA !== vazioB) return vazioA ? 1 : -1;
+
+      const va = _valorDaColuna(a, col), vb = _valorDaColuna(b, col);
+      let cmp;
+      if(typeof va === 'number' && typeof vb === 'number') cmp = va - vb;
+      else cmp = String(va).localeCompare(String(vb), 'pt-BR', {sensitivity:'base'});
+      return dir === 'asc' ? cmp : -cmp;
+    });
+    renderTable();
+    marcarSeta();
+    scheduleSave();
+  }
+
+  function marcarSeta(){
+    const head = document.getElementById('table-head');
+    if(!head) return;
+    head.querySelectorAll('th').forEach(function(th){
+      const base = th.dataset.base || th.textContent;
+      th.dataset.base = base;
+      const i = Number(th.dataset.col);
+      th.textContent = (ordemAtual && ordemAtual.col === i)
+        ? base + (ordemAtual.dir === 'asc' ? ' ▲' : ' ▼')
+        : base;
+    });
+  }
+
+  function ligaOrdenacao(){
+    const head = document.getElementById('table-head');
+    if(!head) return;
+    head.querySelectorAll('th').forEach(function(th, i){
+      th.dataset.col  = i;
+      th.dataset.base = th.textContent;
+      th.style.cursor = 'pointer';
+      th.title = 'Clique para ordenar';
+    });
+    if(head.dataset.ordPronto) return;       // o ouvinte entra uma vez so
+    head.dataset.ordPronto = '1';
+    head.addEventListener('click', function(e){
+      const th = e.target.closest('th');
+      if(!th) return;
+      ordenarPor(Number(th.dataset.col));
+    });
+  }
   async function loadEmployees() {
     const res = await fetch(`/api/employees?unit=${encodeURIComponent(UNIT)}&active=true`);
     employees = await res.json();
