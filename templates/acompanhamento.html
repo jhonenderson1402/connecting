@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+                                                                                                                                                                                                                    {% extends "base.html" %}
 {% block content %}
 <style>
   .ac-wrap { overflow-x:auto; border-radius:10px; }
@@ -147,7 +147,52 @@ function updateDias(prefer){
     if(d===alvo) o.selected = true;
     sd.appendChild(o);
   }
+  marcarDias();
 }
+
+// ── Marca em amarelo os dias do mes que ja tem dados ────────────────────────
+// Busca o mes inteiro de uma vez e pinta as opcoes do seletor DIA.
+let diasComDados = {}; 
+
+let mesMarcado   = '';   // "2026-10" — evita rebuscar ao so trocar o dia
+
+async function carregarMarcacaoMes(force){
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  if(isNaN(mi) || isNaN(y)){ marcarDias(); return; }
+
+  const chave = y + '-' + (mi + 1);
+  if(!force && chave === mesMarcado){ marcarDias(); return; }
+
+  diasComDados = {};
+  try{
+    const r = await fetch('/api/acompanhamento_mes?ano=' + y + '&mes=' + (mi + 1));
+    const dias = r.ok ? await r.json() : [];
+    const COLS = ['ag','ex','pa','du','ue','ca','ge','na'];
+    dias.forEach(function(d){
+      const num = parseInt(String(d.date || '').split('-')[2]);
+      if(!num) return;
+      const tem = (d.rows || []).some(function(l){
+        return COLS.some(function(k){ return (Number(l[k]) || 0) > 0; });
+      });
+      if(tem) diasComDados[num] = true;
+    });
+    mesMarcado = chave;
+  }catch(e){ diasComDados = {}; mesMarcado = ''; }
+  marcarDias();
+}
+
+function marcarDias(){
+  const sd = document.getElementById('sel-day');
+  if(!sd) return;
+  [].forEach.call(sd.options, function(o){
+    const tem = !!diasComDados[parseInt(o.value)];
+    o.style.backgroundColor = tem ? 'rgba(251,191,36,0.28)' : '';
+    o.style.color           = tem ? '#fde68a' : '';
+    o.style.fontWeight      = tem ? '700' : '';
+  });
+}
+
 function dateKey(){
   const mi = parseInt(document.getElementById('sel-month').value);
   const y  = parseInt(document.getElementById('sel-year').value);
@@ -171,6 +216,7 @@ async function onConstantsLoaded(){
   montarOpcoes();
   montarFiltroRegiao();
   await carregar();
+  carregarMarcacaoMes();
 }
 // Monta a lista plana de escolhas: cada bairro vira uma opção, carregando sua região.
 // Unidade sem bairro cadastrado entra com o próprio nome.
@@ -207,7 +253,7 @@ async function carregar(){
   linhas = (d && Array.isArray(d.rows)) ? d.rows : [];
   render();
 }
-function onDateChange(){ updateDias(); carregar(); }
+function onDateChange(){ updateDias(); carregar(); carregarMarcacaoMes(); }
 
 // ── Render ──────────────────────────────────────────────────────────────────
 function convCls(p){ return p>=50?'ac-conv hi':p>=35?'ac-conv md':p>0?'ac-conv lo':'ac-conv'; }
@@ -327,7 +373,7 @@ async function salvar(){
     body: JSON.stringify({rows: linhas})
   });
   document.getElementById('saving-badge').style.display = 'none';
-  if(r.ok){ document.getElementById('saved-badge').style.display = ''; }
+  if(r.ok){ document.getElementById('saved-badge').style.display = ''; carregarMarcacaoMes(true); }
   else {
     const e = await r.json().catch(()=>({}));
     showToast('Erro ao salvar: ' + (e.error || r.status), 'error');
