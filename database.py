@@ -112,6 +112,7 @@ class Meta(Base):
     bairro     = Column(String(120), default='')          # só para a PARÁ; vazio nas demais
     meta_agend = Column(Integer, default=0)
     meta_comp  = Column(Integer, default=0)
+    meta_comp_dia = Column(Float, default=0)              # META COMP DIA
     meta_dia   = Column(Float, default=0)
     meta_hora  = Column(Float, default=0)
     meta_conv  = Column(Integer, default=0)               # porcentagem 0-100
@@ -204,7 +205,12 @@ def _run_migrations():
             print("[migration] Coluna 'meta_hora' adicionada à tabela metas.")
         except Exception:
             conn.rollback()  # Coluna já existe, ignora
-        # Migração 1: adiciona coluna 'role' na tabela users se não existir
+        try:
+            conn.execute(text("ALTER TABLE metas ADD COLUMN meta_comp_dia DOUBLE PRECISION DEFAULT 0"))
+            conn.commit()
+            print("[migration] Coluna 'meta_comp_dia' adicionada à tabela metas.")
+        except Exception:
+            conn.rollback()  # Coluna já existe, ignora        # Migração 1: adiciona coluna 'role' na tabela users se não existir
         try:
             conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT 'all'"))
             conn.commit()
@@ -797,6 +803,7 @@ def _meta_to_dict(m):
         'unidade': m.unidade, 'bairro': m.bairro or '',
         'meta_agend': m.meta_agend or 0,
         'meta_comp': m.meta_comp or 0,
+        'meta_comp_dia': m.meta_comp_dia or 0,
         'meta_dia': m.meta_dia or 0,
         'meta_hora': m.meta_hora or 0,
         'meta_conv': m.meta_conv or 0,
@@ -833,7 +840,7 @@ def upsert_meta(ano, mes, unidade, bairro, meta_agend, meta_comp, meta_conv):
             ))
         s.commit()
 def bulk_upsert_metas(ano, mes, metas_list):
-    """Salva várias metas de uma vez (cada item: unidade, bairro, meta_agend, meta_comp, meta_conv)."""
+    """Salva varias metas de uma vez (unidade, bairro e os cinco campos de meta)."""
     now = datetime.utcnow().isoformat()
     with SessionLocal() as s:
         for m in metas_list:
@@ -841,11 +848,12 @@ def bulk_upsert_metas(ano, mes, metas_list):
             bairro  = m.get('bairro', '') or ''
             if not unidade:
                 continue
-            ag   = int(m.get('meta_agend') or 0)
-            comp = int(m.get('meta_comp') or 0)
-            dia  = float(m.get('meta_dia') or 0)
-            hora = float(m.get('meta_hora') or 0)
-            conv = int(m.get('meta_conv') or 0)
+            ag      = int(m.get('meta_agend') or 0)
+            comp    = int(m.get('meta_comp') or 0)
+            compdia = float(m.get('meta_comp_dia') or 0)
+            dia     = float(m.get('meta_dia') or 0)
+            hora    = float(m.get('meta_hora') or 0)
+            conv    = int(m.get('meta_conv') or 0)
             existing = s.scalar(select(Meta).where(and_(
                 Meta.ano == ano, Meta.mes == mes,
                 Meta.unidade == unidade, Meta.bairro == bairro
@@ -853,13 +861,15 @@ def bulk_upsert_metas(ano, mes, metas_list):
             if existing:
                 s.execute(
                     update(Meta).where(Meta.id == existing.id).values(
-                        meta_agend=ag, meta_comp=comp, meta_dia=dia, meta_hora=hora, meta_conv=conv, updated_at=now
+                        meta_agend=ag, meta_comp=comp, meta_comp_dia=compdia,
+                        meta_dia=dia, meta_hora=hora, meta_conv=conv, updated_at=now
                     )
                 )
             else:
                 s.add(Meta(
                     ano=ano, mes=mes, unidade=unidade, bairro=bairro,
-                    meta_agend=ag, meta_comp=comp, meta_dia=dia, meta_hora=hora, meta_conv=conv, updated_at=now
+                    meta_agend=ag, meta_comp=comp, meta_comp_dia=compdia,
+                    meta_dia=dia, meta_hora=hora, meta_conv=conv, updated_at=now
                 ))
         s.commit()
 # ---- Estatísticas públicas (para a landing) ---------------------------------
