@@ -815,7 +815,8 @@ function toggleNameDropdown(i, event) {
     event.stopPropagation();
     const dd=document.querySelector(`.leader-dd[data-row="${i}"]`);
     if(!dd) return;
-    const menu=dd.querySelector('.name-dd-menu');
+    const menu=_ddMenuDe(dd);
+    if(!menu) return;
     const wasOpen=menu.classList.contains('open');
     closeAllNameDropdowns();
     if(!wasOpen){
@@ -825,7 +826,7 @@ function toggleNameDropdown(i, event) {
       menu.style.top=(rect.bottom+4)+'px';
       menu.style.left=rect.left+'px';
       menu.style.width=menuWidth+'px';
-      menu.classList.add('open');
+      _ddAbrir(menu);
       trigger.classList.add('open');
     }
   }
