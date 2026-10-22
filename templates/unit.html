@@ -248,7 +248,19 @@
     font-size: 14px;
   }
   .date-invalid-warning.show { display: block; }
-  
+    .meta-box{
+    display:inline-flex; align-items:center; gap:8px; margin-left:14px;
+    height:28px; padding:0 13px; border-radius:14px;
+    background:rgba(251,191,36,.10); border:1px solid rgba(251,191,36,.3);
+    font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--muted-fg); white-space:nowrap;
+  }
+  .meta-box b{
+    font-size:15px; font-weight:800; color:var(--primary);
+    letter-spacing:0; font-variant-numeric:tabular-nums;
+  }
+  .meta-box.ok{ background:rgba(34,197,94,.10); border-color:rgba(34,197,94,.35); }
+  .meta-box.ok b{ color:#22c55e; }
   /* ── Ranking do Dia com coluna LEADS (sobrescreve o style.css) ───────────── */
   /* Acrescenta a coluna LEADS mantendo o alinhamento das demais.
      Ordem: NOME · LEADS · AGEND · COMP · CONV% */
@@ -266,6 +278,7 @@
           <h1 class="page-title" id="unit-title">{{ unit }}</h1>
           <span class="saving-badge" id="saving-badge" style="display:none">💾 Salvando...</span>
           <span class="saved-badge" id="saved-badge" style="display:none">✓ Salvo</span>
+          <span class="meta-box" id="meta-box" style="display:none">Faltam p/ meta <b id="meta-falta">0</b></span>
         </div>
         <p class="page-subtitle" style="margin-left:20px">Gestão de agendamentos por horário</p>
       </div>
@@ -537,6 +550,7 @@
     // senão a tabela renderiza sem o dropdown de nomes.
     await loadEmployees();
     await loadAppointment();
+    carregaMetaDoDia();
   }
   
   function buildTableHead() {
@@ -690,6 +704,7 @@
     updateDayOptions();
     loadAppointment();
     loadMonthSummary();   // atualiza a marcação amarela dos dias do mês
+    carregaMetaDoDia();
   }
   
   // Meta por hora = 5. Números abaixo de 5 ficam vermelhos (só o número).
@@ -797,6 +812,7 @@
   // ── Rodapé com o total de cada coluna ──────────────────────────────────────
   // Soma só na tela: não grava nada e não vai para a API.
   function renderFoot() {
+    atualizaFaltaMeta();
     const foot = document.getElementById('table-foot');
     if(!foot) return;
     if(!rows.length){ foot.innerHTML = ''; return; }
@@ -812,6 +828,38 @@
       ${cel(somaInc)}
       ${cel(somaTudo)}
     </tr>`;
+  }
+    // ── Faltam para a meta ─────────────────────────────────────────────────────
+  // Meta do dia = campo META DIA da unidade (modal de Metas, linha sem bairro).
+  // A conta e sempre: meta - agendado ate agora, nunca negativo.
+  let metaDoDia = 0;
+
+  async function carregaMetaDoDia(){
+    metaDoDia = 0;
+    if(!isDateValid()){ atualizaFaltaMeta(); return; }
+    const dk  = getDateKey();
+    const ano = Number(dk.slice(0, 4)), mes = Number(dk.slice(5, 7));
+    try{
+      const metas = await fetch('/api/metas?ano=' + ano + '&mes=' + mes).then(r => r.json());
+      const m = (metas || []).find(function(x){
+        return (x.unidade || '') === UNIT && !(x.bairro || '');
+      });
+      metaDoDia = m ? (Number(m.meta_dia) || 0) : 0;
+    }catch(e){ metaDoDia = 0; }
+    atualizaFaltaMeta();
+  }
+
+  function atualizaFaltaMeta(){
+    const box = document.getElementById('meta-box');
+    const num = document.getElementById('meta-falta');
+    if(!box || !num) return;
+    if(!metaDoDia){ box.style.display = 'none'; return; }   // sem meta cadastrada: nao mostra
+    const feito = rows.reduce(function(s, r){ return s + rowTotal(r); }, 0);
+    const falta = Math.max(0, metaDoDia - feito);
+    box.style.display = '';
+    num.textContent = falta;
+    box.classList.toggle('ok', falta === 0);
+    box.title = 'Meta do dia: ' + metaDoDia + '  ·  Agendado: ' + feito;
   }
   function rowNameChange(i, val) { rows[i].name=val; scheduleSave(); }
   function rowLeaderChange(i, val) { rows[i].leader=val.toUpperCase(); scheduleSave(); }
@@ -1232,7 +1280,7 @@ function toggleNameDropdown(i, event) {
       var totalAg=(rows||[]).reduce(function(s,r){return s+rowTotal(r);},0);
       var lines=(TIME_SLOTS||[]).map(function(sl){return {label:sl.label, cnt:(rows||[]).reduce(function(a,r){return a+(Number((r.slots||{})[sl.key])||0);},0)};}).filter(function(x){return x.cnt>0;});
       var metaDia=0;
-      try{ var metas=await fetch("/api/metas?ano="+ano+"&mes="+mes).then(function(r){return r.json();}); var mm=(metas||[]).find(function(x){return (x.unidade||"")===UNIT && !(x.bairro||"");}); if(mm) metaDia=Number(mm.meta_hora)||0; }catch(e){}
+      try{ var metas=await fetch("/api/metas?ano="+ano+"&mes="+mes).then(function(r){return r.json();}); var mm=(metas||[]).find(function(x){return (x.unidade||"")===UNIT && !(x.bairro||"");}); if(mm) metaDia=Number(mm.meta_dia)||0; }catch(e){}
       var falta=Math.max(0, metaDia-totalAg);
       var L=["Hora a Hora "+UNIT+" - "+dataStr,""];
       lines.forEach(function(x){ L.push(x.label.split("-")[0]+"- "+x.cnt+" Ags"); });
