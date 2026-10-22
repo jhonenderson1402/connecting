@@ -796,6 +796,36 @@ def api_delete_unidade(uid):
         return _err(f"Não dá para remover: a unidade '{alvo['nome']}' tem {n} dia(s) com dados lançados.", 409)
     db.delete_unidade(uid)
     return jsonify({'ok': True})
+# ── Conexoes (Configuracao) ──────────────────────────────────────────────────
+@app.route('/configuracao/conexoes')
+@admin_required
+def conexoes_page():
+    return render_template('conexoes.html')
+
+@app.route('/api/conexoes/status', methods=['GET'])
+@admin_required
+def api_conexoes_status():
+    """Diz o que esta configurado, SEM devolver chave nem segredo.
+    Da URL do webhook so mostramos host e caminho, nunca query string."""
+    url = os.environ.get('WEBHOOK_URL', '').strip()
+    visivel = ''
+    if url:
+        try:
+            from urllib.parse import urlsplit
+            p = urlsplit(url)
+            visivel = (p.scheme + '://' + p.netloc + p.path) if p.netloc else '(definida)'
+        except Exception:
+            visivel = '(definida)'
+    try:
+        debounce = int(os.environ.get('WEBHOOK_DEBOUNCE', '30'))
+    except ValueError:
+        debounce = 30
+    return jsonify({
+        'api_key':          bool(os.environ.get('EXTERNAL_API_KEY', '').strip()),
+        'webhook_url':      visivel,
+        'webhook_secret':   bool(os.environ.get('WEBHOOK_SECRET', '').strip()),
+        'webhook_debounce': debounce,
+    })
 # ── Bairros das unidades (Configuração) ──────────────────────────────────────
 @app.route('/api/bairros', methods=['GET'])
 @login_required
