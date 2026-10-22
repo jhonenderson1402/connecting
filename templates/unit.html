@@ -248,9 +248,10 @@
     font-size: 14px;
   }
   .date-invalid-warning.show { display: block; }
-    .meta-box{
-    display:inline-flex; align-items:center; gap:8px; margin-left:14px;
-    height:28px; padding:0 13px; border-radius:14px;
+  .acoes-col{ display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
+  .meta-box{
+    display:inline-flex; align-items:center; gap:8px;
+    height:30px; padding:0 14px; border-radius:15px;
     background:rgba(251,191,36,.10); border:1px solid rgba(251,191,36,.3);
     font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
     color:var(--muted-fg); white-space:nowrap;
@@ -278,17 +279,19 @@
           <h1 class="page-title" id="unit-title">{{ unit }}</h1>
           <span class="saving-badge" id="saving-badge" style="display:none">💾 Salvando...</span>
           <span class="saved-badge" id="saved-badge" style="display:none">✓ Salvo</span>
-          <span class="meta-box" id="meta-box" style="display:none">Faltam p/ meta <b id="meta-falta">0</b></span>
         </div>
         <p class="page-subtitle" style="margin-left:20px">Gestão de agendamentos por horário</p>
       </div>
-      <div class="action-bar">
-        <button class="btn btn-primary" onclick="addRow()">+ Adicionar Linha</button>
-        <a class="btn btn-outline" href="/unit/{{ unit | urlencode }}/leads">📥 Leads Recebidos</a>
-        <button class="btn btn-outline" onclick="openSummary()">📋 Resumo do Dia</button>
-        <button class="btn btn-outline" onclick="openComparecimento()">✅ Comparecimento</button>
-        <button class="btn btn-outline" onclick="openExportModal()">⬇ Exportar CSV</button>
-        <button class="btn btn-danger" onclick="clearDay()">🗑 Limpar Dia</button>
+      <div class="acoes-col">
+        <div class="action-bar">
+          <button class="btn btn-primary" onclick="addRow()">+ Adicionar Linha</button>
+          <a class="btn btn-outline" href="/unit/{{ unit | urlencode }}/leads">📥 Leads Recebidos</a>
+          <button class="btn btn-outline" onclick="openSummary()">📋 Resumo do Dia</button>
+          <button class="btn btn-outline" onclick="openComparecimento()">✅ Comparecimento</button>
+          <button class="btn btn-outline" onclick="openExportModal()">⬇ Exportar CSV</button>
+          <button class="btn btn-danger" onclick="clearDay()">🗑 Limpar Dia</button>
+        </div>
+        <span class="meta-box" id="meta-box" style="display:none">Faltam p/ meta <b id="meta-falta">0</b></span>
       </div>
     </div>
   
