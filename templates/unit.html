@@ -721,11 +721,12 @@
     return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   }
   
-  function toggleNameDropdown(i, event) {
+function toggleNameDropdown(i, event) {
     event.stopPropagation();
     const dd = document.querySelector(`.name-dd[data-row="${i}"]`);
     if(!dd) return;
-    const menu = dd.querySelector('.name-dd-menu');
+    const menu = _ddMenuDe(dd);
+    if(!menu) return;
     const wasOpen = menu.classList.contains('open');
     // Fecha qualquer outro dropdown aberto
     closeAllNameDropdowns();
@@ -737,9 +738,40 @@
       menu.style.top  = (rect.bottom + 4) + 'px';
       menu.style.left = rect.left + 'px';
       menu.style.width = menuWidth + 'px';
-      menu.classList.add('open');
+      _ddAbrir(menu);
       trigger.classList.add('open');
     }
+  }
+
+  // ── Dropdown por cima de tudo ──────────────────────────────────────────────
+  // Dentro da tabela o menu fica preso na camada do .table-wrap (z-index:1,
+  // criada pela marca d'água do estado), e as linhas de baixo passam por cima.
+  // Ao abrir, mandamos o menu para o <body>, onde não existe camada acima dele.
+  let __ddAberto = null;
+
+  function _ddMenuDe(dd) {
+    // Se o menu desse campo está aberto, ele não é mais filho do dd.
+    return dd.querySelector('.name-dd-menu')
+        || ((__ddAberto && __ddAberto.__casa === dd) ? __ddAberto : null);
+  }
+
+  function _ddAbrir(menu) {
+    _ddFechar();
+    menu.__casa = menu.parentNode;
+    document.body.appendChild(menu);
+    menu.style.zIndex = '2147483000';
+    menu.classList.add('open');
+    __ddAberto = menu;
+  }
+
+  function _ddFechar() {
+    const m = __ddAberto;
+    __ddAberto = null;
+    if(!m) return;
+    m.classList.remove('open');
+    if(m.__casa && m.__casa.isConnected) m.__casa.appendChild(m);
+    else m.remove();            // a tabela foi redesenhada: descarta o órfão
+    m.__casa = null;
   }
   
   // Fechar dropdowns ao rolar a página (senão eles ficam "presos" na tela)
@@ -752,6 +784,7 @@
   window.addEventListener('resize', closeAllNameDropdowns);
   
   function closeAllNameDropdowns() {
+    _ddFechar();
     document.querySelectorAll('.name-dd-menu.open').forEach(m => m.classList.remove('open'));
     document.querySelectorAll('.name-dd-trigger.open').forEach(t => t.classList.remove('open'));
   }
