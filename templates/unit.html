@@ -6,8 +6,8 @@
     function saveInFlight(){ var b=document.getElementById("saving-badge"); if(!b) return false; return getComputedStyle(b).display!=="none"; }
     function editing(){ var a=document.activeElement; return a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && a.closest && a.closest("#schedule-table"); }
     function ddOpen(){ return !!document.querySelector(".name-dd-menu.open"); }
-    function tick(){ if(typeof loadAppointment!=="function") return; if(document.hidden) return; if(editing()||saveInFlight()||ddOpen()) return; try{ loadAppointment(); }catch(e){} }
-    setInterval(tick, 30000);
+    function tick(){ if(typeof loadAppointment!=="function") return; if(document.hidden) return; if(window.__pendente) return; if(editing()||saveInFlight()||ddOpen()) return; try{ loadAppointment(); }catch(e){} }
+    setInterval(tick, 10000);
   })();
   </script>
   
@@ -916,34 +916,54 @@ function toggleNameDropdown(i, event) {
   }
   function removeRow(i) { rows.splice(i,1); renderTable(); scheduleSave(); }
   
+  // ── Salvamento com garantia ────────────────────────────────────────────────
+  // __pendente = existe coisa digitada que ainda nao chegou no servidor.
+  // Enquanto estiver true, NADA sobrescreve a tela e o save tenta de novo.
+  let saveRetry = 0;
+
   function scheduleSave() {
     if(!isDateValid()) {
       showDateWarning(true);
-      return; // não agenda salvamento com data ruim
+      return; // nao agenda salvamento com data ruim
     }
+    window.__pendente = true;
     clearTimeout(saveTimer);
     document.getElementById('saving-badge').style.display='';
     document.getElementById('saved-badge').style.display='none';
     saveTimer = setTimeout(doSave, 1200);
   }
-  
+
   async function doSave() {
-    if(!isDateValid()) return; // proteção dupla
+    if(!isDateValid()) return;
     const leader = document.getElementById('inp-leader').value;
-    const res = await fetch(`/api/appointments/${encodeURIComponent(UNIT)}/${getDateKey()}`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({leader, rows})
-    });
-    document.getElementById('saving-badge').style.display='none';
-    if(res.ok) {
+    try {
+      const res = await fetch(`/api/appointments/${encodeURIComponent(UNIT)}/${getDateKey()}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({leader, rows})
+      });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+
+      saveRetry = 0;
+      window.__pendente = false;
+      document.getElementById('saving-badge').style.display='none';
       document.getElementById('saved-badge').style.display='';
-      // Atualiza o resumo do mês e a marcação amarela dos dias após salvar (inclui Limpar Dia)
       loadMonthSummary();
-    } else {
-      const err = await res.json().catch(()=>({}));
-      showToast('Erro ao salvar: ' + (err.error || res.status), 'error');
+    } catch(e) {
+      saveRetry++;
+      clearTimeout(saveTimer);
+      if(saveRetry <= 5){
+        saveTimer = setTimeout(doSave, 2000 * saveRetry);
+      } else {
+        showToast('Sem conexao com o servidor. Nao feche a pagina — continuo tentando salvar.', 'error');
+        saveTimer = setTimeout(doSave, 15000);
+      }
     }
   }
+
+  // Avisa se a pessoa fechar a aba com algo ainda nao salvo
+  window.addEventListener('beforeunload', function(e){
+    if(window.__pendente){ e.preventDefault(); e.returnValue = ''; }
+  });
   
   function clearDay() {
     if(!isDateValid()){ showToast('Selecione uma data válida.','error'); return; }
