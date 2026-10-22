@@ -7,7 +7,7 @@
     function editing(){ var a=document.activeElement; return a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && a.closest && a.closest("#schedule-table"); }
     function ddOpen(){ return !!document.querySelector(".name-dd-menu.open"); }
     function tick(){ if(typeof loadAppointment!=="function") return; if(document.hidden) return; if(window.__pendente) return; if(editing()||saveInFlight()||ddOpen()) return; try{ loadAppointment(); }catch(e){} }
-    setInterval(tick, 10000);
+    setInterval(tick, 30000);
   })();
   </script>
   
