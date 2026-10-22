@@ -1282,7 +1282,7 @@ function toggleNameDropdown(i, event) {
       try{ var metas=await fetch("/api/metas?ano="+ano+"&mes="+mes).then(function(r){return r.json();}); var mm=(metas||[]).find(function(x){return (x.unidade||"")===UNIT && !(x.bairro||"");}); if(mm) metaDia=Number(mm.meta_dia)||0; }catch(e){}
       var falta=Math.max(0, metaDia-totalAg);
       var L=["Hora a Hora "+UNIT+" - "+dataStr,""];
-      lines.forEach(function(x){ L.push(x.label.split("-")[0]+"- "+x.cnt+" Ags"); });
+      lines.forEach(function(x){ L.push(x.label.split("-")[1]+"- "+x.cnt+" Ags"); });
       L.push(""); L.push("Total - "+totalAg+" Ags"); L.push(""); L.push("META - "+metaDia); L.push("Falta: "+falta);
       var txt=L.join(NL);
       var ov=document.createElement("div"); ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px"; ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
