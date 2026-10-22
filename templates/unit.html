@@ -248,10 +248,9 @@
     font-size: 14px;
   }
   .date-invalid-warning.show { display: block; }
-  .acoes-col{ display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
   .meta-box{
-    display:inline-flex; align-items:center; gap:8px;
-    height:30px; padding:0 14px; border-radius:15px;
+    display:inline-flex; align-items:center; gap:8px; margin-left:auto;
+    height:36px; padding:0 16px; border-radius:9px;
     background:rgba(251,191,36,.10); border:1px solid rgba(251,191,36,.3);
     font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
     color:var(--muted-fg); white-space:nowrap;
@@ -282,18 +281,14 @@
         </div>
         <p class="page-subtitle" style="margin-left:20px">Gestão de agendamentos por horário</p>
       </div>
-      <div class="acoes-col">
-        <div class="action-bar">
-          <button class="btn btn-primary" onclick="addRow()">+ Adicionar Linha</button>
-          <a class="btn btn-outline" href="/unit/{{ unit | urlencode }}/leads">📥 Leads Recebidos</a>
-          <button class="btn btn-outline" onclick="openSummary()">📋 Resumo do Dia</button>
-          <button class="btn btn-outline" onclick="openComparecimento()">✅ Comparecimento</button>
-          <button class="btn btn-outline" onclick="openExportModal()">⬇ Exportar CSV</button>
-          <button class="btn btn-danger" onclick="clearDay()">🗑 Limpar Dia</button>
-        </div>
-        <span class="meta-box" id="meta-box" style="display:none">Faltam p/ meta <b id="meta-falta">0</b></span>
-      </div>
-    </div>
+      <div class="action-bar">
+        <button class="btn btn-primary" onclick="addRow()">+ Adicionar Linha</button>
+        <a class="btn btn-outline" href="/unit/{{ unit | urlencode }}/leads">📥 Leads Recebidos</a>
+        <button class="btn btn-outline" onclick="openSummary()">📋 Resumo do Dia</button>
+        <button class="btn btn-outline" onclick="openComparecimento()">✅ Comparecimento</button>
+        <button class="btn btn-outline" onclick="openExportModal()">⬇ Exportar CSV</button>
+        <button class="btn btn-danger" onclick="clearDay()">🗑 Limpar Dia</button>
+      </div>    </div>
   
     <!-- Date selector -->
     <div class="card" style="padding:16px">
@@ -328,6 +323,7 @@
           <input class="input" id="inp-leader" placeholder="Nome do líder"
                  oninput="updateLeaderCells(); scheduleSave()" style="width:200px"/>
         </div>
+       <span class="meta-box" id="meta-box" style="display:none">Faltam p/ meta <b id="meta-falta">0</b></span>
       </div>
     </div>
   
