@@ -869,18 +869,24 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
                       : Math.max(300, Math.round(window.innerHeight * 0.74));
       if(MAXALT < 100) return;
 
-      var GAP = tv ? 12 : 9, MIN = tv ? 210 : 150;
+      // Largura minima de uma coluna. No modo TV ela e bem maior, porque a
+      // letra cresce junto com a escala: coluna estreita corta os nomes.
+      var GAP = tv ? 12 : 9, MIN = tv ? 340 : 150;
+      // No modo TV a escala pode passar de 1: se sobrar altura, as caixas
+      // crescem ate preencher a tela. No dashboard fica travada em 100%.
+      var TETO = tv ? 1.7 : 1;
       var melhor = null;
       for(var cols = 2; cols <= 6; cols++){
-        if((LARG - (cols - 1) * GAP) / cols < MIN) break;
+        var largCol = (LARG - (cols - 1) * GAP) / cols;
+        if(largCol < MIN) break;
         grade.style.transform = 'scale(1)';
         grade.style.width = LARG + 'px';
         grade.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
         var alt = grade.scrollHeight;
-        // No modo TV a escala pode passar de 1: se sobrar altura, as caixas
-        // crescem ate preencher a tela. No dashboard fica travada em 100%.
-        var TETO = tv ? 1.7 : 1;
-        var e = Math.min(TETO, MAXALT / alt);
+        // A escala e limitada pelas duas coisas ao mesmo tempo: a altura que
+        // sobrou na tela e a largura da coluna. Sem a segunda, o texto cresce
+        // dentro de uma coluna estreita e o nome aparece como "FERNANDO T...".
+        var e = Math.min(TETO, MAXALT / alt, largCol / MIN);
         if(!melhor || e > melhor.e + 0.001) melhor = { cols: cols, e: e, alt: alt };
       }
       if(!melhor) melhor = { cols: 2, e: 1, alt: grade.scrollHeight };
