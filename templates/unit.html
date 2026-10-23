@@ -204,6 +204,23 @@
   }
   .name-dd-option.placeholder { color: #52525b; font-style: italic; }
   .name-dd-option.placeholder:hover { background: #2a2a2a; color: #71717a; }
+
+  /* Campo de busca dentro do dropdown — fica grudado no topo ao rolar a lista */
+  .name-dd-menu .dd-busca{
+    position: sticky; top: -4px; z-index: 1;
+    margin: -4px -4px 4px; padding: 4px 4px 6px;
+    background: #1a1a1a; border-bottom: 1px solid #2a2a2a;
+  }
+  .name-dd-menu .dd-busca input{
+    width: 100%; background: #101010; border: 1px solid #2a2a2a; border-radius: 6px;
+    color: #e4e4e7; font-family: inherit; font-size: 12px; padding: 6px 9px; outline: none;
+  }
+  .name-dd-menu .dd-busca input::placeholder{ color: #52525b; }
+  .name-dd-menu .dd-busca input:focus{ border-color: #fbbf24; }
+  body.tema-claro .name-dd-menu .dd-busca{ background: #fff; border-bottom-color: #e8e8e4; }
+  body.tema-claro .name-dd-menu .dd-busca input{
+    background: #f7f7f5; border-color: #e2e2dd; color: #3f3f46;
+  }
   
   .empty-row {
     text-align: center !important;
@@ -923,6 +940,47 @@ function toggleNameDropdown(i, event) {
         || ((__ddAberto && __ddAberto.__casa === dd) ? __ddAberto : null);
   }
 
+  // ── Busca dentro do dropdown ───────────────────────────────────────────────
+  // Compara sem acento e sem maiuscula: "andre" acha "ANDRÉ".
+  function _semAcento(s){
+    return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase();
+  }
+
+  // Cria o campo de busca na primeira abertura e reaproveita nas seguintes.
+  function _ddBusca(menu){
+    let cx = menu.querySelector('.dd-busca');
+    if(!cx){
+      cx = document.createElement('div');
+      cx.className = 'dd-busca';
+      cx.innerHTML = '<input type="text" placeholder="Buscar pessoa..." />';
+      menu.insertBefore(cx, menu.firstChild);
+      const campo = cx.querySelector('input');
+      campo.addEventListener('click', function(e){ e.stopPropagation(); });
+      campo.addEventListener('keydown', function(e){
+        e.stopPropagation();
+        if(e.key === 'Escape'){ closeAllNameDropdowns(); return; }
+        if(e.key === 'Enter'){
+          // Enter escolhe o primeiro nome que sobrou na lista
+          const vis = [].slice.call(menu.querySelectorAll('.name-dd-option')).filter(function(o){
+            return o.style.display !== 'none' && !o.classList.contains('placeholder');
+          });
+          if(vis.length) vis[0].click();
+        }
+      });
+      campo.addEventListener('input', function(){
+        const q = _semAcento(campo.value);
+        [].forEach.call(menu.querySelectorAll('.name-dd-option'), function(o){
+          if(o.classList.contains('placeholder')){ o.style.display = q ? 'none' : ''; return; }
+          o.style.display = _semAcento(o.textContent).indexOf(q) >= 0 ? '' : 'none';
+        });
+      });
+    }
+    const campo = cx.querySelector('input');
+    campo.value = '';
+    [].forEach.call(menu.querySelectorAll('.name-dd-option'), function(o){ o.style.display = ''; });
+    setTimeout(function(){ campo.focus({preventScroll:true}); }, 0);
+  }
+
   function _ddAbrir(menu) {
     _ddFechar();
     menu.__casa = menu.parentNode;
@@ -930,8 +988,8 @@ function toggleNameDropdown(i, event) {
     menu.style.zIndex = '2147483000';
     menu.classList.add('open');
     __ddAberto = menu;
+    _ddBusca(menu);
   }
-
   function _ddFechar() {
     const m = __ddAberto;
     __ddAberto = null;
