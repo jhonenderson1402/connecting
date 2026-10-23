@@ -877,7 +877,10 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         grade.style.width = LARG + 'px';
         grade.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
         var alt = grade.scrollHeight;
-        var e = Math.min(1, MAXALT / alt);
+        // No modo TV a escala pode passar de 1: se sobrar altura, as caixas
+        // crescem ate preencher a tela. No dashboard fica travada em 100%.
+        var TETO = tv ? 1.7 : 1;
+        var e = Math.min(TETO, MAXALT / alt);
         if(!melhor || e > melhor.e + 0.001) melhor = { cols: cols, e: e, alt: alt };
       }
       if(!melhor) melhor = { cols: 2, e: 1, alt: grade.scrollHeight };
