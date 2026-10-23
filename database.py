@@ -703,6 +703,15 @@ def get_appointments_by_month(year, month):
             .order_by(Appointment.date)
         ).all()
         return [_appt_to_dict(r) for r in rows]
+def get_appointments_all():
+    """Tudo que existe, do mais antigo ao mais novo.
+    Usada pela API externa (Power BI), que puxa a base inteira e deixa o
+    recorte de periodo para ser feito dentro do proprio Power BI."""
+    with SessionLocal() as s:
+        rows = s.scalars(
+            select(Appointment).order_by(Appointment.date)
+        ).all()
+        return [_appt_to_dict(r) for r in rows]
 def upsert_appointment(unit, date, leader, rows_list):
     payload = json.dumps(rows_list, ensure_ascii=False)
     with SessionLocal() as s:
