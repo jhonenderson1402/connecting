@@ -538,13 +538,32 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       <h2 class="card-title">Agendamentos do dia</h2>
       <span class="ag-sub" id="ag-sub">—</span>
       <span class="ag-tot"><span class="lb">Total</span><span class="vl" id="ag-tot">0</span></span>
+      <button class="ag-tv" onclick="agModoTV()" title="Modo TV — tela cheia">⛶</button>
     </div>
+
+    <!-- cabecalho do modo TV (so aparece em tela cheia) -->
+    <div class="ag-tvhead" id="ag-tvhead">
+      <div class="e">
+        <div class="tit">
+          <b>Agendamentos do dia</b>
+          <span>Equipe de agendamento</span>
+        </div>
+        <div class="vivo"><span class="pt"></span><span>Ao vivo</span></div>
+      </div>
+      <div class="c"><img src="/static/logo.png" alt="Connecting"></div>
+      <div class="d">
+        <div class="bigtot"><div class="k">Total<br>do dia</div><div class="v" id="ag-tot2">0</div></div>
+        <div class="rel"><b id="ag-hora">00:00:00</b><span id="ag-data">—</span></div>
+      </div>
+    </div>
+
     <div class="ag-palco" id="ag-palco">
       <div class="ag-grade" id="ag-grade"><div class="loading">Carregando...</div></div>
     </div>
   </div>
 
-  <style>
+<style>
+  /* ───────────── modo normal (dentro do Resumo Geral) ───────────── */
   #ag-card .card-header .ag-sub{ margin-left:12px; font-size:11px; color:var(--muted-fg); }
   #ag-card .card-header .ag-tot{
     margin-left:auto; display:inline-flex; align-items:center; gap:8px; height:30px;
@@ -553,6 +572,12 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
   #ag-card .ag-tot .lb{ font-size:8.5px; font-weight:700; letter-spacing:.11em;
                         text-transform:uppercase; color:var(--muted-fg); }
   #ag-card .ag-tot .vl{ font-size:15px; font-weight:800; color:var(--primary); }
+  #ag-card .ag-tv{
+    margin-left:9px; width:30px; height:30px; border-radius:8px; cursor:pointer;
+    background:var(--secondary); border:1px solid var(--border); color:var(--muted-fg);
+    font-size:14px; line-height:1; font-family:inherit; transition:all .14s;
+  }
+  #ag-card .ag-tv:hover{ border-color:var(--primary); color:var(--primary); }
 
   .ag-palco{ position:relative; overflow:hidden; padding:12px; }
   .ag-grade{ position:absolute; top:12px; left:12px; transform-origin:top left;
@@ -589,15 +614,112 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
   .ag-uni .ag-uni-f{ padding:3.5px 10px; font-size:8px; color:var(--muted-fg); text-align:right;
                      border-top:1px solid var(--border); background:var(--secondary); }
   .ag-vazio{ padding:26px; text-align:center; font-size:11.5px; color:var(--muted-fg); }
+
+  .ag-tvhead{ display:none; }
+
+  @keyframes agBrilha{ 0%{ background:rgba(34,197,94,.3) } 100%{ background:transparent } }
+  .ag-uni tr.novo td{ animation:agBrilha 1.6s ease-out; }
+  @keyframes agPulsa{ 0%,100%{ opacity:1 } 50%{ opacity:.25 } }
+
+  /* ───────────── modo TV (tela cheia) ───────────── */
+  #ag-card:fullscreen,
+  #ag-card:-webkit-full-screen{
+    background:#050506; border:none; border-radius:0; margin:0;
+    display:flex; flex-direction:column; height:100%; width:100%;
+    padding:18px 22px 14px; overflow:hidden;
+  }
+  #ag-card:fullscreen > .card-header,
+  #ag-card:-webkit-full-screen > .card-header{ display:none; }
+
+  #ag-card:fullscreen .ag-tvhead,
+  #ag-card:-webkit-full-screen .ag-tvhead{
+    display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:20px;
+    flex:0 0 auto; padding-bottom:14px; border-bottom:1px solid #1e1e23; margin-bottom:14px;
+  }
+  .ag-tvhead .e{ display:flex; align-items:center; gap:12px; min-width:0; }
+  .ag-tvhead .d{ display:flex; align-items:center; gap:18px; justify-content:flex-end; min-width:0; }
+  .ag-tvhead .c img{ height:72px; width:auto; display:block; }
+  .ag-tvhead .tit b{ display:block; font-size:19px; font-weight:800;
+                     letter-spacing:-.02em; color:#fafafa; }
+  .ag-tvhead .tit span{ display:block; font-size:9.5px; font-weight:700; letter-spacing:.2em;
+                        text-transform:uppercase; color:#6b6b75; margin-top:3px; }
+  .ag-tvhead .vivo{ display:flex; align-items:center; gap:7px; height:26px; flex:0 0 auto;
+                    padding:0 11px; border-radius:13px; background:rgba(34,197,94,.1);
+                    border:1px solid rgba(34,197,94,.3); }
+  .ag-tvhead .vivo .pt{ width:7px; height:7px; border-radius:50%; background:#22c55e;
+                        animation:agPulsa 2s ease-in-out infinite; }
+  .ag-tvhead .vivo span{ font-size:9.5px; font-weight:750; letter-spacing:.14em;
+                         text-transform:uppercase; color:#22c55e; }
+  .ag-tvhead .bigtot{ display:flex; align-items:center; gap:14px; height:62px; padding:0 22px;
+                      border-radius:14px; border:1px solid rgba(251,191,36,.3);
+                      background:linear-gradient(135deg,rgba(251,191,36,.14),rgba(251,191,36,.04)); }
+  .ag-tvhead .bigtot .k{ font-size:9.5px; font-weight:750; letter-spacing:.15em;
+                         text-transform:uppercase; color:#fbbf24; opacity:.8; line-height:1.4; }
+  .ag-tvhead .bigtot .v{ font-size:38px; font-weight:900; letter-spacing:-.04em; color:#fbbf24;
+                         line-height:1; font-variant-numeric:tabular-nums; }
+  .ag-tvhead .rel{ text-align:right; }
+  .ag-tvhead .rel b{ display:block; font-size:30px; font-weight:800; letter-spacing:-.03em;
+                     line-height:1; color:#fafafa; font-variant-numeric:tabular-nums; }
+  .ag-tvhead .rel span{ display:block; font-size:10.5px; color:#6b6b75; margin-top:4px;
+                        text-transform:capitalize; }
+
+  #ag-card:fullscreen .ag-palco,
+  #ag-card:-webkit-full-screen .ag-palco{ flex:1 1 auto; min-height:0; height:auto; padding:0; }
+  #ag-card:fullscreen .ag-grade,
+  #ag-card:-webkit-full-screen .ag-grade{ top:0; left:0; gap:12px; }
+
+  #ag-card:fullscreen .ag-uni,
+  #ag-card:-webkit-full-screen .ag-uni{ background:#0e0e11; border-color:#1e1e23; border-radius:12px; }
+  #ag-card:fullscreen .ag-uni.lider,
+  #ag-card:-webkit-full-screen .ag-uni.lider{ border-color:rgba(251,191,36,.42); }
+  #ag-card:fullscreen .ag-uni-h,
+  #ag-card:-webkit-full-screen .ag-uni-h{ padding:9px 13px; background:rgba(251,191,36,.08);
+                                          border-bottom-color:#1e1e23; }
+  #ag-card:fullscreen .ag-uni.lider .ag-uni-h,
+  #ag-card:-webkit-full-screen .ag-uni.lider .ag-uni-h{ background:rgba(251,191,36,.15); }
+  #ag-card:fullscreen .ag-uni-h .nm,
+  #ag-card:-webkit-full-screen .ag-uni-h .nm{ font-size:13px; font-weight:800; letter-spacing:.05em; }
+  #ag-card:fullscreen .ag-uni-h .sm,
+  #ag-card:-webkit-full-screen .ag-uni-h .sm{ font-size:19px; font-weight:900; color:#fafafa; }
+  #ag-card:fullscreen .ag-uni-h .sm small,
+  #ag-card:-webkit-full-screen .ag-uni-h .sm small{ font-size:9px; color:#6b6b75; }
+  #ag-card:fullscreen .ag-uni thead th,
+  #ag-card:-webkit-full-screen .ag-uni thead th{ font-size:8.5px; padding:6px 13px 5px;
+                                                 color:#6b6b75; border-bottom-color:#1e1e23; }
+  #ag-card:fullscreen .ag-uni thead th.c,
+  #ag-card:-webkit-full-screen .ag-uni thead th.c{ width:34px; }
+  #ag-card:fullscreen .ag-uni thead th.r,
+  #ag-card:-webkit-full-screen .ag-uni thead th.r{ width:54px; }
+  #ag-card:fullscreen .ag-uni tbody td,
+  #ag-card:-webkit-full-screen .ag-uni tbody td{ padding:4.5px 13px; font-size:14px;
+                                                 border-bottom-color:rgba(255,255,255,.03); }
+  #ag-card:fullscreen .ag-uni td.pos,
+  #ag-card:-webkit-full-screen .ag-uni td.pos{ width:34px; font-size:11px; color:#45454e; }
+  #ag-card:fullscreen .ag-uni td.nome,
+  #ag-card:-webkit-full-screen .ag-uni td.nome{ font-weight:550; color:#c8c8d0; }
+  #ag-card:fullscreen .ag-uni td.ags,
+  #ag-card:-webkit-full-screen .ag-uni td.ags{ width:54px; font-size:15px; font-weight:800; }
+  #ag-card:fullscreen .ag-uni tr.top1 td.nome,
+  #ag-card:-webkit-full-screen .ag-uni tr.top1 td.nome{ color:#fbbf24; font-weight:750; }
+  #ag-card:fullscreen .ag-uni td.ags.zero,
+  #ag-card:-webkit-full-screen .ag-uni td.ags.zero{ color:#3a3a42; }
+  #ag-card:fullscreen .ag-uni .ag-uni-f,
+  #ag-card:-webkit-full-screen .ag-uni .ag-uni-f{ padding:5px 13px; font-size:9.5px;
+                                                  color:#6b6b75; background:rgba(255,255,255,.018);
+                                                  border-top-color:#1e1e23; }
   </style>
 
   <script>
-  /* ── Agendamentos do dia: busca enxuta + ajuste automatico a tela ── */
+  /* ── Agendamentos do dia: busca enxuta, ajuste a tela e modo TV ── */
   (function(){
     var INTERVALO = 15000;          // 15 segundos
     var grade = document.getElementById('ag-grade');
     var palco = document.getElementById('ag-palco');
-    if(!grade || !palco) return;
+    var card  = document.getElementById('ag-card');
+    if(!grade || !palco || !card) return;
+
+    var anterior = {};              // "UNIDADE||NOME" -> valor, para destacar o que mudou
+    var primeira = true;            // na 1a carga nao pisca nada
 
     function esc(s){
       return String(s == null ? '' : s)
@@ -610,6 +732,25 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
              String(d.getMonth()+1).padStart(2,'0') + '-' +
              String(d.getDate()).padStart(2,'0');
     }
+    function emTV(){
+      return !!(document.fullscreenElement || document.webkitFullscreenElement);
+    }
+
+    // Botao da tela cheia. Esc sai sozinho, quem cuida disso e o navegador.
+    window.agModoTV = function(){
+      if(emTV()){
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      } else {
+        var f = card.requestFullscreen || card.webkitRequestFullscreen;
+        if(f) f.call(card);
+        else if(typeof showToast !== 'undefined') showToast('Este navegador nao permite tela cheia.','error');
+      }
+    };
+
+    function total(v){
+      var a = document.getElementById('ag-tot');  if(a) a.textContent = v;
+      var b = document.getElementById('ag-tot2'); if(b) b.textContent = v;
+    }
 
     function desenha(dados){
       var unidades = (dados && dados.unidades) || [];
@@ -619,23 +760,34 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         grade.style.transform = 'scale(1)';
         grade.style.width = '';
         grade.innerHTML = '<div class="ag-vazio">Nenhum lançamento no Hora a Hora hoje.</div>';
-        palco.style.height = '90px';
-        document.getElementById('ag-tot').textContent = '0';
+        if(!emTV()) palco.style.height = '90px';
+        total(0);
+        primeira = false;
         return;
       }
 
-      var total = 0;
+      var maior = 0;
+      comGente.forEach(function(u){ if((u.total||0) > maior) maior = u.total||0; });
+
+      var soma = 0;
       grade.innerHTML = comGente.map(function(u){
-        total += (u.total || 0);
+        soma += (u.total || 0);
         var pes = u.pessoas || [];
         var linhas = pes.map(function(p, i){
-          var top = (i === 0 && p.ags > 0) ? ' class="top1"' : '';
-          return '<tr' + top + '><td class="pos">' + (i+1) + '</td>' +
+          var ch = u.unidade + '||' + p.nome;
+          var mudou = (!primeira && anterior[ch] !== undefined && anterior[ch] !== p.ags);
+          anterior[ch] = p.ags;
+          var cls = [];
+          if(i === 0 && p.ags > 0) cls.push('top1');
+          if(mudou) cls.push('novo');
+          return '<tr' + (cls.length ? ' class="' + cls.join(' ') + '"' : '') + '>' +
+                 '<td class="pos">' + (i+1) + '</td>' +
                  '<td class="nome">' + esc(p.nome) + '</td>' +
                  '<td class="ags ' + (p.ags > 0 ? 'tem' : 'zero') + '">' + p.ags + '</td></tr>';
         }).join('');
         var comAg = pes.filter(function(p){ return p.ags > 0; }).length;
-        return '<div class="ag-uni">' +
+        var lider = ((u.total||0) === maior && maior > 0) ? ' lider' : '';
+        return '<div class="ag-uni' + lider + '">' +
                  '<div class="ag-uni-h"><span class="nm">' + esc(u.unidade) + '</span>' +
                  '<span class="sm">' + (u.total || 0) + '<small>AGS</small></span></div>' +
                  '<table><thead><tr><th class="c">Pos</th><th>TMK</th><th class="r">Ags</th></tr></thead>' +
@@ -644,20 +796,25 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
                '</div>';
       }).join('');
 
-      document.getElementById('ag-tot').textContent = total;
+      total(soma);
+      primeira = false;
       ajusta();
     }
 
     // Escolhe o numero de colunas e, se ainda assim passar da altura
     // disponivel, reduz tudo proporcionalmente ate caber.
     function ajusta(){
-      var LARG = palco.clientWidth - 24;
+      var tv = emTV();
+      var LARG = palco.clientWidth - (tv ? 0 : 24);
       if(LARG < 100) return;
-      var MAXALT = Math.max(300, Math.round(window.innerHeight * 0.74));
+      var MAXALT = tv ? palco.clientHeight
+                      : Math.max(300, Math.round(window.innerHeight * 0.74));
+      if(MAXALT < 100) return;
 
+      var GAP = tv ? 12 : 9, MIN = tv ? 210 : 150;
       var melhor = null;
       for(var cols = 2; cols <= 6; cols++){
-        if((LARG - (cols - 1) * 9) / cols < 150) break;
+        if((LARG - (cols - 1) * GAP) / cols < MIN) break;
         grade.style.transform = 'scale(1)';
         grade.style.width = LARG + 'px';
         grade.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
@@ -667,11 +824,23 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       }
       if(!melhor) melhor = { cols: 2, e: 1, alt: grade.scrollHeight };
 
-      var e = Math.max(0.55, melhor.e);
+      var e = Math.max(tv ? 0.5 : 0.55, melhor.e);
       grade.style.gridTemplateColumns = 'repeat(' + melhor.cols + ', 1fr)';
       grade.style.width = (LARG / e) + 'px';
       grade.style.transform = 'scale(' + e + ')';
-      palco.style.height = (Math.min(melhor.alt * e, MAXALT) + 24) + 'px';
+      palco.style.height = tv ? '' : (Math.min(melhor.alt * e, MAXALT) + 24) + 'px';
+    }
+
+    function relogio(){
+      var h = document.getElementById('ag-hora');
+      if(!h) return;
+      var d = new Date();
+      h.textContent = String(d.getHours()).padStart(2,'0') + ':' +
+                      String(d.getMinutes()).padStart(2,'0') + ':' +
+                      String(d.getSeconds()).padStart(2,'0');
+      var dt = document.getElementById('ag-data');
+      if(dt) dt.textContent = d.toLocaleDateString('pt-BR',
+        {weekday:'long', day:'2-digit', month:'long'});
     }
 
     var ocupado = false;
@@ -681,11 +850,10 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       try{
         var r = await fetch('/api/agendamentos_dia?date=' + hojeISO());
         if(r.ok){
-          var d = await r.json();
-          desenha(d);
+          desenha(await r.json());
           var ag = new Date();
-          document.getElementById('ag-sub').textContent =
-            'Hora a Hora de hoje · atualizado ' +
+          var s = document.getElementById('ag-sub');
+          if(s) s.textContent = 'Hora a Hora de hoje · atualizado ' +
             String(ag.getHours()).padStart(2,'0') + ':' +
             String(ag.getMinutes()).padStart(2,'0') + ':' +
             String(ag.getSeconds()).padStart(2,'0');
@@ -695,13 +863,16 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
     }
 
     var tmr;
-    window.addEventListener('resize', function(){
-      clearTimeout(tmr); tmr = setTimeout(ajusta, 150);
-    });
+    function reajusta(){ clearTimeout(tmr); tmr = setTimeout(ajusta, 150); }
+    window.addEventListener('resize', reajusta);
+    document.addEventListener('fullscreenchange', reajusta);
+    document.addEventListener('webkitfullscreenchange', reajusta);
     document.addEventListener('visibilitychange', function(){ if(!document.hidden) tick(); });
 
     tick();
+    relogio();
     setInterval(tick, INTERVALO);
+    setInterval(relogio, 1000);
   })();
   </script>
   <div class="card">
