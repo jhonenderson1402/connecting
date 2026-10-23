@@ -474,6 +474,55 @@ def api_clear_leads(unit, date):
     db.clear_appointment(LEADS_PREFIX + unit, date)
     return jsonify({'ok': True})
 # ── API: Constantes ───────────────────────────────────────────────────────────
+# ── Resumo de Agendamentos do dia (Hora a Hora) ─────────────────────────────
+# Rota enxuta: devolve so nome e total de cada TMK, por unidade. Feita para a
+# tela do Resumo Geral se atualizar sozinha sem rebaixar o dashboard inteiro.
+@app.route('/api/agendamentos_dia', methods=['GET'])
+@login_required
+def api_agendamentos_dia():
+    date = request.args.get('date')
+    if not _valid_date(date):
+        return _err('Data invalida. Use YYYY-MM-DD.')
+
+    validas = _units()
+    conj = set(validas)
+    por_unidade = {u: {} for u in validas}
+
+    for a in (db.get_appointments_by_date(date) or []):
+        unit = a.get('unit') or ''
+        if unit not in conj:
+            continue
+        alvo = por_unidade[unit]
+        for r in (a.get('rows') or []):
+            if not isinstance(r, dict):
+                continue
+            nome = (r.get('name') or '').strip()
+            if not nome:
+                continue
+            slots = r.get('slots') or {}
+            tot = 0
+            for s in TIME_SLOTS:
+                try:
+                    tot += int(float(slots.get(s['key']) or 0))
+                except (TypeError, ValueError):
+                    pass
+            try:
+                tot += int(float(r.get('inclusao') or 0))
+            except (TypeError, ValueError):
+                pass
+            alvo[nome] = alvo.get(nome, 0) + tot
+
+    out = []
+    for u in validas:
+        pessoas = [{'nome': n, 'ags': v} for n, v in por_unidade[u].items()]
+        pessoas.sort(key=lambda p: (-p['ags'], p['nome']))
+        out.append({
+            'unidade': u,
+            'total': sum(p['ags'] for p in pessoas),
+            'pessoas': pessoas,
+        })
+
+    return jsonify({'date': date, 'unidades': out})
 @app.route('/api/constants')
 @login_required
 def api_constants():
