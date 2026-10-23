@@ -78,31 +78,34 @@
     <div class="cx-b">
       <p class="cx-hint">
         No Power BI: <b>Obter dados → Web → Avançado</b>. Cole a URL e acrescente o cabeçalho
-        <b>X-API-Key</b> com a chave do sistema. Os dados chegam em tabela pronta, sem transformação.
-        Troque <b>ano</b> e <b>mes</b> na URL para o período que quiser.
+        <b>X-API-Key</b> com a chave do sistema. Esta é a <b>única</b> URL do sistema: ela devolve
+        o histórico inteiro, sem filtro de período. O recorte de mês e ano é feito dentro do
+        Power BI, com segmentação — a fonte se configura uma vez e nunca mais se mexe.
       </p>
 
-      <span class="cx-lbl">Acompanhamento do mês — uma linha por dia, unidade e bairro</span>
+      <span class="cx-lbl">Base completa do sistema</span>
       <div class="cx-row">
         <div class="cx-url" id="u1"></div>
         <button class="cx-cp" onclick="copiar('u1',this)">Copiar</button>
       </div>
 
-      <span class="cx-lbl">Leads recebidos do mês — uma linha por dia, local e agência</span>
-      <div class="cx-row">
-        <div class="cx-url" id="u2"></div>
-        <button class="cx-cp" onclick="copiar('u2',this)">Copiar</button>
-      </div>
+      <span class="cx-lbl" style="margin-top:18px">As três tabelas que vêm dentro dela</span>
+      <table class="cx-vars" style="margin-bottom:16px">
+        <tr><th>Campo</th><th>Uma linha para cada</th></tr>
+        <tr><td class="r">acompanhamento</td><td class="d">dia × unidade × bairro — agendamentos, exames, conversão, patologias</td></tr>
+        <tr><td class="r">leads</td><td class="d">dia × local × agência — leads recebidos e agendamentos</td></tr>
+        <tr><td class="r">hora_a_hora</td><td class="d">dia × unidade × atendente — agendamentos, comparecimentos, vendas, punições</td></tr>
+      </table>
 
-      <span class="cx-lbl">Hora a Hora do mês — uma linha por dia, unidade e atendente</span>
-      <div class="cx-row">
-        <div class="cx-url" id="u3"></div>
-        <button class="cx-cp" onclick="copiar('u3',this)">Copiar</button>
-      </div>
+      <p class="cx-hint" style="margin-bottom:16px">
+        Depois de colar a URL, o Power BI mostra um <b>Registro</b> com esses três nomes. Clique em
+        <b>acompanhamento</b> → <b>Para a tabela</b> → expanda as colunas. Repita o processo para as
+        outras duas, duplicando a consulta. São três tabelas, uma só chamada ao servidor.
+      </p>
 
       <div class="cx-aviso">
         <span class="mk">!</span>
-        <span>A terceira rota leva <b>nomes de atendentes com desempenho individual</b>. A chave fica
+        <span>A tabela <b>hora_a_hora</b> leva nomes de atendentes com desempenho individual. A chave fica
         gravada dentro do arquivo .pbix — quem receber o arquivo passa a ter acesso a tudo isso.</span>
       </div>
     </div>
@@ -179,15 +182,11 @@
 {% block scripts %}
 <script>
 const BASE = window.location.origin;
-const agora = new Date();
-const ANO = agora.getFullYear();
-const MES = agora.getMonth() + 1;
 
+// Uma URL so, sem parametro nenhum: devolve o historico inteiro do sistema.
+// Quem monta o Power BI escolhe la dentro o periodo que quer ver.
 function montaUrls(){
-  const q = '?ano=' + ANO + '&mes=' + MES;
-  document.getElementById('u1').textContent = BASE + '/api/externo/acompanhamento_mes' + q;
-  document.getElementById('u2').textContent = BASE + '/api/externo/leads_mes' + q;
-  document.getElementById('u3').textContent = BASE + '/api/externo/horaahora_mes' + q;
+  document.getElementById('u1').textContent = BASE + '/api/externo/dados';
 }
 
 function copiar(id, btn){
