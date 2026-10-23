@@ -1056,131 +1056,104 @@ def api_ext_confs():
         return jsonify({'error': 'parametro data (DD/MM/YYYY) obrigatorio'}), 400
     confs = db.get_confirmacoes(data_str=data_str, atendente=atendente) or []
     return jsonify({'data': data_str, 'atendente': atendente, 'total': len(confs), 'confirmacoes': confs})
-
-# ── API externa: tabelas do mes inteiro (feitas para Power BI) ───────────────
-# Uma linha por registro, colunas planas, sem objeto aninhado.
-# Todas exigem o header X-API-Key e aceitam ?ano=2026&mes=10
-def _ext_ano_mes():
-    """Le e valida ano/mes da query string. Devolve (ano, mes) ou (None, None)."""
-    try:
-        ano = int(request.args.get('ano'))
-        mes = int(request.args.get('mes'))
-    except (TypeError, ValueError):
-        return None, None
-    if not (1 <= mes <= 12) or not (1900 <= ano <= 2999):
-        return None, None
-    return ano, mes
-
+# ── API externa: UMA rota com toda a base (feita para Power BI) ─────────────
+# Le o banco uma vez so e devolve os tres conjuntos ja prontos, sem filtro de
+# periodo. Quem monta o Power BI escolhe la dentro o recorte que quer ver.
 def _ext_num(v):
     try:
         return int(float(v or 0))
     except (TypeError, ValueError):
         return 0
 
-@app.route('/api/externo/acompanhamento_mes', methods=['GET'])
-@limiter.limit("60 per minute")
-def api_ext_acomp_mes():
-    """Fonte oficial de agendamentos e exames: uma linha por dia x unidade x bairro."""
+@app.route('/api/externo/dados', methods=['GET'])
+@limiter.limit("30 per minute")
+def api_ext_dados():
     if not _ext_auth_ok():
         return jsonify({'error': 'unauthorized'}), 401
-    ano, mes = _ext_ano_mes()
-    if ano is None:
-        return jsonify({'error': 'parametros ano e mes obrigatorios'}), 400
+
     regiao_de = {}
     try:
         for u in (db.get_unidades() or []):
             regiao_de[u.get('nome') or ''] = u.get('regiao') or ''
     except Exception:
         pass
-    out = []
-    for a in (db.get_appointments_by_month(ano, mes) or []):
-        if a.get('unit') != ACOMP_UNIT:
-            continue
-        for l in (a.get('rows') or []):
-            if not isinstance(l, dict):
-                continue
-            unidade = l.get('unidade') or ''
-            ag = _ext_num(l.get('ag'))
-            ex = _ext_num(l.get('ex'))
-            out.append({
-                'data': a.get('date'),
-                'regiao': regiao_de.get(unidade, ''),
-                'unidade': unidade,
-                'bairro': l.get('bairro') or '',
-                'agendamentos': ag,
-                'exames': ex,
-                'patologias': _ext_num(l.get('pa')),
-                'conversao': round(ex / ag * 100) if ag else 0,
-                'duplicado': _ext_num(l.get('du')),
-                'unidade_errada': _ext_num(l.get('ue')),
-                'cancelamento_dia_anterior': _ext_num(l.get('ca')),
-                'gestante_lactante': _ext_num(l.get('ge')),
-                'nao_agendado': _ext_num(l.get('na')),
-            })
-    return jsonify(out)
-
-@app.route('/api/externo/leads_mes', methods=['GET'])
-@limiter.limit("60 per minute")
-def api_ext_leads_mes():
-    """Leads recebidos: uma linha por dia x local x agencia."""
-    if not _ext_auth_ok():
-        return jsonify({'error': 'unauthorized'}), 401
-    ano, mes = _ext_ano_mes()
-    if ano is None:
-        return jsonify({'error': 'parametros ano e mes obrigatorios'}), 400
-    out = []
-    for a in (db.get_appointments_by_month(ano, mes) or []):
-        if a.get('unit') != LEADSAG_UNIT:
-            continue
-        for l in (a.get('rows') or []):
-            if not isinstance(l, dict):
-                continue
-            out.append({
-                'data': a.get('date'),
-                'local': l.get('local') or '',
-                'agencia': l.get('agencia') or '',
-                'leads': _ext_num(l.get('leads')),
-                'agendamentos': _ext_num(l.get('ag')),
-            })
-    return jsonify(out)
-
-@app.route('/api/externo/horaahora_mes', methods=['GET'])
-@limiter.limit("60 per minute")
-def api_ext_hora_mes():
-    """Hora a Hora por pessoa: uma linha por dia x unidade x atendente."""
-    if not _ext_auth_ok():
-        return jsonify({'error': 'unauthorized'}), 401
-    ano, mes = _ext_ano_mes()
-    if ano is None:
-        return jsonify({'error': 'parametros ano e mes obrigatorios'}), 400
     unidades_validas = set(_units())
-    out = []
-    for a in (db.get_appointments_by_month(ano, mes) or []):
+
+    acomp, leads, hora = [], [], []
+
+    for a in (db.get_appointments_all() or []):
         unit = a.get('unit') or ''
-        if unit not in unidades_validas:
+        data = a.get('date')
+
+        # ── Acompanhamento: uma linha por dia x unidade x bairro ──
+        if unit == ACOMP_UNIT:
+            for l in (a.get('rows') or []):
+                if not isinstance(l, dict):
+                    continue
+                unidade = l.get('unidade') or ''
+                ag = _ext_num(l.get('ag'))
+                ex = _ext_num(l.get('ex'))
+                acomp.append({
+                    'data': data,
+                    'regiao': regiao_de.get(unidade, ''),
+                    'unidade': unidade,
+                    'bairro': l.get('bairro') or '',
+                    'agendamentos': ag,
+                    'exames': ex,
+                    'patologias': _ext_num(l.get('pa')),
+                    'conversao': round(ex / ag * 100) if ag else 0,
+                    'duplicado': _ext_num(l.get('du')),
+                    'unidade_errada': _ext_num(l.get('ue')),
+                    'cancelamento_dia_anterior': _ext_num(l.get('ca')),
+                    'gestante_lactante': _ext_num(l.get('ge')),
+                    'nao_agendado': _ext_num(l.get('na')),
+                })
             continue
-        cd   = a.get('comparecimento_data') or {}
-        puns = cd.get('__punicoes__') or {}
-        vnds = cd.get('__vendas__') or {}
-        for r in (a.get('rows') or []):
-            if not isinstance(r, dict):
-                continue
-            nome = (r.get('name') or '').strip()
-            if not nome:
-                continue
-            slots = r.get('slots') or {}
-            total = sum(_ext_num(slots.get(s['key'])) for s in TIME_SLOTS) + _ext_num(r.get('inclusao'))
-            out.append({
-                'data': a.get('date'),
-                'unidade': unit,
-                'lider': (r.get('leader') or a.get('leader') or ''),
-                'nome': nome,
-                'agendamentos': total,
-                'comparecimentos': _ext_num(cd.get(nome)),
-                'punicoes': _ext_num(puns.get(nome)),
-                'vendas': _ext_num(vnds.get(nome)),
-            })
-    return jsonify(out)
+
+        # ── Leads recebidos: uma linha por dia x local x agencia ──
+        if unit == LEADSAG_UNIT:
+            for l in (a.get('rows') or []):
+                if not isinstance(l, dict):
+                    continue
+                leads.append({
+                    'data': data,
+                    'local': l.get('local') or '',
+                    'agencia': l.get('agencia') or '',
+                    'leads': _ext_num(l.get('leads')),
+                    'agendamentos': _ext_num(l.get('ag')),
+                })
+            continue
+
+        # ── Hora a Hora: uma linha por dia x unidade x atendente ──
+        if unit in unidades_validas:
+            cd   = a.get('comparecimento_data') or {}
+            puns = cd.get('__punicoes__') or {}
+            vnds = cd.get('__vendas__') or {}
+            for r in (a.get('rows') or []):
+                if not isinstance(r, dict):
+                    continue
+                nome = (r.get('name') or '').strip()
+                if not nome:
+                    continue
+                slots = r.get('slots') or {}
+                total = sum(_ext_num(slots.get(s['key'])) for s in TIME_SLOTS) + _ext_num(r.get('inclusao'))
+                hora.append({
+                    'data': data,
+                    'unidade': unit,
+                    'lider': (r.get('leader') or a.get('leader') or ''),
+                    'nome': nome,
+                    'agendamentos': total,
+                    'comparecimentos': _ext_num(cd.get(nome)),
+                    'punicoes': _ext_num(puns.get(nome)),
+                    'vendas': _ext_num(vnds.get(nome)),
+                })
+
+    return jsonify({
+        'gerado_em': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'acompanhamento': acomp,
+        'leads': leads,
+        'hora_a_hora': hora,
+    })
 @app.route('/api/users/<int:uid>/role', methods=['POST'])
 @admin_required
 def api_set_user_role(uid):
