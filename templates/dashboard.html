@@ -615,6 +615,44 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
                      border-top:1px solid var(--border); background:var(--secondary); }
   .ag-vazio{ padding:26px; text-align:center; font-size:11.5px; color:var(--muted-fg); }
 
+  .ag-meta{ padding:7px 10px 8px; border-top:1px solid var(--border);
+            background:rgba(255,255,255,.018); }
+  body.tema-claro .ag-meta{ background:rgba(0,0,0,.018); }
+  .ag-meta .l{ display:flex; align-items:baseline; gap:6px; margin-bottom:5px; }
+  .ag-meta .k{ font-size:7.5px; font-weight:750; letter-spacing:.13em;
+               text-transform:uppercase; color:var(--muted-fg); }
+  .ag-meta .v{ font-size:11px; font-weight:800; color:var(--fg);
+               font-variant-numeric:tabular-nums; }
+  .ag-meta .falta{ margin-left:auto; font-size:11px; font-weight:800;
+                   font-variant-numeric:tabular-nums; }
+  .ag-meta .falta small{ font-size:7.5px; font-weight:750; letter-spacing:.11em;
+                         text-transform:uppercase; color:var(--muted-fg); margin-right:4px; }
+  .ag-meta .ok{ margin-left:auto; font-size:8.5px; font-weight:800; letter-spacing:.11em;
+                text-transform:uppercase; color:var(--green); }
+  .ag-barra{ height:5px; border-radius:3px; background:rgba(255,255,255,.07); overflow:hidden; }
+  body.tema-claro .ag-barra{ background:rgba(0,0,0,.07); }
+  .ag-barra i{ display:block; height:100%; border-radius:3px; transition:width .5s ease; }
+  .ag-semmeta{ padding:6px 10px 7px; border-top:1px solid var(--border);
+               background:rgba(255,255,255,.018); font-size:8px; color:var(--muted-fg);
+               letter-spacing:.06em; text-transform:uppercase; font-weight:650; opacity:.6; }
+
+  /* modo TV: o bloco da meta cresce junto */
+  #ag-card:fullscreen .ag-meta,
+  #ag-card:-webkit-full-screen .ag-meta{ padding:9px 13px 10px; }
+  #ag-card:fullscreen .ag-meta .k,
+  #ag-card:-webkit-full-screen .ag-meta .k{ font-size:8.5px; }
+  #ag-card:fullscreen .ag-meta .v,
+  #ag-card:-webkit-full-screen .ag-meta .v{ font-size:13px; color:#c8c8d0; }
+  #ag-card:fullscreen .ag-meta .falta,
+  #ag-card:-webkit-full-screen .ag-meta .falta{ font-size:13px; }
+  #ag-card:fullscreen .ag-meta .falta small,
+  #ag-card:-webkit-full-screen .ag-meta .falta small{ font-size:8.5px; }
+  #ag-card:fullscreen .ag-meta .ok,
+  #ag-card:-webkit-full-screen .ag-meta .ok{ font-size:9.5px; }
+  #ag-card:fullscreen .ag-barra,
+  #ag-card:-webkit-full-screen .ag-barra{ height:6px; }
+  #ag-card:fullscreen .ag-semmeta,
+  #ag-card:-webkit-full-screen .ag-semmeta{ padding:7px 13px 9px; font-size:9.5px; }
   .ag-tvhead{ display:none; }
 
   @keyframes agBrilha{ 0%{ background:rgba(34,197,94,.3) } 100%{ background:transparent } }
@@ -787,11 +825,31 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         }).join('');
         var comAg = pes.filter(function(p){ return p.ags > 0; }).length;
         var lider = ((u.total||0) === maior && maior > 0) ? ' lider' : '';
+
+        // ── bloco da meta do dia ──
+        var meta  = Number(u.meta_dia) || 0;
+        var feito = u.total || 0;
+        var bloco;
+        if(meta > 0){
+          var falta = Math.max(0, meta - feito);
+          var pct   = Math.min(100, Math.round(feito / meta * 100));
+          var cor   = (feito >= meta) ? '#22c55e' : (pct >= 60 ? '#fbbf24' : '#f59e0b');
+          bloco = '<div class="ag-meta"><div class="l">' +
+                    '<span class="k">Meta</span><span class="v">' + meta + '</span>' +
+                    (feito >= meta
+                      ? '<span class="ok">✓ Meta batida</span>'
+                      : '<span class="falta" style="color:' + cor + '"><small>Faltam</small>' + falta + '</span>') +
+                  '</div><div class="ag-barra"><i style="width:' + pct + '%;background:' + cor + '"></i></div></div>';
+        } else {
+          bloco = '<div class="ag-semmeta">Meta do dia não cadastrada</div>';
+        }
+
         return '<div class="ag-uni' + lider + '">' +
                  '<div class="ag-uni-h"><span class="nm">' + esc(u.unidade) + '</span>' +
                  '<span class="sm">' + (u.total || 0) + '<small>AGS</small></span></div>' +
                  '<table><thead><tr><th class="c">Pos</th><th>TMK</th><th class="r">Ags</th></tr></thead>' +
                  '<tbody>' + linhas + '</tbody></table>' +
+                 bloco +
                  '<div class="ag-uni-f">' + comAg + ' de ' + pes.length + ' agendaram</div>' +
                '</div>';
       }).join('');
