@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .cx-card{ background:var(--card); border:1px solid var(--border); border-radius:12px;
+            margin-bottom:16px; overflow:hidden; }
+  .cx-h{ display:flex; align-items:center; gap:11px; padding:15px 20px;
+         border-bottom:1px solid var(--border); background:rgba(255,255,255,.015); flex-wrap:wrap; }
+  body.tema-claro .cx-h{ background:rgba(0,0,0,.015); }
+  .cx-h .ico{ width:30px; height:30px; border-radius:8px; display:flex; align-items:center;
+              justify-content:center; background:rgba(251,191,36,.1); color:var(--primary); flex:0 0 auto; }
+  .cx-h .ico svg{ width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.6;
+                  stroke-linecap:round; stroke-linejoin:round; }
+  .cx-h h2{ font-size:14px; font-weight:650; color:var(--fg); }
+  .cx-h p{ font-size:11px; color:var(--muted-fg); margin-top:2px; }
+  .cx-pill{ margin-left:auto; display:inline-flex; align-items:center; gap:6px; height:24px;
+            padding:0 11px; border-radius:12px; font-size:10px; font-weight:700;
+            letter-spacing:.06em; text-transform:uppercase; }
+  .cx-pill.on{ background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.35); color:var(--green); }
+  .cx-pill.off{ background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3); color:#f87171; }
+  .cx-dot{ width:6px; height:6px; border-radius:50%; background:currentColor; }
+  .cx-b{ padding:18px 20px; }
+
+  .cx-hint{ font-size:11.5px; color:var(--muted-fg); line-height:1.7; margin-bottom:16px; max-width:760px; }
+  .cx-hint b{ color:var(--fg); font-weight:600; }
+
+  .cx-lbl{ font-size:9px; font-weight:700; color:var(--muted-fg); letter-spacing:.12em;
+           text-transform:uppercase; margin-bottom:6px; display:block; }
+  .cx-row{ display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+  .cx-url{ flex:1; min-width:0; background:var(--secondary); border:1px solid var(--border);
+           border-radius:8px; padding:9px 12px; font-family:ui-monospace,Menlo,Consolas,monospace;
+           font-size:11px; color:var(--fg); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cx-cp{ height:34px; padding:0 13px; border-radius:8px; border:1px solid var(--border);
+          background:var(--secondary); color:var(--muted-fg); font-size:11px; font-weight:600;
+          cursor:pointer; white-space:nowrap; font-family:inherit; transition:all .14s; }
+  .cx-cp:hover{ border-color:var(--primary); color:var(--fg); }
+
+  .cx-kv{ display:grid; grid-template-columns:150px 1fr; gap:8px 16px; font-size:12px; margin-bottom:14px; }
+  .cx-kv dt{ color:var(--muted-fg); }
+  .cx-kv dd{ font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px; color:var(--fg); }
+  .cx-kv dd.vazio{ font-family:inherit; color:#f87171; font-style:italic; }
+
+  .cx-aviso{ display:flex; gap:10px; padding:12px 14px; border-radius:9px; font-size:11.5px;
+             line-height:1.6; background:rgba(251,191,36,.06);
+             border:1px solid rgba(251,191,36,.22); color:var(--muted-fg); }
+  .cx-aviso b{ color:var(--primary); }
+  .cx-aviso .mk{ flex:0 0 auto; font-weight:800; color:var(--primary); }
+
+  .cx-json{ background:var(--secondary); border:1px solid var(--border); border-radius:8px;
+            padding:12px 14px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px;
+            color:var(--fg); white-space:pre; overflow-x:auto; line-height:1.65; }
+
+  table.cx-vars{ width:100%; border-collapse:collapse; font-size:11.5px; }
+  table.cx-vars th{ text-align:left; font-size:9px; letter-spacing:.1em; text-transform:uppercase;
+                    color:var(--muted-fg); padding:0 10px 8px 0; font-weight:700; }
+  table.cx-vars td{ padding:7px 10px 7px 0; border-top:1px solid var(--border); vertical-align:top; }
+  table.cx-vars td.r{ font-family:ui-monospace,Menlo,Consolas,monospace; color:var(--fg); white-space:nowrap; }
+  table.cx-vars td.d{ color:var(--muted-fg); }
+</style>
+
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <div class="title-bar">
+        <div class="title-accent"></div>
+        <h1 class="page-title">Conexões</h1>
+      </div>
+      <p class="page-subtitle" style="margin-left:20px">Integrações com sistemas de fora — leitura por API e avisos automáticos</p>
+    </div>
+  </div>
+
+  <!-- ── POWER BI ── -->
+  <div class="cx-card">
+    <div class="cx-h">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><rect x="5" y="11" width="3.4" height="9" rx=".8"/><rect x="10.3" y="6" width="3.4" height="14" rx=".8"/><rect x="15.6" y="3" width="3.4" height="17" rx=".8"/></svg></div>
+      <div><h2>Power BI</h2><p>O Power BI puxa os dados daqui no horário que você configurar</p></div>
+      <span class="cx-pill off" id="pill-api"><span class="cx-dot"></span>Verificando...</span>
+    </div>
+    <div class="cx-b">
+      <p class="cx-hint">
+        No Power BI: <b>Obter dados → Web → Avançado</b>. Cole a URL e acrescente o cabeçalho
+        <b>X-API-Key</b> com a chave do sistema. Os dados chegam em tabela pronta, sem transformação.
+        Troque <b>ano</b> e <b>mes</b> na URL para o período que quiser.
+      </p>
+
+      <span class="cx-lbl">Acompanhamento do mês — uma linha por dia, unidade e bairro</span>
+      <div class="cx-row">
+        <div class="cx-url" id="u1"></div>
+        <button class="cx-cp" onclick="copiar('u1',this)">Copiar</button>
+      </div>
+
+      <span class="cx-lbl">Leads recebidos do mês — uma linha por dia, local e agência</span>
+      <div class="cx-row">
+        <div class="cx-url" id="u2"></div>
+        <button class="cx-cp" onclick="copiar('u2',this)">Copiar</button>
+      </div>
+
+      <span class="cx-lbl">Hora a Hora do mês — uma linha por dia, unidade e atendente</span>
+      <div class="cx-row">
+        <div class="cx-url" id="u3"></div>
+        <button class="cx-cp" onclick="copiar('u3',this)">Copiar</button>
+      </div>
+
+      <div class="cx-aviso">
+        <span class="mk">!</span>
+        <span>A terceira rota leva <b>nomes de atendentes com desempenho individual</b>. A chave fica
+        gravada dentro do arquivo .pbix — quem receber o arquivo passa a ter acesso a tudo isso.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── WEBHOOK ── -->
+  <div class="cx-card">
+    <div class="cx-h">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></div>
+      <div><h2>Webhook</h2><p>O sistema avisa um endereço externo a cada salvamento do Hora a Hora</p></div>
+      <span class="cx-pill off" id="pill-wh"><span class="cx-dot"></span>Verificando...</span>
+    </div>
+    <div class="cx-b">
+      <p class="cx-hint">
+        Com a <b>WEBHOOK_URL</b> definida, cada salvamento do Hora a Hora dispara um <b>POST</b>
+        com o retrato completo do dia daquela unidade. O envio acontece em segundo plano: o
+        salvamento nunca fica esperando o destino responder.
+      </p>
+
+      <dl class="cx-kv">
+        <dt>Destino</dt>          <dd id="wh-url" class="vazio">—</dd>
+        <dt>Assinatura</dt>       <dd id="wh-sec" class="vazio">—</dd>
+        <dt>Intervalo mínimo</dt> <dd id="wh-deb">—</dd>
+        <dt>Tempo limite</dt>     <dd>8 segundos</dd>
+        <dt>Evento</dt>           <dd>agendamento.salvo</dd>
+      </dl>
+
+      <span class="cx-lbl">O que o destino recebe</span>
+      <div class="cx-json">{
+  "evento": "agendamento.salvo",
+  "unidade": "PARÁ",
+  "data": "2026-10-22",
+  "lider": "GEOVANA",
+  "total_agendamentos": 115,
+  "por_hora": { "08-09": 30, "09-10": 20 },
+  "por_pessoa": [ { "nome": "ANDRÉ", "lider": "GEOVANA", "total": 30 } ],
+  "meta_dia": 400,
+  "falta_para_meta": 285,
+  "enviado_em": "2026-10-22T17:31:04Z"
+}</div>
+
+      <div class="cx-aviso" style="margin-top:14px">
+        <span class="mk">!</span>
+        <span>Com a assinatura ativa, cada disparo vem no cabeçalho <b>X-Connecting-Signature</b>.
+        O destino confere esse valor para ter certeza de que a chamada veio daqui — sem isso,
+        qualquer um que descubra a URL pode mandar dados falsos.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ONDE SE CONFIGURA ── -->
+  <div class="cx-card">
+    <div class="cx-h">
+      <div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h4"/><path d="M7 13h10"/><path d="M7 17h7"/></svg></div>
+      <div><h2>Onde se configura</h2><p>As chaves vivem no servidor, nunca no navegador</p></div>
+    </div>
+    <div class="cx-b">
+      <p class="cx-hint" style="margin-bottom:12px">
+        Easypanel → serviço <b>connecting2</b> → Variáveis de ambiente. Depois de alterar, clique em
+        <b>Implantar</b> para o sistema reler.
+      </p>
+      <table class="cx-vars">
+        <tr><th>Variável</th><th>Para que serve</th></tr>
+        <tr><td class="r">EXTERNAL_API_KEY</td><td class="d">libera as rotas do Power BI. Sem ela, tudo responde 401.</td></tr>
+        <tr><td class="r">WEBHOOK_URL</td><td class="d">endereço que recebe os avisos. Vazio = nada é disparado.</td></tr>
+        <tr><td class="r">WEBHOOK_SECRET</td><td class="d">assina cada disparo para o destino conferir a origem.</td></tr>
+        <tr><td class="r">WEBHOOK_DEBOUNCE</td><td class="d">segundos mínimos entre dois avisos da mesma unidade e dia.</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const BASE = window.location.origin;
+const agora = new Date();
+const ANO = agora.getFullYear();
+const MES = agora.getMonth() + 1;
+
+function montaUrls(){
+  const q = '?ano=' + ANO + '&mes=' + MES;
+  document.getElementById('u1').textContent = BASE + '/api/externo/acompanhamento_mes' + q;
+  document.getElementById('u2').textContent = BASE + '/api/externo/leads_mes' + q;
+  document.getElementById('u3').textContent = BASE + '/api/externo/horaahora_mes' + q;
+}
+
+function copiar(id, btn){
+  const txt = document.getElementById(id).textContent;
+  const ok = () => { const o = btn.textContent; btn.textContent = 'Copiado'; setTimeout(()=>{ btn.textContent = o; }, 1400); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(ok).catch(()=>fallback(txt, ok));
+  } else { fallback(txt, ok); }
+}
+function fallback(txt, ok){
+  const ta = document.createElement('textarea');
+  ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); ok(); }catch(e){}
+  ta.remove();
+}
+
+function pill(el, ligado, textoOn, textoOff){
+  el.className = 'cx-pill ' + (ligado ? 'on' : 'off');
+  el.innerHTML = '<span class="cx-dot"></span>' + (ligado ? textoOn : textoOff);
+}
+
+async function carregarStatus(){
+  let s = {};
+  try{
+    const r = await fetch('/api/conexoes/status');
+    if(r.status === 401){ window.location.href = '/login'; return; }
+    s = r.ok ? await r.json() : {};
+  }catch(e){ s = {}; }
+
+  pill(document.getElementById('pill-api'), !!s.api_key, 'Chave ativa', 'Chave não definida');
+  pill(document.getElementById('pill-wh'),  !!s.webhook_url, 'Ativo', 'Não configurado');
+
+  const u = document.getElementById('wh-url');
+  if(s.webhook_url){ u.textContent = s.webhook_url; u.className = ''; }
+  else { u.textContent = 'não definido — configure WEBHOOK_URL'; u.className = 'vazio'; }
+
+  const sec = document.getElementById('wh-sec');
+  if(s.webhook_secret){ sec.textContent = 'ativa (HMAC SHA-256)'; sec.className = ''; }
+  else { sec.textContent = 'não definida — configure WEBHOOK_SECRET'; sec.className = 'vazio'; }
+
+  document.getElementById('wh-deb').textContent = (s.webhook_debounce || 30) + ' segundos por unidade/dia';
+}
+
+montaUrls();
+carregarStatus();
+</script>
+{% endblock %}
