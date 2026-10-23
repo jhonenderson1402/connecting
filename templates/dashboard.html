@@ -915,24 +915,43 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
     }
 
     var ocupado = false;
+    var tentadoEm = 0;
     async function tick(){
-      if(ocupado || document.hidden) return;   // aba em segundo plano nao consulta
+      // Se um pedido ficou pendurado, libera a trava depois de 45s.
+      // Sem isso, uma unica chamada travada congela a tela ate alguem dar F5.
+      if(ocupado){
+        if(Date.now() - tentadoEm < 45000) return;
+        ocupado = false;
+      }
+      if(document.hidden) return;   // aba em segundo plano nao consulta
       ocupado = true;
+      tentadoEm = Date.now();
+
+      // Prazo maximo de 12s para a resposta. Passou disso, corta e tenta no proximo ciclo.
+      var ctl   = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var corta = ctl ? setTimeout(function(){ try{ ctl.abort(); }catch(e){} }, 12000) : null;
+      var s = document.getElementById('ag-sub');
       try{
-        var r = await fetch('/api/agendamentos_dia?date=' + hojeISO());
+        var r = await fetch('/api/agendamentos_dia?date=' + hojeISO(),
+                            ctl ? { signal: ctl.signal } : undefined);
         if(r.ok){
           desenha(await r.json());
           var ag = new Date();
-          var s = document.getElementById('ag-sub');
-          if(s) s.textContent = 'Hora a Hora de hoje · atualizado ' +
-            String(ag.getHours()).padStart(2,'0') + ':' +
-            String(ag.getMinutes()).padStart(2,'0') + ':' +
-            String(ag.getSeconds()).padStart(2,'0');
+          if(s){
+            s.style.color = '';
+            s.textContent = 'Hora a Hora de hoje · atualizado ' +
+              String(ag.getHours()).padStart(2,'0') + ':' +
+              String(ag.getMinutes()).padStart(2,'0') + ':' +
+              String(ag.getSeconds()).padStart(2,'0');
+          }
         }
-      }catch(e){ /* sem rede: mantem o que esta na tela */ }
-      ocupado = false;
+      }catch(e){
+        if(s) s.style.color = '#f87171';   // vermelho: o que esta na tela esta velho
+      }finally{
+        if(corta) clearTimeout(corta);
+        ocupado = false;                   // SEMPRE destrava, deu certo ou nao
+      }
     }
-
     var tmr;
     function reajusta(){ clearTimeout(tmr); tmr = setTimeout(ajusta, 150); }
     window.addEventListener('resize', reajusta);
