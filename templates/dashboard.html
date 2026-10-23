@@ -584,7 +584,11 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
              display:grid; gap:9px; align-content:start; }
 
   .ag-uni{ background:var(--card); border:1px solid var(--border); border-radius:9px;
-           overflow:hidden; align-self:start; }
+           overflow:hidden; align-self:stretch;
+           display:flex; flex-direction:column; }
+  /* empurra META e rodape para o fim da caixa: assim todas as caixas da
+     mesma fila terminam na mesma linha, mesmo com listas de tamanhos diferentes */
+  .ag-uni .ag-meta, .ag-uni .ag-semmeta{ margin-top:auto; }
   body.tema-claro .ag-uni{ background:#fcfcfb; }
   .ag-uni-h{ display:flex; align-items:center; gap:7px; padding:6px 10px;
              background:rgba(251,191,36,.07); border-bottom:1px solid var(--border); }
