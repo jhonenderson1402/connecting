@@ -512,6 +512,20 @@ def api_agendamentos_dia():
                 pass
             alvo[nome] = alvo.get(nome, 0) + tot
 
+    # Meta de agendamentos do dia, por unidade (campo META AGEND DIA).
+    # Linhas de bairro nao entram: a caixa e da unidade inteira.
+    meta_de = {}
+    try:
+        ano = int(date[0:4]); mes = int(date[5:7])
+        for m in (db.get_metas(ano, mes) or []):
+            if not (m.get('bairro') or ''):
+                try:
+                    meta_de[m.get('unidade') or ''] = int(float(m.get('meta_dia') or 0))
+                except (TypeError, ValueError):
+                    pass
+    except Exception:
+        pass
+
     out = []
     for u in validas:
         pessoas = [{'nome': n, 'ags': v} for n, v in por_unidade[u].items()]
@@ -519,6 +533,7 @@ def api_agendamentos_dia():
         out.append({
             'unidade': u,
             'total': sum(p['ags'] for p in pessoas),
+            'meta_dia': meta_de.get(u, 0),
             'pessoas': pessoas,
         })
 
