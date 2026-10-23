@@ -733,7 +733,17 @@
     const colspan = 2 + TIME_SLOTS.length + 2; // LÍDER + NOME + slots + INCLUSÃO + TOTAL
   
     if(rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="${colspan}" class="empty-row">Nenhuma linha. Clique em "+ Adicionar Linha" para começar.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${colspan}" class="empty-row">
+        Nenhuma linha ainda.
+        <div style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">
+          <button type="button" onclick="repetirEquipe()"
+            style="padding:8px 15px;border-radius:8px;cursor:pointer;border:none;font-family:inherit;
+                   font-size:12px;font-weight:700;background:var(--primary);color:#1a1a1a">
+            ⟳ Repetir equipe do último dia
+          </button>
+          <span style="font-size:11.5px;color:var(--muted-fg)">ou clique em <b>+ Adicionar Linha</b></span>
+        </div>
+      </td></tr>`;
       renderFoot();
       return;
     }
@@ -1034,6 +1044,50 @@ function toggleNameDropdown(i, event) {
     scheduleSave();
   }
   function removeRow(i) { rows.splice(i,1); renderTable(); scheduleSave(); }
+
+  // ── Repetir a equipe do ultimo dia com lancamento ──────────────────────────
+  // Anda para tras dia a dia, ate 14 dias, e para no primeiro que tiver nomes.
+  // Copia so nome e lider; os horarios entram zerados.
+  window.repetirEquipe = async function(){
+    if(!isDateValid()){
+      showDateWarning(true);
+      showToast('Selecione uma data válida primeiro.','error');
+      return;
+    }
+    const mi = parseInt(document.getElementById('sel-month').value);
+    const y  = parseInt(document.getElementById('sel-year').value);
+    const d  = parseInt(document.getElementById('sel-day').value);
+    const base = new Date(y, mi, d);
+
+    showToast('Procurando o último dia com lançamento...');
+
+    for(let k = 1; k <= 14; k++){
+      const dt = new Date(base.getTime());
+      dt.setDate(dt.getDate() - k);
+      const chave = dt.getFullYear() + '-' +
+                    String(dt.getMonth()+1).padStart(2,'0') + '-' +
+                    String(dt.getDate()).padStart(2,'0');
+      let appt = null;
+      try{
+        const r = await fetch(`/api/appointments/${encodeURIComponent(UNIT)}/${chave}`);
+        if(r.ok) appt = await r.json().catch(function(){ return null; });
+      }catch(e){ }
+      const antigas = (appt && Array.isArray(appt.rows)) ? appt.rows : [];
+      const comNome = antigas.filter(function(r){ return r && (r.name||'').trim(); });
+      if(!comNome.length) continue;
+
+      rows = comNome.map(function(r){
+        return { name: r.name, leader: r.leader || appt.leader || '', slots: {}, inclusao: '' };
+      });
+      renderTable();
+      scheduleSave();
+      const br = String(dt.getDate()).padStart(2,'0') + '/' +
+                 String(dt.getMonth()+1).padStart(2,'0');
+      showToast(comNome.length + ' nome(s) copiados de ' + br, 'success');
+      return;
+    }
+    showToast('Nenhum lançamento encontrado nos 14 dias anteriores.','error');
+  };
   
   // ── Salvamento com garantia ────────────────────────────────────────────────
   // __pendente = existe coisa digitada que ainda nao chegou no servidor.
