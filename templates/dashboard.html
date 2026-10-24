@@ -215,48 +215,62 @@ body.tema-claro .rank-zero{ color:#d4d4cd !important; }
 function metasAnoMes(){ var now=new Date(); return {ano:now.getFullYear(), mes:parseInt(document.getElementById("filter-month").value)+1}; }
 function realizadoComp(list){ var arr=list||(typeof allAppointments!=="undefined"?allAppointments:[]); var un={}, ba={}, ea={}, ec={}; arr.forEach(function(a){ var cd=a.comparecimento_data||{}; var c=0; Object.keys(cd).forEach(function(k){ if(/^__.*__$/.test(k)) return; c+=Number(cd[k])||0; ec[k]=(ec[k]||0)+(Number(cd[k])||0); }); un[a.unit]=(un[a.unit]||0)+c; var bd=cd.__bairros__||{}; Object.keys(bd).forEach(function(nm){ ba[nm]=(ba[nm]||0)+(Number(bd[nm]&&bd[nm].comp)||0); }); (a.rows||[]).forEach(function(row){ var nm=(row.name||"").trim(); if(!nm) return; var ag=0, sl=row.slots||{}; Object.keys(sl).forEach(function(h){ ag+=Number(sl[h])||0; }); ea[nm]=(ea[nm]||0)+ag; }); }); return {un:un, ba:ba, ea:ea, ec:ec}; }
 function metaEmpRowHtml(name,key,mAg,rAg,mComp,rComp){ var ca=(mAg>0&&rAg>=mAg)?"#22c55e":"#a1a1aa"; var cc=(mComp>0&&rComp>=mComp)?"#22c55e":"#a1a1aa"; var conv=rAg>0?Math.round((rComp/rAg)*100):0; var cv=conv>=60?"#22c55e":(conv>=30?"#fbbf24":"#ef4444"); return "<div style=\"display:grid;grid-template-columns:1fr 66px 34px 66px 34px 42px;gap:4px;align-items:center;padding:4px 8px;border-bottom:1px solid #161616\"><span style=\"font-size:11px;color:#c7c7cc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">"+name+"</span><input type=\"number\" min=\"0\" class=\"input meta-input\" data-key=\""+key+"\" data-field=\"agend\" value=\""+(mAg||"")+"\" placeholder=\"0\" style=\"height:26px;text-align:center;font-size:11px\"/><span style=\"text-align:center;font-size:11px;font-weight:700;color:"+ca+"\">"+rAg+"</span><input type=\"number\" min=\"0\" class=\"input meta-input\" data-key=\""+key+"\" data-field=\"comp\" value=\""+(mComp||"")+"\" placeholder=\"0\" style=\"height:26px;text-align:center;font-size:11px\"/><span style=\"text-align:center;font-size:11px;font-weight:700;color:"+cc+"\">"+rComp+"</span><span style=\"text-align:right;font-size:11px;font-weight:700;color:"+cv+"\">"+conv+"%</span></div>"; }
-function metaRowHtml(label, key, cMes, cDia, aMes, aDia, aHora, done, isUnit, feito, dias){
-  var pct = cMes > 0 ? Math.round((done / cMes) * 100) : 0;
-  var col = pct >= 100 ? "#22c55e" : (pct >= 60 ? "#fbbf24" : "#ef4444");
+function metaRowHtml(label, key, cMes, cDiaAtual, aMes, aDiaAtual, aHora, isUnit, cReal, aReal, dias){
   var bg  = isUnit ? "background:rgba(255,255,255,0.02);font-weight:600" : "";
   var lc  = isUnit ? "#e4e4e7" : "#a1a1aa";
-    var GTC = "1fr 50px 50px 50px 50px 54px 50px 54px 40px";
+  var GTC = "1fr 48px 48px 48px 48px 48px 48px 48px 48px 48px 42px";
+
   function inp(campo, valor, extra){
     return '<input type="number" min="0" class="input meta-input" data-key="' + key +
            '" data-field="' + campo + '" value="' + (valor || "") +
            '" placeholder="0" style="height:26px;text-align:center;font-size:11px;padding:0 2px;' +
            (extra || '') + '"/>';
   }
-  // AGEND DIA calculada: (meta do mes - agendado no mes) / dias que faltam.
-  // O valor vai num campo escondido para continuar sendo salvo no banco —
-  // o Hora a Hora e o painel de TV leem esse campo.
-  // Agendamentos ja realizados no mes — e o que e abatido da meta logo ao lado.
-  var temF = (feito !== null && feito !== undefined);
-  var celFeito = '<span class="ag-feito" style="text-align:center;font-size:11.5px;font-weight:700;color:' +
-                 (temF ? '#22c55e' : '#3f3f46') + '">' + (temF ? feito : '—') + '</span>';
 
-  var dTxt = '—', dCor = '#3f3f46', dAttr = '', dVal = aDia;
-  if(temF && dias > 0 && (Number(aMes) || 0) > 0){
-    dVal = Math.round(Math.max(0, (Number(aMes) || 0) - feito) / dias);
-    dTxt = dVal;
-    dCor = (dVal === 0) ? '#22c55e' : '#f59e0b';
-    dAttr = ' data-feito="' + feito + '" data-dias="' + dias + '"';
+  // Um bloco = REALIZADO + FALTA NO MES + FALTA POR DIA.
+  // Mesma conta da planilha: falta no mes = meta - realizado;
+  // falta por dia = falta no mes / dias uteis que restam, arredondado.
+  // O valor por dia vai num campo escondido para continuar sendo salvo no banco
+  // (o Hora a Hora e o painel de TV leem o campo "dia").
+  function bloco(meta, real, campoMeta, campoDia, valorDiaAtual){
+    var temR  = (real !== null && real !== undefined);
+    var mNum  = Number(meta) || 0;
+    var fMes  = temR ? Math.max(0, mNum - real) : null;
+    var fDia  = (temR && dias > 0 && mNum > 0) ? Math.round(fMes / dias) : null;
+
+    var sReal = '<span style="text-align:center;font-size:11.5px;font-weight:700;color:' +
+                (temR ? '#22c55e' : '#3f3f46') + '">' + (temR ? real : '—') + '</span>';
+
+    var sMes  = '<span class="falta-mes" style="text-align:center;font-size:11.5px;font-weight:700;color:' +
+                (fMes === null ? '#3f3f46' : (fMes === 0 ? '#22c55e' : '#a1a1aa')) + '">' +
+                (fMes === null ? '—' : fMes) + '</span>';
+
+    var attr  = (fDia === null) ? ''
+              : ' data-real="' + real + '" data-dias="' + dias + '" data-meta="' + campoMeta + '"';
+    var sDia  = '<span class="falta-dia" data-campo="' + campoDia + '"' + attr +
+                ' title="(meta do mês − realizado) ÷ dias úteis que faltam"' +
+                ' style="text-align:center;font-size:13px;font-weight:800;color:' +
+                (fDia === null ? '#3f3f46' : (fDia === 0 ? '#22c55e' : '#f59e0b')) + '">' +
+                (fDia === null ? '—' : fDia) + '</span>' +
+                inp(campoDia, (fDia === null ? valorDiaAtual : fDia), 'display:none');
+
+    return sReal + sMes + sDia;
   }
-  var celDia = '<span class="ag-dia-calc"' + dAttr +
-               ' title="(meta do mês − agendado no mês) ÷ dias que faltam"' +
-               ' style="text-align:center;font-size:13px;font-weight:800;color:' + dCor + '">' +
-               dTxt + '</span>' + inp("dia", dVal, 'display:none');
+
+  // % = comparecimento realizado sobre a meta do mes
+  var pct = (Number(cMes) || 0) > 0 && cReal !== null && cReal !== undefined
+          ? Math.round((cReal / Number(cMes)) * 100) : 0;
+  var col = pct >= 100 ? "#22c55e" : (pct >= 60 ? "#fbbf24" : "#ef4444");
+
   return '<div style="display:grid;grid-template-columns:' + GTC +
          ';gap:4px;align-items:center;padding:4px 8px;border-bottom:1px solid #1a1a1a;' + bg + '">' +
          '<span style="font-size:11.5px;color:' + lc +
          ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + label + '</span>' +
-         inp("comp",     cMes)  +
-         inp("comp_dia", cDia)  +
-         inp("agend",    aMes)  +
-         celFeito +
-         celDia +
-         inp("hora",     aHora) +
-         '<span style="text-align:center;font-size:11.5px;font-weight:700;color:#22c55e">' + done + '</span>' +
+         inp("comp", cMes) +
+         bloco(cMes, cReal, "comp", "comp_dia", cDiaAtual) +
+         inp("agend", aMes) +
+         bloco(aMes, aReal, "agend", "dia", aDiaAtual) +
+         inp("hora", aHora) +
          '<span style="text-align:right;font-size:11.5px;font-weight:700;color:' + col + '">' + pct + '%</span></div>';
 }
 
@@ -307,66 +321,104 @@ window.openMetas = async function(){
       if(new Date(ano, mes - 1, _d).getDay() !== 0) diasRest++;   // 0 = domingo
     }
   }
-  // Agendamentos realizados no MES, por unidade. Mesma fonte da planilha:
-  // a coluna AG do Acompanhamento Unidades, somada no mes inteiro.
-  // E a mesma base do cartao "Agendados" do Resumo Geral, entao os numeros batem.
-  var feitoMes = {};
+// Realizado do MES vindo do Acompanhamento Unidades — mesma fonte da planilha.
+  // AG = agendamentos, EX = exames realizados (o "comparecimento" da planilha).
+  // Guarda por unidade e tambem por bairro, para as linhas do PARA terem numero.
+  var realUni = {};   // "MANAUS" -> {ag, ex}
+  var realBai = {};   // "Jurunas" -> {ag, ex}
   try{
     var _ac = await fetch('/api/acompanhamento_mes?ano=' + ano + '&mes=' + mes)
                       .then(function(r){ return r.json(); });
     (_ac || []).forEach(function(d){
       (d.rows || []).forEach(function(l){
-        var un = (l && l.unidade) || '';
-        if(!un) return;
-        feitoMes[un] = (feitoMes[un] || 0) + (Number(l.ag) || 0);
+        if(!l) return;
+        var un = l.unidade || '', ba = l.bairro || '';
+        var ag = Number(l.ag) || 0, ex = Number(l.ex) || 0;
+        if(un){
+          if(!realUni[un]) realUni[un] = {ag:0, ex:0};
+          realUni[un].ag += ag; realUni[un].ex += ex;
+        }
+        if(ba){
+          if(!realBai[ba]) realBai[ba] = {ag:0, ex:0};
+          realBai[ba].ag += ag; realBai[ba].ex += ex;
+        }
       });
     });
-  }catch(e){ feitoMes = {}; }
-  var GTC = "1fr 50px 50px 50px 50px 54px 50px 54px 40px";
+  }catch(e){ realUni = {}; realBai = {}; }
+
+  var GTC = "1fr 48px 48px 48px 48px 48px 48px 48px 48px 48px 42px";
+
+  // Faixa de grupo: COMPARECIMENTO cobre 4 colunas, AGENDAMENTO cobre as 4 seguintes.
   var html = '<div style="display:grid;grid-template-columns:' + GTC +
-    ';gap:4px;padding:6px 8px;font-size:8px;font-weight:700;color:#71717a;letter-spacing:.04em;border-bottom:1px solid #262626">' +
+    ';gap:4px;padding:6px 8px 2px;font-size:8px;font-weight:800;letter-spacing:.1em">' +
+    '<span></span>' +
+    '<span style="grid-column:span 4;text-align:center;color:#22c55e;border-bottom:1px solid rgba(34,197,94,.3);padding-bottom:3px">COMPARECIMENTO</span>' +
+    '<span style="grid-column:span 4;text-align:center;color:#fbbf24;border-bottom:1px solid rgba(251,191,36,.3);padding-bottom:3px">AGENDAMENTO</span>' +
+    '<span></span><span></span></div>';
+
+  html += '<div style="display:grid;grid-template-columns:' + GTC +
+    ';gap:4px;padding:4px 8px;font-size:8px;font-weight:700;color:#71717a;letter-spacing:.04em;border-bottom:1px solid #262626">' +
     '<span>UNIDADE / BAIRRO</span>' +
-    '<span style="text-align:center">COMP MÊS</span>' +
-    '<span style="text-align:center">COMP DIA</span>' +
-    '<span style="text-align:center">AGEND MÊS</span>' +
-    '<span style="text-align:center;line-height:1.3" title="agendamentos ja realizados no mes, vindos do Acompanhamento Unidades">AGEND<br>REALIZADO</span>' +
-    '<span style="text-align:center;line-height:1.3" title="(meta do mês − agend realizado) ÷ dias úteis que faltam">AGEND<br>P/ DIA</span>' +
-    '<span style="text-align:center">AGEND HORA</span>' +
-    '<span style="text-align:center">REALIZADO</span>' +
+    '<span style="text-align:center;line-height:1.3">META<br>MÊS</span>' +
+    '<span style="text-align:center;line-height:1.3">REALI<br>ZADO</span>' +
+    '<span style="text-align:center;line-height:1.3">FALTA<br>P/ MÊS</span>' +
+    '<span style="text-align:center;line-height:1.3">FALTA<br>P/ DIA</span>' +
+    '<span style="text-align:center;line-height:1.3">META<br>MÊS</span>' +
+    '<span style="text-align:center;line-height:1.3">REALI<br>ZADO</span>' +
+    '<span style="text-align:center;line-height:1.3">FALTA<br>P/ MÊS</span>' +
+    '<span style="text-align:center;line-height:1.3">FALTA<br>P/ DIA</span>' +
+    '<span style="text-align:center;line-height:1.3">AGEND<br>HORA</span>' +
     '<span style="text-align:right">%</span></div>';
 
   var U = (typeof UNITS !== "undefined" ? UNITS : []);
-  var tCM=0, tCD=0, tAM=0, tAD=0, tAH=0, tR=0, tAF=0;
+  var tCM=0, tCR=0, tCFM=0, tCFD=0, tAM=0, tAR=0, tAFM=0, tAFD=0, tAH=0;
+
+  function somaBloco(meta, real){
+    var m = Number(meta) || 0;
+    var fMes = Math.max(0, m - real);
+    var fDia = (diasRest > 0 && m > 0) ? Math.round(fMes / diasRest) : 0;
+    return {mes: fMes, dia: fDia};
+  }
 
   U.forEach(function(u){
     var mm = metaMap[u+"||"] || {};
-    tCM += mm.comp||0; tCD += mm.compdia||0; tAM += mm.ag||0;
-    tAH += mm.hora||0; tR  += real.un[u]||0;
-    var fz = feitoMes[u] || 0;
-    tAF += fz;
-    if(diasRest > 0) tAD += Math.round(Math.max(0, (mm.ag||0) - fz) / diasRest);
-    html += metaRowHtml(u, u+"||", mm.comp||0, mm.compdia||0, mm.ag||0, mm.dia||0, mm.hora||0, real.un[u]||0, true, fz, diasRest);
+    var rr = realUni[u] || {ag:0, ex:0};
+    tCM += mm.comp||0;  tCR += rr.ex;  tAM += mm.ag||0;  tAR += rr.ag;  tAH += mm.hora||0;
+    var bc = somaBloco(mm.comp, rr.ex), ba2 = somaBloco(mm.ag, rr.ag);
+    tCFM += bc.mes; tCFD += bc.dia; tAFM += ba2.mes; tAFD += ba2.dia;
+    html += metaRowHtml(u, u+"||", mm.comp||0, mm.compdia||0, mm.ag||0, mm.dia||0,
+                        mm.hora||0, true, rr.ex, rr.ag, diasRest);
     if(u.toUpperCase().slice(0,3) === "PAR"){
       Object.keys(bairros).sort().forEach(function(b){
         var bm = metaMap[u+"||"+b] || {};
-        tCM += bm.comp||0; tCD += bm.compdia||0; tAM += bm.ag||0;
-        tAH += bm.hora||0; tR  += real.ba[b]||0;   // bairro nao entra no total da AGEND DIA
-        html += metaRowHtml("- "+b, u+"||"+b, bm.comp||0, bm.compdia||0, bm.ag||0, bm.dia||0, bm.hora||0, real.ba[b]||0, false, null, 0);
+        var rb = realBai[b] || {ag:0, ex:0};
+        tCM += bm.comp||0;  tCR += rb.ex;  tAM += bm.ag||0;  tAR += rb.ag;  tAH += bm.hora||0;
+        var c2 = somaBloco(bm.comp, rb.ex), a2 = somaBloco(bm.ag, rb.ag);
+        tCFM += c2.mes; tCFD += c2.dia; tAFM += a2.mes; tAFD += a2.dia;
+        html += metaRowHtml("- "+b, u+"||"+b, bm.comp||0, bm.compdia||0, bm.ag||0, bm.dia||0,
+                            bm.hora||0, false, rb.ex, rb.ag, diasRest);
       });
     }
   });
 
+  var _dica = diasRest > 0 ? (diasRest + ' dia(s) útil(eis) restante(s), sem contar domingos')
+                           : 'mês encerrado';
   html += '<div style="display:grid;grid-template-columns:' + GTC +
     ';gap:4px;padding:8px;font-weight:800;font-size:11px;border-top:2px solid #3a3a3a">' +
     '<span style="color:#e5e5e5">TOTAL</span>' +
     '<span style="text-align:center;color:#fbbf24">'+tCM+'</span>' +
-    '<span style="text-align:center;color:#fbbf24">'+tCD+'</span>' +
+    '<span style="text-align:center;color:#22c55e">'+tCR+'</span>' +
+    '<span style="text-align:center;color:#a1a1aa">'+tCFM+'</span>' +
+    '<span style="text-align:center;color:#f59e0b" title="'+_dica+'">'+(diasRest>0?tCFD:'—')+'</span>' +
     '<span style="text-align:center;color:#fbbf24">'+tAM+'</span>' +
-    '<span style="text-align:center;color:#22c55e">'+tAF+'</span>' +
-    '<span style="text-align:center;color:'+(diasRest>0?'#f59e0b':'#3f3f46')+'" title="'+(diasRest>0?diasRest+' dia(s) útil(eis) restante(s), sem contar domingos':'mês encerrado')+'">'+(diasRest>0?tAD:'—')+'</span>' +
+    '<span style="text-align:center;color:#22c55e">'+tAR+'</span>' +
+    '<span style="text-align:center;color:#a1a1aa">'+tAFM+'</span>' +
+    '<span style="text-align:center;color:#f59e0b" title="'+_dica+'">'+(diasRest>0?tAFD:'—')+'</span>' +
     '<span style="text-align:center;color:#fbbf24">'+tAH+'</span>' +
-    '<span style="text-align:center;color:#22c55e">'+tR+'</span>' +
-    '<span style="text-align:right;color:#f59e0b">'+(tCM>0?Math.round(tR/tCM*100):0)+'%</span></div>';  html += '<div style="margin-top:10px;padding:6px 8px 4px;font-size:10px;font-weight:800;color:#fbbf24;letter-spacing:.05em;border-top:1px solid #333">FUNCIONARIOS (META x REALIZADO)</div>';
+        '<span style="text-align:right;color:#f59e0b">'+(tCM>0?Math.round(tCR/tCM*100):0)+'%</span></div>';
+
+  html += '<div style="margin-top:10px;padding:6px 8px 4px;font-size:10px;font-weight:800;color:#fbbf24;letter-spacing:.05em;border-top:1px solid #333">FUNCIONARIOS (META x REALIZADO)</div>';
+
   html += '<div style="display:grid;grid-template-columns:1fr 66px 34px 66px 34px 42px;gap:4px;padding:4px 8px;font-size:8px;font-weight:700;color:#71717a;letter-spacing:.04em;border-bottom:1px solid #262626">' +
     '<span>FUNCIONARIO</span><span style="text-align:center">M.AGD</span><span style="text-align:center">FEZ</span>' +
     '<span style="text-align:center">M.CMP</span><span style="text-align:center">FEZ</span><span style="text-align:right">CONV</span></div>';
@@ -2375,39 +2427,65 @@ document.addEventListener('click', e=>{
 <script>
 (function(){
   var target=null, mo=null;
-  function recomputeTotal(){
+function recomputeTotal(){
     var body=document.getElementById('metas-body'); if(!body) return;
-    var tCM=0,tCD=0,tAM=0,tAD=0,tAH=0,fA=0,fC=0;
+    var tCM=0,tAM=0,tAH=0,fA=0,fC=0;
     var inps=[].slice.call(body.querySelectorAll('input.meta-input'));
     inps.forEach(function(inp){
       var k=inp.getAttribute('data-key')||''; var f=inp.getAttribute('data-field')||''; var v=parseFloat(inp.value)||0;
       if(k.indexOf('@f:')>=0){ if(f==='agend') fA+=v; else if(f==='comp') fC+=v; }
-      else { if(f==='comp') tCM+=v; else if(f==='comp_dia') tCD+=v; else if(f==='agend') tAM+=v; else if(f==='dia') tAD+=v; else if(f==='hora') tAH+=v; }
+      else { if(f==='comp') tCM+=v; else if(f==='agend') tAM+=v; else if(f==='hora') tAH+=v; }
     });
     function findTotal(c){ if(!c) return null; var ch=c.children; for(var i=0;i<ch.length;i++){ if(/^TOTAL/.test((ch[i].textContent||'').trim())) return ch[i]; } return null; }
     var wraps=body.querySelectorAll('.metas-col-wrap');
-    // Recalcula a AGEND DIA quando a AGEND MES e digitada, e mantem o campo
-    // escondido com o mesmo valor — e ele que vai para o banco.
-    var tDia = 0, temDia = false;
-    [].forEach.call(body.querySelectorAll('span.ag-dia-calc'), function(sp){
-      var dias = Number(sp.getAttribute('data-dias'));
-      if(!dias) return;
+
+    // Recalcula FALTA P/ MES e FALTA P/ DIA de cada linha quando a META MES muda.
+    // O valor por dia tambem vai para o campo escondido, que e o que o banco grava.
+    var tCFM=0,tCFD=0,tAFM=0,tAFD=0;
+    [].forEach.call(body.querySelectorAll('span.falta-dia[data-dias]'), function(sp){
+      var dias  = Number(sp.getAttribute('data-dias'));
+      var real  = Number(sp.getAttribute('data-real')) || 0;
+      var campo = sp.getAttribute('data-campo');          // "comp_dia" ou "dia"
+      var alvo  = sp.getAttribute('data-meta');           // "comp"     ou "agend"
       var row   = sp.parentElement;
-      var ipAg  = row ? row.querySelector('input.meta-input[data-field="agend"]') : null;
-      var ipDia = row ? row.querySelector('input.meta-input[data-field="dia"]')   : null;
-      var feito = Number(sp.getAttribute('data-feito')) || 0;
-      var v = Math.round(Math.max(0, (ipAg ? (parseFloat(ipAg.value)||0) : 0) - feito) / dias);
-      sp.textContent = v;
-      sp.style.color = (v === 0) ? '#22c55e' : '#f59e0b';
-      if(ipDia) ipDia.value = v;
-      tDia += v; temDia = true;
+      if(!dias || !row) return;
+      var ipM = row.querySelector('input.meta-input[data-field="' + alvo  + '"]');
+      var ipD = row.querySelector('input.meta-input[data-field="' + campo + '"]');
+      var meta = ipM ? (parseFloat(ipM.value) || 0) : 0;
+      var fMes = Math.max(0, meta - real);
+      var fDia = (meta > 0) ? Math.round(fMes / dias) : 0;
+
+      sp.textContent = fDia;
+      sp.style.color = (fDia === 0) ? '#22c55e' : '#f59e0b';
+      if(ipD) ipD.value = fDia;
+
+      var sm = sp.previousElementSibling;   // a celula de FALTA P/ MES
+      if(sm && sm.classList && sm.classList.contains('falta-mes')){
+        sm.textContent = fMes;
+        sm.style.color = (fMes === 0) ? '#22c55e' : '#a1a1aa';
+      }
+      if(campo === 'comp_dia'){ tCFM += fMes; tCFD += fDia; }
+      else                    { tAFM += fMes; tAFD += fDia; }
     });
+
     var uT=findTotal(wraps[0]||body);
-    if(uT){ var s=uT.querySelectorAll('span'); if(s.length>=9){ s[1].textContent=tCM; s[2].textContent=tCD; s[3].textContent=tAM; if(temDia) s[5].textContent=tDia; s[6].textContent=tAH; var tR=parseFloat((s[7].textContent||'0').replace(/[^0-9.-]/g,''))||0; s[8].textContent=(tCM>0?Math.round(tR/tCM*100):0)+'%'; } }
+    if(uT){
+      var s=uT.querySelectorAll('span');
+      if(s.length>=11){
+        s[1].textContent = tCM;    // COMP META MES
+        s[3].textContent = tCFM;   // COMP FALTA MES
+        s[4].textContent = tCFD;   // COMP FALTA DIA
+        s[5].textContent = tAM;    // AGEND META MES
+        s[7].textContent = tAFM;   // AGEND FALTA MES
+        s[8].textContent = tAFD;   // AGEND FALTA DIA
+        s[9].textContent = tAH;    // AGEND HORA
+        var tCR = parseFloat((s[2].textContent||'0').replace(/[^0-9.-]/g,''))||0;
+        s[10].textContent = (tCM>0?Math.round(tCR/tCM*100):0)+'%';
+      }
+    }
     var fT=findTotal(wraps[1]);
     if(fT){ var s2=fT.querySelectorAll('span'); if(s2.length>=4){ s2[1].textContent=fA; s2[3].textContent=fC; } }
-  }
-  function restyleMetas(){
+  }  function restyleMetas(){
     var body=document.getElementById('metas-body'); if(!body) return;
     var kids=[].slice.call(body.children);
     if(kids.length===2 && kids[0].classList && kids[0].classList.contains('metas-col-wrap') && kids[1].classList && kids[1].classList.contains('metas-col-wrap')){ recomputeTotal(); return; }
