@@ -284,31 +284,38 @@ window.openMetas = async function(){
   Object.keys(real.ba).forEach(function(b){ bairros[b] = 1; });
   (metas||[]).forEach(function(m){ if(m.bairro && m.bairro.indexOf("@f:") !== 0) bairros[m.bairro] = 1; });
 
-  // Dias que ainda faltam no mes, contando hoje. Mes futuro = mes inteiro;
-  // mes passado = 0, e aí a coluna fica com tracinho.
+  // Dias UTEIS que ainda faltam no mes, contando hoje. Domingo nao conta —
+  // e a mesma regra do Resumo do Mes, onde o domingo aparece apagado.
+  // Mes futuro = o mes util inteiro; mes passado = 0, e a coluna fica com tracinho.
   var _hj = new Date();
   var _ultimo = new Date(ano, mes, 0).getDate();
   var diasRest = 0;
+  var _deDia = 0;
   if(ano > _hj.getFullYear() || (ano === _hj.getFullYear() && mes > (_hj.getMonth()+1))){
-    diasRest = _ultimo;
+    _deDia = 1;
   } else if(ano === _hj.getFullYear() && mes === (_hj.getMonth()+1)){
-    diasRest = _ultimo - _hj.getDate() + 1;
+    _deDia = _hj.getDate();
   }
-
-  // Agendamentos ja feitos no MES, por unidade (soma dos horarios + inclusao).
-  // Vem do mesmo "appts" que ja foi buscado acima — nenhuma chamada nova.
+  if(_deDia > 0){
+    for(var _d = _deDia; _d <= _ultimo; _d++){
+      if(new Date(ano, mes - 1, _d).getDay() !== 0) diasRest++;   // 0 = domingo
+    }
+  }
+  // Agendamentos realizados no MES, por unidade. Mesma fonte da planilha:
+  // a coluna AG do Acompanhamento Unidades, somada no mes inteiro.
+  // E a mesma base do cartao "Agendados" do Resumo Geral, entao os numeros batem.
   var feitoMes = {};
-  (appts || []).forEach(function(a){
-    var s = 0;
-    (a.rows || []).forEach(function(r){
-      if(!r || !(r.name || '').trim()) return;
-      var sl = r.slots || {};
-      Object.keys(sl).forEach(function(h){ s += Number(sl[h]) || 0; });
-      s += Number(r.inclusao) || 0;
+  try{
+    var _ac = await fetch('/api/acompanhamento_mes?ano=' + ano + '&mes=' + mes)
+                      .then(function(r){ return r.json(); });
+    (_ac || []).forEach(function(d){
+      (d.rows || []).forEach(function(l){
+        var un = (l && l.unidade) || '';
+        if(!un) return;
+        feitoMes[un] = (feitoMes[un] || 0) + (Number(l.ag) || 0);
+      });
     });
-    feitoMes[a.unit || ''] = (feitoMes[a.unit || ''] || 0) + s;
-  });
-
+  }catch(e){ feitoMes = {}; }
   var GTC = "1fr 54px 54px 54px 54px 54px 56px 42px";
   var html = '<div style="display:grid;grid-template-columns:' + GTC +
     ';gap:4px;padding:6px 8px;font-size:8px;font-weight:700;color:#71717a;letter-spacing:.04em;border-bottom:1px solid #262626">' +
@@ -335,7 +342,7 @@ window.openMetas = async function(){
       Object.keys(bairros).sort().forEach(function(b){
         var bm = metaMap[u+"||"+b] || {};
         tCM += bm.comp||0; tCD += bm.compdia||0; tAM += bm.ag||0;
-                tAH += bm.hora||0; tR  += real.ba[b]||0;   // bairro nao entra no total da AGEND DIA
+        tAH += bm.hora||0; tR  += real.ba[b]||0;   // bairro nao entra no total da AGEND DIA
         html += metaRowHtml("- "+b, u+"||"+b, bm.comp||0, bm.compdia||0, bm.ag||0, bm.dia||0, bm.hora||0, real.ba[b]||0, false, null, 0);
       });
     }
@@ -347,7 +354,7 @@ window.openMetas = async function(){
     '<span style="text-align:center;color:#fbbf24">'+tCM+'</span>' +
     '<span style="text-align:center;color:#fbbf24">'+tCD+'</span>' +
     '<span style="text-align:center;color:#fbbf24">'+tAM+'</span>' +
-    '<span style="text-align:center;color:'+(diasRest>0?'#f59e0b':'#3f3f46')+'" title="'+(diasRest>0?diasRest+' dia(s) restante(s) no mês':'mês encerrado')+'">'+(diasRest>0?tAD:'—')+'</span>' +
+    '<span style="text-align:center;color:'+(diasRest>0?'#f59e0b':'#3f3f46')+'" title="'+(diasRest>0?diasRest+' dia(s) útil(eis) restante(s), sem contar domingos':'mês encerrado')+'">'+(diasRest>0?tAD:'—')+'</span>' +
     '<span style="text-align:center;color:#fbbf24">'+tAH+'</span>' +
     '<span style="text-align:center;color:#22c55e">'+tR+'</span>' +
     '<span style="text-align:right;color:#f59e0b">'+(tCM>0?Math.round(tR/tCM*100):0)+'%</span></div>';  html += '<div style="margin-top:10px;padding:6px 8px 4px;font-size:10px;font-weight:800;color:#fbbf24;letter-spacing:.05em;border-top:1px solid #333">FUNCIONARIOS (META x REALIZADO)</div>';
