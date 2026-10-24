@@ -34,7 +34,12 @@
   }
   body.tema-claro .schedule-table thead th{ background:transparent; color:#17120a; }
   .schedule-table thead th.th-l{ text-align:left; padding-left:12px; }
-  .schedule-table thead th.th-tot{ color:#17120a; }
+  /* Puxa a palavra TOTAL 30px para a esquerda — que é exatamente o espaço que
+     a lixeira ocupa na célula (21px do botão + 9px de respiro). Assim ela cai
+     em cima do círculo, e não no meio da coluna inteira. O mesmo vale para o
+     TOTAL DO DIA lá no rodapé. */
+  .schedule-table thead th.th-tot{ color:#17120a; padding-right:34px; }
+  .schedule-table tfoot td:last-child{ padding-right:34px; }
     .schedule-table thead th .th-seta{
     display:inline-block; margin-left:3px; font-size:8px;
     opacity:.3; vertical-align:1px;
@@ -97,15 +102,22 @@
   body.tema-claro .slot-input.slot-filled{ background:#fdf6e3; color:#a16207; }
   .slot-input.slot-below{ color:#ef4444 !important; }
   
-  /* Total — número puro, sem pílula */
+  /* Total do dia da pessoa: círculo vazado, dourado quando tem agendamento. */
   .total-badge{
-    display:inline-block; min-width:0; padding:0; background:transparent;
-    color:#2e2e33; font-weight:700; font-size:12.5px;
+    justify-self:center;
+    display:grid; place-items:center; width:26px; height:26px; border-radius:50%;
+    padding:0; background:transparent; border:1.5px solid #2a2d34;
+    color:#4a4e58; font-weight:700; font-size:11.5px;
     font-variant-numeric:tabular-nums;
   }
-  body.tema-claro .total-badge{ color:#9a9a9f; }
-  body.tema-claro .total-badge.total-active{ color:#111; }
-  .total-badge.total-active{ background:transparent; color:var(--primary); }
+  .total-badge.total-active{
+    border-color:rgba(251,191,36,.55); background:rgba(251,191,36,.12);
+    color:var(--primary);
+  }
+  body.tema-claro .total-badge{ border-color:#e2e5ea; color:#b4b4bd; }
+  body.tema-claro .total-badge.total-active{
+    border-color:#e8c766; background:#fdf3d6; color:#a16207;
+  }
   
   /* Lixeira fixa: aparece o tempo todo, inclusive para quem nunca
      descobriu que ela existia escondida atrás do hover. */
@@ -119,7 +131,10 @@
   .del-btn:hover{ background:rgba(239,68,68,.26); border-color:rgba(239,68,68,.6); }
   body.tema-claro .del-btn{ background:rgba(239,68,68,.08); color:#dc2626; }
   
-  .total-cell{ display:flex; align-items:center; justify-content:center; gap:7px; }
+  /* Grade de duas colunas: o número no meio da sobra e a lixeira numa coluna
+     de largura fixa. Assim ela cai na mesma vertical em todas as linhas,
+     tendo o total 1, 2 ou 3 dígitos. */
+  .total-cell{ display:grid; grid-template-columns:1fr 21px; align-items:center; gap:9px; }
   /* Dropdown adaptado aos dois temas */
   body.tema-claro .name-dd-trigger{ border-color:#e2e2dd; color:#3f3f46; }
   body.tema-claro .name-dd-trigger.empty{ color:#c4c4bd; }
