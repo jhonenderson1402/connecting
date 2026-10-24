@@ -220,7 +220,7 @@ function metaRowHtml(label, key, cMes, cDia, aMes, aDia, aHora, done, isUnit, fe
   var col = pct >= 100 ? "#22c55e" : (pct >= 60 ? "#fbbf24" : "#ef4444");
   var bg  = isUnit ? "background:rgba(255,255,255,0.02);font-weight:600" : "";
   var lc  = isUnit ? "#e4e4e7" : "#a1a1aa";
-  var GTC = "1fr 54px 54px 54px 54px 54px 56px 42px";
+    var GTC = "1fr 50px 50px 50px 50px 54px 50px 54px 40px";
   function inp(campo, valor, extra){
     return '<input type="number" min="0" class="input meta-input" data-key="' + key +
            '" data-field="' + campo + '" value="' + (valor || "") +
@@ -230,8 +230,13 @@ function metaRowHtml(label, key, cMes, cDia, aMes, aDia, aHora, done, isUnit, fe
   // AGEND DIA calculada: (meta do mes - agendado no mes) / dias que faltam.
   // O valor vai num campo escondido para continuar sendo salvo no banco —
   // o Hora a Hora e o painel de TV leem esse campo.
+  // Agendamentos ja realizados no mes — e o que e abatido da meta logo ao lado.
+  var temF = (feito !== null && feito !== undefined);
+  var celFeito = '<span class="ag-feito" style="text-align:center;font-size:11.5px;font-weight:700;color:' +
+                 (temF ? '#22c55e' : '#3f3f46') + '">' + (temF ? feito : '—') + '</span>';
+
   var dTxt = '—', dCor = '#3f3f46', dAttr = '', dVal = aDia;
-  if(feito !== null && feito !== undefined && dias > 0 && (Number(aMes) || 0) > 0){
+  if(temF && dias > 0 && (Number(aMes) || 0) > 0){
     dVal = Math.round(Math.max(0, (Number(aMes) || 0) - feito) / dias);
     dTxt = dVal;
     dCor = (dVal === 0) ? '#22c55e' : '#f59e0b';
@@ -248,6 +253,7 @@ function metaRowHtml(label, key, cMes, cDia, aMes, aDia, aHora, done, isUnit, fe
          inp("comp",     cMes)  +
          inp("comp_dia", cDia)  +
          inp("agend",    aMes)  +
+         celFeito +
          celDia +
          inp("hora",     aHora) +
          '<span style="text-align:center;font-size:11.5px;font-weight:700;color:#22c55e">' + done + '</span>' +
@@ -316,26 +322,28 @@ window.openMetas = async function(){
       });
     });
   }catch(e){ feitoMes = {}; }
-  var GTC = "1fr 54px 54px 54px 54px 54px 56px 42px";
+  var GTC = "1fr 50px 50px 50px 50px 54px 50px 54px 40px";
   var html = '<div style="display:grid;grid-template-columns:' + GTC +
     ';gap:4px;padding:6px 8px;font-size:8px;font-weight:700;color:#71717a;letter-spacing:.04em;border-bottom:1px solid #262626">' +
     '<span>UNIDADE / BAIRRO</span>' +
     '<span style="text-align:center">COMP MÊS</span>' +
     '<span style="text-align:center">COMP DIA</span>' +
     '<span style="text-align:center">AGEND MÊS</span>' +
-    '<span style="text-align:center" title="(meta do mês − agendado no mês) ÷ dias que faltam">AGEND DIA</span>' +
+    '<span style="text-align:center;line-height:1.3" title="agendamentos ja realizados no mes, vindos do Acompanhamento Unidades">AGEND<br>REALIZADO</span>' +
+    '<span style="text-align:center;line-height:1.3" title="(meta do mês − agend realizado) ÷ dias úteis que faltam">AGEND<br>P/ DIA</span>' +
     '<span style="text-align:center">AGEND HORA</span>' +
     '<span style="text-align:center">REALIZADO</span>' +
     '<span style="text-align:right">%</span></div>';
 
   var U = (typeof UNITS !== "undefined" ? UNITS : []);
-  var tCM=0, tCD=0, tAM=0, tAD=0, tAH=0, tR=0;
+  var tCM=0, tCD=0, tAM=0, tAD=0, tAH=0, tR=0, tAF=0;
 
   U.forEach(function(u){
     var mm = metaMap[u+"||"] || {};
     tCM += mm.comp||0; tCD += mm.compdia||0; tAM += mm.ag||0;
     tAH += mm.hora||0; tR  += real.un[u]||0;
     var fz = feitoMes[u] || 0;
+    tAF += fz;
     if(diasRest > 0) tAD += Math.round(Math.max(0, (mm.ag||0) - fz) / diasRest);
     html += metaRowHtml(u, u+"||", mm.comp||0, mm.compdia||0, mm.ag||0, mm.dia||0, mm.hora||0, real.un[u]||0, true, fz, diasRest);
     if(u.toUpperCase().slice(0,3) === "PAR"){
@@ -354,6 +362,7 @@ window.openMetas = async function(){
     '<span style="text-align:center;color:#fbbf24">'+tCM+'</span>' +
     '<span style="text-align:center;color:#fbbf24">'+tCD+'</span>' +
     '<span style="text-align:center;color:#fbbf24">'+tAM+'</span>' +
+    '<span style="text-align:center;color:#22c55e">'+tAF+'</span>' +
     '<span style="text-align:center;color:'+(diasRest>0?'#f59e0b':'#3f3f46')+'" title="'+(diasRest>0?diasRest+' dia(s) útil(eis) restante(s), sem contar domingos':'mês encerrado')+'">'+(diasRest>0?tAD:'—')+'</span>' +
     '<span style="text-align:center;color:#fbbf24">'+tAH+'</span>' +
     '<span style="text-align:center;color:#22c55e">'+tR+'</span>' +
@@ -2394,7 +2403,7 @@ document.addEventListener('click', e=>{
       tDia += v; temDia = true;
     });
     var uT=findTotal(wraps[0]||body);
-    if(uT){ var s=uT.querySelectorAll('span'); if(s.length>=8){ s[1].textContent=tCM; s[2].textContent=tCD; s[3].textContent=tAM; if(temDia) s[4].textContent=tDia; s[5].textContent=tAH; var tR=parseFloat((s[6].textContent||'0').replace(/[^0-9.-]/g,''))||0; s[7].textContent=(tCM>0?Math.round(tR/tCM*100):0)+'%'; } }
+    if(uT){ var s=uT.querySelectorAll('span'); if(s.length>=9){ s[1].textContent=tCM; s[2].textContent=tCD; s[3].textContent=tAM; if(temDia) s[5].textContent=tDia; s[6].textContent=tAH; var tR=parseFloat((s[7].textContent||'0').replace(/[^0-9.-]/g,''))||0; s[8].textContent=(tCM>0?Math.round(tR/tCM*100):0)+'%'; } }
     var fT=findTotal(wraps[1]);
     if(fT){ var s2=fT.querySelectorAll('span'); if(s2.length>=4){ s2[1].textContent=fA; s2[3].textContent=fC; } }
   }
