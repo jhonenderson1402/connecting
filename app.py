@@ -352,6 +352,15 @@ def api_delete_employee(eid):
     else:
         db.deactivate_employee(eid)
     return jsonify({'ok': True, 'hard': hard})
+
+@app.route('/api/employees/rename', methods=['POST'])
+@login_required
+def api_rename_employee():
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(db.renomear_funcionario(data.get('de'), data.get('para')))
+    except ValueError as e:
+        return _err(str(e))
 # ── API: Agendamentos ─────────────────────────────────────────────────────────
 @app.route('/api/appointments', methods=['GET'])
 @login_required
