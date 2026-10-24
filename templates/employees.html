@@ -155,7 +155,7 @@
           <th class="ord" data-col="funcao" style="width:12%" onclick="ordenarFn('funcao')">Função</th>
           <th class="ord" data-col="unidade" style="width:17%" onclick="ordenarFn('unidade')">Unidade principal</th>
           <th>Também atua em</th>
-          <th style="width:70px"></th>
+          <th style="width:95px"></th>
         </tr>
       </thead>
       <tbody id="fn-corpo">
@@ -209,7 +209,7 @@ let fnOrdem = {col:'nome', dir:'asc'};
 
 const ICO_MAIS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>';
 const ICO_LIXO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>';
-
+const ICO_LAPIS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.83 2.83 0 0 0-4-4L4 16v4Z"/><path d="M14.5 6.5 17.5 9.5"/></svg>';
 const fnEsc = s => String(s==null?'':s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
   .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -338,6 +338,8 @@ function renderFuncionarios() {
       '<td><span class="fn-princ"><i></i>' + fnEsc(p.principal) + '</span></td>' +
       '<td>' + chips + '</td>' +
       '<td><div class="fn-acoes">' +
+        '<button class="fn-ib" title="Renomear" ' +
+          'data-name="' + fnEsc(p.nome) + '" onclick="openRename(this)">' + ICO_LAPIS + '</button>' +
         '<button class="fn-ib" title="Adicionar unidade" ' +
           'data-name="' + fnEsc(p.nome) + '" onclick="openAddUnit(this)">' + ICO_MAIS + '</button>' +
         '<button class="fn-ib danger" title="Remover de ' + fnEsc(p.principal) + '" ' +
@@ -430,7 +432,94 @@ function openAddUnit(btn) {
   });
   document.body.appendChild(ov);
 }
+// ── Renomear a pessoa em todo o sistema ──
+// O nome e a chave do historico. Quem troca aqui, troca no Hora a Hora,
+// no comparecimento, nas vendas, nas punicoes, nas metas e nas confirmacoes.
+function openRename(btn) {
+  const nome = btn.getAttribute('data-name') || '';
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay show';
+  ov.style.zIndex = 10000;
+  ov.innerHTML =
+    '<div class="modal" style="max-width:380px">' +
+      '<div class="modal-header"><span>Renomear funcionário</span>' +
+        '<button class="modal-close" data-cancel="1">✕</button></div>' +
+      '<div class="modal-body">' +
+        '<div class="filter-group" style="margin-bottom:10px">' +
+          '<label class="filter-label">NOME ATUAL</label>' +
+          '<input class="input" value="' + fnEsc(nome) + '" disabled style="width:100%;opacity:.55"/>' +
+        '</div>' +
+        '<div class="filter-group" style="margin-bottom:10px">' +
+          '<label class="filter-label">NOVO NOME</label>' +
+          '<input class="input" id="rn-novo" value="' + fnEsc(nome) + '" style="width:100%"/>' +
+        '</div>' +
+        '<p id="rn-aviso" style="font-size:11.5px;line-height:1.5;color:var(--muted-fg);margin-bottom:14px">' +
+          'O nome vale para todo o histórico: Hora a Hora, comparecimento, vendas, ' +
+          'punições, metas e confirmações.</p>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+          '<button class="btn btn-outline" data-cancel="1">Cancelar</button>' +
+          '<button class="btn btn-primary" data-ok="1">Renomear</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(ov);
 
+  const campo = ov.querySelector('#rn-novo');
+  const aviso = ov.querySelector('#rn-aviso');
+  const base  = aviso.innerHTML;
+  const chave = s => String(s == null ? '' : s).trim().toUpperCase();
+
+  // Avisa ANTES de clicar, se o nome digitado ja pertence a outra pessoa.
+  function checar() {
+    const v = chave(campo.value);
+    const existe = v && v !== chave(nome) &&
+      allEmployees.some(e => chave(e.name) === v);
+    aviso.innerHTML = existe
+      ? '<b style="color:var(--primary)">Já existe alguém com esse nome.</b> ' +
+        'As duas viram uma pessoa só e os números somam no histórico. Isso não tem volta.'
+      : base;
+  }
+  campo.addEventListener('input', checar);
+  campo.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') ov.querySelector('[data-ok]').click();
+  });
+  campo.focus();
+  campo.select();
+
+  ov.addEventListener('click', async ev => {
+    const t = ev.target;
+    if (t === ov || (t.closest && t.closest('[data-cancel]'))) { ov.remove(); return; }
+    const ok = t.closest && t.closest('[data-ok]');
+    if (!ok) return;
+
+    const novo = campo.value.trim();
+    if (!novo) { showToast('Digite o novo nome.', 'error'); return; }
+    if (novo === nome) { ov.remove(); return; }
+
+    ok.disabled = true;
+    ok.textContent = 'Renomeando...';
+    try {
+      const r = await fetch('/api/employees/rename', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({de: nome, para: novo})
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        showToast(d.error || 'Erro ao renomear.', 'error');
+        ok.disabled = false; ok.textContent = 'Renomear';
+        return;
+      }
+      ov.remove();
+      await loadEmployees();
+      showToast(d.juntou
+        ? 'Nomes juntados em um só.'
+        : 'Nome trocado em ' + (d.dias || 0) + ' dia(s) de histórico.');
+    } catch (e) {
+      showToast('Erro ao renomear.', 'error');
+      ok.disabled = false; ok.textContent = 'Renomear';
+    }
+  });
+}
 // ── Novo funcionário ──
 function openAddModal() {
   document.getElementById('modal-add').classList.add('show');
