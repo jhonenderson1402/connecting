@@ -679,6 +679,186 @@ def delete_employee_hard(eid):
     with SessionLocal() as s:
         s.execute(delete(Employee).where(Employee.id == eid))
         s.commit()
+def _nome_chave(s):
+    """Nome normalizado so para COMPARAR: sem espacos nas pontas e em maiusculas.
+    Os acentos sao mantidos, entao ANDRE e ANDRE-com-acento continuam sendo
+    nomes diferentes ate alguem mandar juntar os dois de proposito."""
+    return (s or '').strip().upper()
+
+
+def _soma_valor(a, b):
+    """Soma dois valores lancados. Usada quando duas grafias viram uma pessoa so."""
+    try:
+        t = float(a or 0) + float(b or 0)
+        return int(t) if t == int(t) else t
+    except (TypeError, ValueError):
+        return b
+
+
+def _troca_chave(d, antigo, novo, pular_internos=False):
+    """Troca a chave de um dicionario {NOME: numero}.
+    Se o nome novo ja existir no mesmo dicionario, SOMA os dois valores —
+    e assim que duas grafias da mesma pessoa viram um registro so."""
+    if not isinstance(d, dict):
+        return False
+    novo_n = _nome_chave(novo)
+    mudou = False
+    for k in list(d.keys()):
+        if pular_internos and isinstance(k, str) and k.startswith('__') and k.endswith('__'):
+            continue
+        if _nome_chave(k) != antigo:
+            continue
+        v = d.pop(k)
+        destino = None
+        for k2 in d:
+            if _nome_chave(k2) == novo_n:
+                destino = k2
+                break
+        if destino is None:
+            d[novo] = v
+        else:
+            d[destino] = _soma_valor(d[destino], v)
+        mudou = True
+    return mudou
+
+
+def contar_registros_funcionario(nome):
+    """Em quantos dias essa pessoa aparece lancada. Serve so para avisar
+    o usuario, antes dele confirmar a troca do nome."""
+    alvo = _nome_chave(nome)
+    if not alvo:
+        return 0
+    n = 0
+    with SessionLocal() as s:
+        for a in s.scalars(select(Appointment)).all():
+            achou = False
+            for r in _safe_json_loads(a.rows, []):
+                if isinstance(r, dict) and (_nome_chave(r.get('name')) == alvo
+                                            or _nome_chave(r.get('leader')) == alvo):
+                    achou = True
+                    break
+            if not achou:
+                cd = _safe_json_loads(a.comparecimento_data, {})
+                if isinstance(cd, dict):
+                    for k in cd:
+                        if isinstance(k, str) and k.startswith('__') and k.endswith('__'):
+                            continue
+                        if _nome_chave(k) == alvo:
+                            achou = True
+                            break
+                    if not achou:
+                        for mapa in ('__vendas__', '__punicoes__'):
+                            sub = cd.get(mapa)
+                            if isinstance(sub, dict) and any(_nome_chave(k) == alvo for k in sub):
+                                achou = True
+                                break
+            if achou:
+                n += 1
+    return n
+
+
+def renomear_funcionario(nome_antigo, nome_novo):
+    """Troca o nome de uma pessoa em TODO o sistema, de uma vez so.
+
+    O nome e a chave: se trocar so na lista de funcionarios, o historico dela
+    (Hora a Hora, Comparecimento, vendas, punicoes, metas individuais e
+    confirmacoes) fica preso no nome velho e some dos rankings.
+
+    Se ja existir alguem com o nome novo, os dois viram uma pessoa so e os
+    numeros sao somados — e esse o jeito de juntar ANDRE com ANDRE acentuado.
+    """
+    antigo = _nome_chave(nome_antigo)
+    novo   = (nome_novo or '').strip()
+    novo_n = _nome_chave(novo)
+    if not antigo:
+        raise ValueError("Informe o nome atual.")
+    if not novo:
+        raise ValueError("Informe o novo nome.")
+    if len(novo) > 200:
+        raise ValueError("Nome muito longo.")
+
+    resumo = {'antigo': nome_antigo, 'novo': novo, 'juntou': False,
+              'funcionarios': 0, 'dias': 0, 'metas': 0, 'confirmacoes': 0}
+
+    with SessionLocal() as s:
+        # ── 1) a lista de funcionarios ──────────────────────────────────────
+        todos  = s.scalars(select(Employee)).all()
+        meus   = [e for e in todos if _nome_chave(e.name) == antigo]
+        outros = [e for e in todos if _nome_chave(e.name) == novo_n and e not in meus]
+        if not meus:
+            raise ValueError(f"Nao encontrei ninguem chamado '{nome_antigo}'.")
+        if antigo != novo_n and outros:
+            resumo['juntou'] = True
+
+        ocupadas = {e.unit: e for e in outros}
+        for e in meus:
+            if e.unit in ocupadas:
+                s.delete(e)          # a pessoa ja esta nessa unidade com o nome novo
+            else:
+                e.name = novo
+                ocupadas[e.unit] = e
+                resumo['funcionarios'] += 1
+
+        # ── 2) Hora a Hora e Comparecimento (o nome vive dentro do JSON) ────
+        for a in s.scalars(select(Appointment)).all():
+            mudou_rows = False
+            mudou_cd   = False
+
+            if _nome_chave(a.leader) == antigo:
+                a.leader = novo
+                mudou_rows = True      # so para contar o dia como tocado
+
+            linhas = _safe_json_loads(a.rows, [])
+            for r in linhas:
+                if not isinstance(r, dict):
+                    continue
+                if _nome_chave(r.get('name')) == antigo:
+                    r['name'] = novo
+                    mudou_rows = True
+                if _nome_chave(r.get('leader')) == antigo:
+                    r['leader'] = novo
+                    mudou_rows = True
+            if mudou_rows:
+                a.rows = json.dumps(linhas, ensure_ascii=False)
+
+            cd = _safe_json_loads(a.comparecimento_data, {})
+            if isinstance(cd, dict):
+                if _troca_chave(cd, antigo, novo, pular_internos=True):
+                    mudou_cd = True
+                for mapa in ('__vendas__', '__punicoes__'):
+                    if _troca_chave(cd.get(mapa), antigo, novo):
+                        mudou_cd = True
+                if mudou_cd:
+                    a.comparecimento_data = json.dumps(cd, ensure_ascii=False)
+
+            if mudou_rows or mudou_cd:
+                resumo['dias'] += 1
+
+        # ── 3) metas individuais (ficam gravadas como bairro "@f:NOME") ─────
+        alvo = '@f:' + novo
+        for m in s.scalars(select(Meta)).all():
+            b = m.bairro or ''
+            if not b.startswith('@f:') or _nome_chave(b[3:]) != antigo:
+                continue
+            existe = s.scalar(select(Meta).where(and_(
+                Meta.ano == m.ano, Meta.mes == m.mes,
+                Meta.unidade == m.unidade, Meta.bairro == alvo
+            )))
+            if existe is not None and existe.id != m.id:
+                s.delete(m)          # ja ha meta com o nome novo: fica a dela
+            else:
+                m.bairro = alvo
+            resumo['metas'] += 1
+
+        # ── 4) confirmacoes (coluna TMK) ────────────────────────────────────
+        for c in s.scalars(select(Confirmacao)).all():
+            if _nome_chave(c.tmk) == antigo:
+                c.tmk = novo
+                resumo['confirmacoes'] += 1
+
+        s.commit()
+
+    return resumo
 # ---- Appointments -----------------------------------------------------------
 def get_appointment(unit, date):
     with SessionLocal() as s:
