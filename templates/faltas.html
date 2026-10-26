@@ -159,6 +159,8 @@
   .cor.on{ border-color:var(--fg); }
   .fa-page .vazio{ text-align:center; padding:30px; color:var(--t-dim3);
     font-size:12px; }
+  .fa-page .vazio b.semhoje{ display:block; color:var(--t-dim2); font-size:13.5px;
+    font-weight:700; letter-spacing:.14em; }
 </style>
 
 <div class="page-content fa-page">
@@ -199,6 +201,15 @@
                stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 15V4h12l-2 3 2 3H4"/><path d="M4 21v-6"/></svg>
           Flags
+        </button>
+      </div>
+      <div class="fg"><label class="fl">&nbsp;</label>
+        <button class="btn2" id="btn-zap" onclick="copiaZap()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
+               stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="3" width="12" height="15" rx="2"/>
+            <path d="M5 7v12a2 2 0 0 0 2 2h9"/></svg>
+          Copiar relatório WhatsApp
         </button>
       </div>
       <div class="fg"><label class="fl">&nbsp;</label>
@@ -417,6 +428,7 @@ function desenha(){
   : '<tr><td colspan="7" class="vazio">' +
     (carregando ? 'Carregando...'
      : FILTRO_NOME ? 'Ninguém com esse nome na lista.'
+     : ehHoje() ? '<b class="semhoje">SEM OCORRÊNCIAS HOJE</b>'
      : 'Nenhum registro no período. Use <b>Adicionar linha</b>.') + '</td></tr>';
 
   // sugestões do campo LÍDER
@@ -647,6 +659,7 @@ async function carrega(){
   carregando = false; desenha();
 }
 
+var diaJaEscolhido = false;
 function montaDias(){
   var sel = document.getElementById('f-dia');
   var ano = Number(valSel('f-ano'));
@@ -659,7 +672,19 @@ function montaDias(){
     o.value = d; o.textContent = String(d).padStart(2,'0');
     sel.appendChild(o);
   }
-  if(atual && Number(atual) <= ult) sel.value = atual;
+  if(atual && Number(atual) <= ult){ sel.value = atual; return; }
+  // na primeira montagem a tela ja abre no dia de hoje
+  if(!diaJaEscolhido){
+    diaJaEscolhido = true;
+    var h = new Date();
+    if(h.getFullYear() === ano && h.getMonth() === mi) sel.value = h.getDate();
+  }
+}
+function ehHoje(){
+  var h = new Date();
+  return Number(valSel('f-ano')) === h.getFullYear()
+      && parseInt(valSel('f-mes'), 10) === h.getMonth()
+      && Number(valSel('f-dia')) === h.getDate();
 }
 
 async function onConstantsLoaded(){
@@ -848,7 +873,92 @@ function baixaPDF(){
   if(marca && !marca.complete){ marca.onload = imprime; marca.onerror = imprime; }
   else imprime();
 }
-function ligaBaixar(){
+/* ── Relatório para colar no WhatsApp ── */
+function dmy(iso){ return iso.slice(8,10) + '/' + iso.slice(5,7); }
+function diaSeguinte(iso){
+  var d = new Date(Number(iso.slice(0,4)), Number(iso.slice(5,7)) - 1,
+                   Number(iso.slice(8,10)));
+  d.setDate(d.getDate() + 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' +
+         String(d.getDate()).padStart(2,'0');
+}
+function poeNaArea(txt, n){
+  var aviso = function(){
+    if(typeof showToast !== 'undefined')
+      showToast('Relatório copiado: ' + n + ' ocorrência(s).');
+  };
+  var naMao = function(){
+    var t = document.createElement('textarea');
+    t.value = txt;
+    t.style.position = 'fixed'; t.style.left = '-9999px';
+    document.body.appendChild(t);
+    t.select();
+    try{ document.execCommand('copy'); aviso(); }
+    catch(e){
+      if(typeof showToast !== 'undefined')
+        showToast('Não consegui copiar. Tente pelo navegador.', 'error');
+    }
+    document.body.removeChild(t);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(txt).then(aviso, naMao);
+  else naMao();
+}
+async function copiaZap(){
+  var btn = document.getElementById('btn-zap');
+  var ano = valSel('f-ano'), mi = parseInt(valSel('f-mes'), 10);
+  btn.disabled = true;
+  var L = [];
+  try{
+    // o relatório é do mês inteiro, mesmo com um dia filtrado na tela
+    var r = await fetch('/api/ocorrencias?ano=' + ano + '&mes=' + (mi + 1));
+    if(r.status === 401){ window.location.href = '/login'; return; }
+    L = r.ok ? (await r.json()) : [];
+    if(!Array.isArray(L)) L = [];
+  }catch(e){ L = []; }
+  btn.disabled = false;
+
+  if(FILTRO_NOME) L = L.filter(function(x){
+    return semAcento(x.tmk).indexOf(FILTRO_NOME) >= 0; });
+  L = L.filter(function(x){ return x.tmk; });
+  if(!L.length){
+    if(typeof showToast !== 'undefined')
+      showToast('Nenhuma ocorrência no mês para copiar.', 'error');
+    return;
+  }
+
+  // junta dias seguidos da mesma pessoa, mesmo motivo e mesma observação
+  L.sort(function(a, b){
+    var ka = a.tmk + '|' + a.flag_id + '|' + (a.obs || '') + '|' + a.data;
+    var kb = b.tmk + '|' + b.flag_id + '|' + (b.obs || '') + '|' + b.data;
+    return ka < kb ? -1 : ka > kb ? 1 : 0;
+  });
+  var blocos = [];
+  L.forEach(function(x){
+    var u = blocos[blocos.length - 1];
+    if(u && u.tmk === x.tmk && u.flag_id === x.flag_id &&
+       u.obs === (x.obs || '') && diaSeguinte(u.fim) === x.data){ u.fim = x.data; }
+    else blocos.push({tmk:x.tmk, flag_id:x.flag_id, obs:(x.obs || ''),
+                      ini:x.data, fim:x.data});
+  });
+  blocos.sort(function(a, b){
+    return a.ini !== b.ini ? (a.ini < b.ini ? -1 : 1)
+                           : a.tmk.localeCompare(b.tmk, 'pt-BR');
+  });
+
+  var txt = 'RELATÓRIO DE FALTAS - ' +
+            (MESES[mi] || '').toUpperCase() + '/' + ano + '\n\n';
+  txt += blocos.map(function(b){
+    var f = flagDe(b.flag_id);
+    var dia = b.ini === b.fim ? dmy(b.ini) : dmy(b.ini) + ' a ' + dmy(b.fim);
+    var mot = f ? f.nome : 'SEM MOTIVO';
+    if(b.obs) mot += ' (' + b.obs + ')';
+    if(f && f.icone) mot += ' ' + f.icone;
+    return dia + ' - ' + b.tmk + ' - ' + mot;
+  }).join('\n\n');
+  poeNaArea(txt, blocos.length);
+}
+  function ligaBaixar(){
   var dd = document.getElementById('dd-baixar');
   var btn = dd.querySelector('.btn2'), menu = dd.querySelector('.dd-menu');
   btn.addEventListener('click', function(e){
