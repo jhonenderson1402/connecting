@@ -1216,7 +1216,11 @@ def get_ocorrencias(ano, mes, dia=None):
 def upsert_ocorrencia(dados):
     """Cria (sem id) ou atualiza (com id) um registro. Devolve o registro."""
     now = datetime.utcnow().isoformat()
-    oid = dados.get('id')
+    # id provisorio da tela ('n1', 'n2'...) nao e id de banco: vale como registro novo
+    try:
+        oid = int(dados.get('id') or 0)
+    except (TypeError, ValueError):
+        oid = 0
     data = (dados.get('data') or '').strip()
     if not re.match(r'^\d{4}-\d{2}-\d{2}$', data):
         raise ValueError("Data invalida. Use YYYY-MM-DD.")
