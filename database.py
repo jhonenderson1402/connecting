@@ -190,6 +190,7 @@ def init_db():
     ensure_default_atendentes()
     ensure_default_bairros()
     ensure_default_lead_opcoes()
+    ensure_default_flags()
 def _run_migrations():
     """Aplica migrações incrementais no banco existente (idempotente)."""
     with engine.connect() as conn:
@@ -1061,6 +1062,220 @@ def bulk_upsert_metas(ano, mes, metas_list):
                     meta_dia=dia, meta_hora=hora, meta_conv=conv, updated_at=now
                 ))
         s.commit()
+# ---- Faltas e Advertencias --------------------------------------------------
+# Duas tabelas novas: 'flags' (os motivos, com cor e tipo) e 'ocorrencias'
+# (um registro por pessoa por dia). O tipo da flag e o que liga esta tela ao
+# Acompanhamento TMK: adv, falta, atestado — ou vazio, para motivos que nao
+# contam em nenhuma das tres colunas de la (folga, dispensado, suspensao).
+class Flag(Base):
+    __tablename__ = 'flags'
+    id    = Column(Integer, primary_key=True, autoincrement=True)
+    nome  = Column(String(80), nullable=False)
+    icone = Column(String(8), default='')
+    bg    = Column(String(16), default='#1e7a46')   # fundo da pilula
+    fg    = Column(String(16), default='#eafaf0')   # cor do texto
+    tipo  = Column(String(12), default='')          # adv | falta | atestado | ''
+    ordem = Column(Integer, default=0)
+    __table_args__ = (
+        Index('idx_flag_ordem', 'ordem'),
+    )
+
+
+class Ocorrencia(Base):
+    __tablename__ = 'ocorrencias'
+    id      = Column(Integer, primary_key=True, autoincrement=True)
+    data    = Column(String(10), nullable=False)    # YYYY-MM-DD
+    lider   = Column(String(200), default='')
+    tmk     = Column(String(200), default='')
+    flag_id = Column(Integer, default=0)
+    obs     = Column(Text, default='')
+    updated_at = Column(String(40), default='')
+    __table_args__ = (
+        Index('idx_ocor_data', 'data'),
+        Index('idx_ocor_tmk', 'tmk'),
+    )
+
+
+# As oito da planilha, com a mesma cor e ja classificadas.
+FLAGS_PADRAO = [
+    ('FOLGA',                        '✅', '#1e7a46', '#eafaf0', '',         1),
+    ('FALTA SEM JUSTIFICATIVA',      '❌', '#b3313c', '#ffecec', 'falta',    2),
+    ('ATESTADO',                     '✅', '#2f8f55', '#eafaf0', 'atestado', 3),
+    ('DECLARACAO DE COMPARECIMENTO', '✅', '#2f8f55', '#eafaf0', 'atestado', 4),
+    ('ADVERTENCIA',                  '⚠',  '#f2c4c7', '#8c2f38', 'adv',      5),
+    ('ADVERTENCIA VERBAL',           '',        '#f7e6a8', '#7a5c12', 'adv',      6),
+    ('DISPENSADO',                   '',        '#dff0c8', '#4a6b1f', '',         7),
+    ('SUSPENSAO',                    '',        '#c0392b', '#ffecec', '',         8),
+]
+
+
+def ensure_default_flags():
+    """Semeia os motivos que ja existiam na planilha, se a tabela estiver vazia."""
+    try:
+        with SessionLocal() as s:
+            if s.scalar(select(func.count(Flag.id))) == 0:
+                for nome, ic, bg, fg, tipo, ordem in FLAGS_PADRAO:
+                    s.add(Flag(nome=nome, icone=ic, bg=bg, fg=fg,
+                               tipo=tipo, ordem=ordem))
+                s.commit()
+                print("[init] Flags de ocorrencia padrao criadas.")
+    except Exception as e:
+        print("ERRO AO CRIAR FLAGS PADRAO:", e)
+
+
+def _flag_to_dict(f):
+    return {'id': f.id, 'nome': f.nome, 'icone': f.icone or '',
+            'bg': f.bg or '#1e7a46', 'fg': f.fg or '#eafaf0',
+            'tipo': f.tipo or '', 'ordem': f.ordem or 0}
+
+
+def get_flags():
+    with SessionLocal() as s:
+        rows = s.scalars(select(Flag).order_by(Flag.ordem, Flag.id)).all()
+        return [_flag_to_dict(r) for r in rows]
+
+
+def create_flag(nome, bg, fg, icone='', tipo=''):
+    nome = (nome or '').strip().upper()
+    if not nome:
+        raise ValueError("Informe o nome do motivo.")
+    if len(nome) > 80:
+        raise ValueError("Nome muito longo.")
+    if tipo not in ('', 'adv', 'falta', 'atestado'):
+        tipo = ''
+    with SessionLocal() as s:
+        if s.scalar(select(Flag).where(func.lower(Flag.nome) == nome.lower())):
+            raise ValueError("Ja existe um motivo com esse nome.")
+        prox = (s.scalar(select(func.max(Flag.ordem))) or 0) + 1
+        f = Flag(nome=nome, icone=(icone or '')[:8], bg=bg or '#1e7a46',
+                 fg=fg or '#eafaf0', tipo=tipo, ordem=prox)
+        s.add(f)
+        s.commit()
+        s.refresh(f)
+        return _flag_to_dict(f)
+
+
+def update_flag(fid, dados):
+    """Muda nome, cor, icone ou tipo de um motivo que ja existe."""
+    with SessionLocal() as s:
+        f = s.scalar(select(Flag).where(Flag.id == fid))
+        if not f:
+            raise ValueError("Motivo nao encontrado.")
+        if 'nome' in dados:
+            nome = (dados['nome'] or '').strip().upper()
+            if nome:
+                f.nome = nome[:80]
+        if 'bg' in dados:    f.bg = (dados['bg'] or '')[:16] or f.bg
+        if 'fg' in dados:    f.fg = (dados['fg'] or '')[:16] or f.fg
+        if 'icone' in dados: f.icone = (dados['icone'] or '')[:8]
+        if 'tipo' in dados and dados['tipo'] in ('', 'adv', 'falta', 'atestado'):
+            f.tipo = dados['tipo']
+        s.commit()
+        s.refresh(f)
+        return _flag_to_dict(f)
+
+
+def count_ocorrencias_flag(fid):
+    with SessionLocal() as s:
+        return s.scalar(select(func.count(Ocorrencia.id)).where(
+            Ocorrencia.flag_id == fid)) or 0
+
+
+def delete_flag(fid):
+    """Apaga o motivo. Os registros que o usavam ficam sem motivo (flag_id 0),
+    em vez de sumirem junto."""
+    with SessionLocal() as s:
+        s.execute(update(Ocorrencia).where(Ocorrencia.flag_id == fid)
+                  .values(flag_id=0))
+        s.execute(delete(Flag).where(Flag.id == fid))
+        s.commit()
+
+
+def _ocor_to_dict(o):
+    return {'id': o.id, 'data': o.data, 'lider': o.lider or '',
+            'tmk': o.tmk or '', 'flag_id': o.flag_id or 0, 'obs': o.obs or ''}
+
+
+def get_ocorrencias(ano, mes, dia=None):
+    """Todos os registros do mes (ou de um dia), do mais antigo ao mais novo."""
+    if dia:
+        ini = '%04d-%02d-%02d' % (ano, mes, dia)
+        fim = ini
+    else:
+        ini = '%04d-%02d-01' % (ano, mes)
+        fim = '%04d-%02d-31' % (ano, mes)
+    with SessionLocal() as s:
+        rows = s.scalars(
+            select(Ocorrencia)
+            .where(and_(Ocorrencia.data >= ini, Ocorrencia.data <= fim))
+            .order_by(Ocorrencia.data, Ocorrencia.tmk, Ocorrencia.id)
+        ).all()
+        return [_ocor_to_dict(r) for r in rows]
+
+
+def upsert_ocorrencia(dados):
+    """Cria (sem id) ou atualiza (com id) um registro. Devolve o registro."""
+    now = datetime.utcnow().isoformat()
+    oid = dados.get('id')
+    data = (dados.get('data') or '').strip()
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', data):
+        raise ValueError("Data invalida. Use YYYY-MM-DD.")
+    tmk   = (dados.get('tmk') or '').strip()
+    lider = (dados.get('lider') or '').strip().upper()
+    obs   = (dados.get('obs') or '')[:500]
+    try:
+        flag_id = int(dados.get('flag_id') or 0)
+    except (TypeError, ValueError):
+        flag_id = 0
+
+    with SessionLocal() as s:
+        o = s.scalar(select(Ocorrencia).where(Ocorrencia.id == oid)) if oid else None
+        if o is None:
+            o = Ocorrencia(data=data, lider=lider, tmk=tmk, flag_id=flag_id,
+                           obs=obs, updated_at=now)
+            s.add(o)
+        else:
+            o.data = data
+            o.lider = lider
+            o.tmk = tmk
+            o.flag_id = flag_id
+            o.obs = obs
+            o.updated_at = now
+        s.commit()
+        s.refresh(o)
+        return _ocor_to_dict(o)
+
+
+def delete_ocorrencia(oid):
+    with SessionLocal() as s:
+        s.execute(delete(Ocorrencia).where(Ocorrencia.id == oid))
+        s.commit()
+
+
+def ocorrencias_por_tmk(ano, mes, dia=None):
+    """Para o Acompanhamento TMK: {NOME: {'adv':[dias], 'falta':[...],
+    'atestado':[...]}}. So entram as flags que tem tipo."""
+    tipos = {}
+    for f in get_flags():
+        if f['tipo']:
+            tipos[f['id']] = f['tipo']
+    saida = {}
+    for o in get_ocorrencias(ano, mes, dia):
+        tipo = tipos.get(o['flag_id'])
+        nome = (o['tmk'] or '').strip()
+        if not tipo or not nome:
+            continue
+        try:
+            d = int(o['data'][8:10])
+        except (TypeError, ValueError):
+            continue
+        p = saida.setdefault(nome, {'adv': [], 'falta': [], 'atestado': []})
+        if d not in p[tipo]:
+            p[tipo].append(d)
+    for p in saida.values():
+        for k in p:
+            p[k].sort()
+    return saida
 # ---- Estatísticas públicas (para a landing) ---------------------------------
 def get_stats_publicas():
     """Retorna os totais gerais (todos os tempos) para exibir na landing pública:
