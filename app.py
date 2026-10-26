@@ -931,7 +931,86 @@ def api_delete_bairro(bid):
     db.delete_bairro(bid)
     return jsonify({'ok': True})
 # ── Acompanhamento Unidades ──────────────────────────────────────────────────
-# ── Acompanhamento TMK ───────────────────────────────────────────────────────
+# ── Faltas e Advertencias ────────────────────────────────────────────────────
+@app.route('/faltas')
+@login_required
+def faltas_page():
+    return render_template('faltas.html')
+
+
+@app.route('/api/flags', methods=['GET'])
+@login_required
+def api_flags():
+    return jsonify(db.get_flags())
+
+
+@app.route('/api/flags', methods=['POST'])
+@login_required
+def api_cria_flag():
+    d = request.get_json(silent=True) or {}
+    try:
+        return jsonify(db.create_flag(d.get('nome'), d.get('bg'), d.get('fg'),
+                                      d.get('icone', ''), d.get('tipo', ''))), 201
+    except ValueError as e:
+        return _err(str(e))
+
+
+@app.route('/api/flags/<int:fid>', methods=['POST'])
+@login_required
+def api_edita_flag(fid):
+    d = request.get_json(silent=True) or {}
+    try:
+        return jsonify(db.update_flag(fid, d))
+    except ValueError as e:
+        return _err(str(e))
+
+
+@app.route('/api/flags/<int:fid>', methods=['DELETE'])
+@login_required
+def api_apaga_flag(fid):
+    usados = db.count_ocorrencias_flag(fid)
+    db.delete_flag(fid)
+    return jsonify({'ok': True, 'registros_afetados': usados})
+
+
+@app.route('/api/ocorrencias', methods=['GET'])
+@login_required
+def api_ocorrencias():
+    try:
+        ano = int(request.args.get('ano'))
+        mes = int(request.args.get('mes'))
+    except (TypeError, ValueError):
+        return _err('Informe "ano" e "mes".')
+    if not (1 <= mes <= 12) or not (1900 <= ano <= 2999):
+        return _err('Ano ou mes invalido.')
+    dia = request.args.get('dia')
+    d = None
+    if dia:
+        try:
+            d = int(dia)
+            if not (1 <= d <= 31):
+                raise ValueError
+        except (TypeError, ValueError):
+            return _err('Dia invalido.')
+    return jsonify(db.get_ocorrencias(ano, mes, d))
+
+
+@app.route('/api/ocorrencias', methods=['POST'])
+@login_required
+def api_salva_ocorrencia():
+    d = request.get_json(silent=True) or {}
+    try:
+        return jsonify(db.upsert_ocorrencia(d))
+    except ValueError as e:
+        return _err(str(e))
+
+
+@app.route('/api/ocorrencias/<int:oid>', methods=['DELETE'])
+@login_required
+def api_apaga_ocorrencia(oid):
+    db.delete_ocorrencia(oid)
+    return jsonify({'ok': True})
+
 @app.route('/acompanhamento-tmk')
 @login_required
 def acompanhamento_tmk_page():
@@ -1116,6 +1195,7 @@ def api_acomp_tmk():
     # lideres primeiro; dentro de cada grupo, quem mais agendou
     saida.sort(key=lambda x: (0 if x['lider'] else 1, -x['ag']))
     return jsonify(saida)
+# ── Acompanhamento TMK ───────────────────────────────────────────────────────
 @app.route('/acompanhamento')
 @login_required
 def acompanhamento_page():
