@@ -1,185 +1,1012 @@
-# ── Acompanhamento TMK ───────────────────────────────────────────────────────
-@app.route('/acompanhamento-tmk')
-@login_required
-def acompanhamento_tmk_page():
-    return render_template('acompanhamento_tmk.html')
+{% extends "base.html" %}
+{% block content %}
+<style>
+  /* ══════════ ACOMPANHAMENTO TMK ══════════ */
+  .tmk-page{
+    --t-line:#1d1d22; --t-line2:#282830; --t-dim:#9496a3; --t-dim2:#5c5e6d;
+    --t-dim3:#383a45; --t-gold:#dda43c; --t-green:#35a35c; --t-red:#cf5f68;
+    --t-blue:#4878c9; --t-violet:#8a70c7; --t-falta:#4e92d9; --t-atest:#3fa96a;
+    --t-abacate:#a3c153;
+  }
+  .tmk-page .topo{ display:flex; flex-direction:column; align-items:flex-start;
+                   gap:15px; margin-bottom:16px; }
+  .tmk-page .filtros{ display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+  .tmk-page .fg{ display:flex; flex-direction:column; gap:4px; }
+  .tmk-page .fl{ font-size:7.5px; font-weight:700; color:var(--t-dim3);
+                 letter-spacing:.15em; text-transform:uppercase; }
+  .tmk-page .periodo{ display:flex; gap:10px; align-items:flex-end; }
 
+  /* dropdown proprio: a lista de um <select> e desenhada pelo sistema e nao
+     aceita CSS; aqui o campo vira botao + menu nosso */
+  .tmk-page .dd{ position:relative; }
+  .tmk-page .dd-btn{ display:flex; align-items:center; gap:10px; height:31px;
+    padding:0 10px; background:var(--secondary); border:1px solid var(--border);
+    border-radius:8px; color:var(--fg); font-family:inherit; font-size:11.5px;
+    cursor:pointer; white-space:nowrap; transition:border-color .13s; }
+  .tmk-page .dd-btn:hover{ border-color:var(--t-dim3); }
+  .tmk-page .dd-btn.open{ border-color:var(--t-gold); }
+  .tmk-page .dd-btn .seta{ margin-left:auto; width:9px; flex:0 0 auto;
+    color:var(--t-dim2); transition:transform .16s; }
+  .tmk-page .dd-btn.open .seta{ transform:rotate(180deg); color:var(--t-gold); }
+  .tmk-page .dd-menu{ position:absolute; top:calc(100% + 5px); left:0; min-width:100%;
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:5px; box-shadow:0 14px 34px rgba(0,0,0,.6); display:none; z-index:60;
+    max-height:268px; overflow-y:auto; }
+  .tmk-page .dd-menu.open{ display:block; }
+  .tmk-page .dd-op{ padding:6px 10px; border-radius:7px; font-size:11.5px;
+    color:var(--t-dim); cursor:pointer; white-space:nowrap; transition:background .1s; }
+  .tmk-page .dd-op:hover{ background:var(--secondary); color:var(--fg); }
+  .tmk-page .dd-op.sel{ background:rgba(221,164,60,.13); color:var(--t-gold);
+    font-weight:600; }
+  .tmk-page .dd-btn.baixar{ background:rgba(221,164,60,.1);
+    border-color:rgba(221,164,60,.38); color:var(--t-gold); font-weight:700; }
+  .tmk-page .dd-btn.baixar:hover{ background:rgba(221,164,60,.16);
+    border-color:var(--t-gold); }
+  .tmk-page .busca{ background:var(--secondary); border:1px solid var(--border);
+    color:var(--fg); border-radius:8px; height:31px; padding:0 10px; font-size:11.5px;
+    font-family:inherit; outline:none; width:168px; }
+  .tmk-page .busca:focus{ border-color:var(--t-gold); }
 
-@app.route('/api/acompanhamento_tmk', methods=['GET'])
-@login_required
-def api_acomp_tmk():
-    """Desempenho individual no periodo, por pessoa e por unidade.
+  /* cartoes */
+  .tmk-page .cards{ display:grid; grid-template-columns:repeat(9,1fr); gap:8px;
+                    margin-bottom:14px; align-items:stretch; }
+  .tmk-page .c{ background:var(--card); border:1px solid var(--t-line);
+    border-radius:8px; padding:7px 11px; display:flex; flex-direction:column;
+    justify-content:center; gap:1px; }
+  .tmk-page .c .k{ font-size:7.5px; font-weight:700; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--t-dim3); }
+  .tmk-page .c .v{ font-size:16.5px; font-weight:800; letter-spacing:-.03em;
+    line-height:1.15; font-variant-numeric:tabular-nums; }
 
-    Tudo sai do que ja existe: o Hora a Hora da cada unidade (agendamentos),
-    o Comparecimento (comparecimentos, vendas e punicoes) e as unidades
-    reservadas LEADS:: (leads por TMK). Nada de tabela nova.
+  /* tabela */
+  .tmk-page .wrap{ background:var(--card); border:none; border-radius:9px;
+                   overflow:hidden; }
+  .tmk-page table{ width:100%; border-collapse:collapse; table-layout:fixed; }
+  .tmk-page thead th{ background:var(--secondary); color:var(--t-dim2);
+    font-size:7.5px; font-weight:700; letter-spacing:.15em; text-transform:uppercase;
+    padding:7px 8px; text-align:right; white-space:nowrap;
+    border-bottom:1px solid var(--t-line2); cursor:pointer; user-select:none;
+    transition:color .13s; }
+  .tmk-page thead th:hover{ color:var(--t-dim); }
+  .tmk-page thead th.l{ text-align:left; padding-left:15px; }
+  .tmk-page .th-seta{ display:inline-block; margin-left:4px; font-size:7.5px;
+    opacity:.25; vertical-align:1px; }
+  .tmk-page thead th:hover .th-seta{ opacity:.55; }
+  .tmk-page .th-seta.on{ opacity:1; color:var(--t-gold); }
 
-    Parametros: ano, mes e, opcionalmente, dia (1..31).
-    """
-    try:
-        ano = int(request.args.get('ano'))
-        mes = int(request.args.get('mes'))
-    except (TypeError, ValueError):
-        return _err('Informe "ano" e "mes".')
-    if not (1 <= mes <= 12) or not (1900 <= ano <= 2999):
-        return _err('Ano ou mes invalido.')
+  .tmk-page tbody td{ padding:2.5px 8px; border-bottom:1px solid var(--t-line);
+    font-size:12px; text-align:right; font-variant-numeric:tabular-nums;
+    letter-spacing:-.01em; }
+  .tmk-page td.nome{ text-align:left; padding-left:15px; }
+  .tmk-page td.nome .nm{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tmk-page tr.p{ cursor:pointer; transition:background .12s; }
+  .tmk-page tr.p:hover{ background:rgba(255,255,255,.02); }
+  .tmk-page tr.p.aberta{ background:rgba(221,164,60,.03); }
+  .tmk-page .pessoa{ display:flex; align-items:center; gap:7px; }
+  .tmk-page .caret{ width:8px; flex:0 0 auto; color:var(--t-dim3);
+    transition:transform .16s; }
+  .tmk-page tr.aberta .caret{ transform:rotate(90deg); color:var(--t-gold); }
+  .tmk-page .av{ width:19px; height:19px; border-radius:5px; flex:0 0 auto;
+    display:grid; place-items:center; font-size:9px; font-weight:700;
+    background:var(--secondary); color:var(--t-dim); }
+  .tmk-page .av.lider{ background:rgba(221,164,60,.13); color:var(--t-gold); }
+  .tmk-page .nm{ font-weight:500; color:var(--fg); }
 
-    alvo = None
-    dia = request.args.get('dia')
-    if dia:
-        try:
-            d = int(dia)
-            if not (1 <= d <= 31):
-                raise ValueError
-            alvo = '%04d-%02d-%02d' % (ano, mes, d)
-        except (TypeError, ValueError):
-            return _err('Dia invalido.')
+  .tmk-page .n-fg{ color:var(--fg); font-weight:500; }
+  .tmk-page .n-dim{ color:var(--t-dim2); }
+  .tmk-page .n-gold{ color:var(--t-gold); font-weight:600; }
+  .tmk-page .n-grn{ color:var(--t-green); font-weight:500; }
+  .tmk-page .n-blu{ color:var(--t-blue); font-weight:500; }
+  .tmk-page .n-vio{ color:var(--t-violet); font-weight:500; }
+  .tmk-page .n-red{ color:var(--t-red); font-weight:600; }
+  .tmk-page .n-off{ color:var(--t-dim3); }
+  .tmk-page td.conv{ font-weight:600; }
 
-    validas = set(_units())
-    lead_keys = _lead_keys()
-    pessoas = {}
+  /* ── detalhe ── */
+  .tmk-page tr.det > td{ padding:0; border-bottom:none; background:var(--bg); }
+  .tmk-page tr.det.aberto > td{ border-bottom:1px solid var(--t-line); }
+  /* altura automatica nao anima; uma grade de 0fr a 1fr, sim */
+  .tmk-page .sanfona{ display:grid; grid-template-rows:0fr;
+    transition:grid-template-rows .26s cubic-bezier(.4,0,.2,1); }
+  .tmk-page tr.det.aberto .sanfona{ grid-template-rows:1fr; }
+  .tmk-page .sanfona > .detbox{ overflow:hidden; min-height:0; }
+  /* NOME DIFERENTE do da linha de proposito: a <tr> tambem tem class="det",
+     e um seletor .det comum transformaria a linha da tabela em flex */
+  .tmk-page .detbox{ display:flex; align-items:center; justify-content:flex-start;
+    gap:24px; padding:9px 215px 9px 48px; border-left:2px solid rgba(221,164,60,.3);
+    position:relative; opacity:0; transform:translateY(-5px);
+    transition:opacity .2s ease .04s, transform .2s ease .04s; }
+  .tmk-page tr.det.aberto .detbox{ opacity:1; transform:none; }
+  .tmk-page .esq{ flex:0 0 auto; display:flex; align-items:flex-start; gap:11px; }
+  .tmk-page .centro{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column;
+    align-items:center; gap:3px; align-self:flex-end; }
 
-    def pega(nome):
-        p = pessoas.get(nome)
-        if p is None:
-            p = {'leads': 0, 'unidades': {}}
-            pessoas[nome] = p
-        return p
+  .tmk-page .unis{ display:inline-grid;
+    grid-template-columns:auto auto auto auto auto auto; gap:3px 14px;
+    align-items:baseline; }
+  .tmk-page .unis .u{ font-size:9.5px; font-weight:700; letter-spacing:.08em;
+    color:var(--fg); white-space:nowrap; }
+  .tmk-page .unis .d{ font-size:10.5px; font-variant-numeric:tabular-nums;
+    text-align:right; white-space:nowrap; font-weight:600; color:var(--t-dim); }
+  .tmk-page .unis .d.ld{ color:var(--t-blue); }
+  .tmk-page .unis .d.vd{ color:var(--t-violet); }
+  .tmk-page .unis .d.pu{ color:var(--t-red); }
+  .tmk-page .unis .d.zero{ color:var(--t-dim3); }
+  .tmk-page .unis .h{ font-size:7px; font-weight:700; letter-spacing:.15em;
+    text-transform:uppercase; color:var(--t-dim3); text-align:right;
+    white-space:nowrap; padding-bottom:2px; }
+  .tmk-page .unis .h.l{ text-align:left; }
+  /* o filete precisa ser UM elemento atravessando a grade: como borda de cada
+     celula ele fica picotado nos vaos entre as colunas */
+  .tmk-page .unis .fio{ grid-column:1 / -1; height:1px; background:var(--t-line2);
+    margin:3px 0 1px; }
+  .tmk-page .unis .tt{ font-weight:700; color:var(--fg); }
+  .tmk-page .unis .tt.rot{ font-size:7px; letter-spacing:.15em;
+    text-transform:uppercase; color:var(--t-dim2); }
+  .tmk-page .unis .tt.ld{ color:var(--t-blue); }
+  .tmk-page .unis .tt.vd{ color:var(--t-violet); }
+  .tmk-page .unis .tt.pu{ color:var(--t-red); }
+  .tmk-page .unis .tt.zero{ color:var(--t-dim3); }
 
-    def celula(p, unidade, data):
-        u = p['unidades'].get(unidade)
-        if u is None:
-            u = {'leads': 0, 'ag': 0, 'comp': 0, 'vendas': 0, 'pun': 0, 'dias': {}}
-            p['unidades'][unidade] = u
-        d = u['dias'].get(data)
-        if d is None:
-            d = {'ag': 0, 'comp': 0, 'vendas': 0, 'pun': 0}
-            u['dias'][data] = d
-        return u, d
+  /* grafico do mes */
+  .tmk-page .graf{ display:flex; align-items:flex-end; height:30px;
+    padding-bottom:12px; position:relative; flex:0 0 auto; }
+  .tmk-page .graf::after{ content:''; position:absolute; left:0; right:0; bottom:10px;
+    height:1px; background:var(--t-line2); }
+  .tmk-page .g{ width:14px; display:flex; flex-direction:column; align-items:center;
+    justify-content:flex-end; height:100%; position:relative; }
+  .tmk-page .g u{ width:8px; border-radius:1.5px 1.5px 0 0; display:block;
+    background:var(--t-gold); }
+  .tmk-page .g:hover u{ filter:brightness(1.4); }
+  .tmk-page .g.off u, .tmk-page .g.dom u{ height:2px; background:var(--t-line2); }
+  .tmk-page .g b{ position:absolute; bottom:-12px; font-size:6.5px; font-weight:600;
+    color:var(--t-dim3); font-variant-numeric:tabular-nums; letter-spacing:-.03em; }
+  .tmk-page .g:hover b{ color:var(--t-dim); }
+  .tmk-page .g.oco b{ color:var(--t-dim2); }
+  .tmk-page .graf.cp .g u{ background:var(--t-abacate); }
 
-    def inteiro(v):
-        try:
-            return int(v or 0)
-        except (TypeError, ValueError):
-            return 0
+  .tmk-page .abas{ display:flex; gap:4px; margin-bottom:5px; }
+  .tmk-page .aba{ font-family:inherit; font-size:7.5px; font-weight:700;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--t-dim3);
+    background:var(--secondary); border:1px solid var(--border); border-radius:5px;
+    padding:4px 11px; cursor:pointer; transition:all .13s; }
+  .tmk-page .aba:hover{ color:var(--t-dim); }
+  .tmk-page .aba.on{ color:var(--t-gold); border-color:rgba(221,164,60,.45);
+    background:rgba(221,164,60,.09); }
+  .tmk-page .aba.on.cp{ color:var(--t-abacate); border-color:rgba(163,193,83,.45);
+    background:rgba(163,193,83,.09); }
+  .tmk-page .vista{ display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .tmk-page .res{ font-size:10.5px; color:var(--t-dim2); white-space:nowrap;
+    font-variant-numeric:tabular-nums; }
+  .tmk-page .res b{ color:var(--t-dim); font-weight:600; }
 
-    for a in (db.get_appointments_by_month(ano, mes) or []):
-        data = a.get('date') or ''
-        if alvo and data != alvo:
-            continue
-        unit = a.get('unit') or ''
+  /* ocorrencias: .ocbox e a aparencia, .oc e so a posicao */
+  .tmk-page .ocbox{ border:1px solid var(--t-line2); border-radius:7px;
+    background:var(--secondary); overflow:hidden; text-align:left; }
+  .tmk-page .oc{ position:absolute; right:12px; top:50%; transform:translateY(-50%); }
+  .tmk-page .ocbox .l{ display:flex; align-items:center; gap:8px;
+    padding:3px 10px 3px 8px; min-height:25px; }
+  .tmk-page .ocbox .l + .l{ border-top:1px solid var(--t-line); }
+  .tmk-page .ocbox svg{ width:11px; height:11px; flex:0 0 auto; color:var(--t-dim3); }
+  .tmk-page .ocbox .q{ font-size:12.5px; font-weight:700;
+    font-variant-numeric:tabular-nums; color:var(--t-dim3); width:13px;
+    text-align:right; }
+  .tmk-page .ocbox .t{ font-size:8px; font-weight:700; letter-spacing:.13em;
+    text-transform:uppercase; color:var(--t-dim3); line-height:1.3; }
+  .tmk-page .ocbox .l.on.adv{ background:rgba(207,95,104,.07); }
+  .tmk-page .ocbox .l.on.adv svg, .tmk-page .ocbox .l.on.adv .q,
+  .tmk-page .ocbox .l.on.adv .t{ color:var(--t-red); }
+  .tmk-page .ocbox .l.on.fal{ background:rgba(78,146,217,.08); }
+  .tmk-page .ocbox .l.on.fal svg, .tmk-page .ocbox .l.on.fal .q,
+  .tmk-page .ocbox .l.on.fal .t{ color:var(--t-falta); }
+  .tmk-page .ocbox .l.on.ates{ background:rgba(63,169,106,.08); }
+  .tmk-page .ocbox .l.on.ates svg, .tmk-page .ocbox .l.on.ates .q,
+  .tmk-page .ocbox .l.on.ates .t{ color:var(--t-atest); }
+  .tmk-page .cards .ocbox{ grid-column:span 2; display:flex; flex-direction:column;
+    justify-content:center; }
 
-        # ── leads por TMK: moram nas unidades reservadas LEADS:: ──
-        if unit.startswith(LEADS_PREFIX):
-            real = unit[len(LEADS_PREFIX):]
-            for r in (a.get('rows') or []):
-                if not isinstance(r, dict):
-                    continue
-                nome = (r.get('name') or '').strip()
-                if not nome:
-                    continue
-                ld = r.get('lead') or {}
-                n = sum(inteiro(ld.get(k)) for k in lead_keys)
-                if not n:
-                    continue
-                p = pega(nome)
-                p['leads'] += n
-                if real in validas:
-                    u, _d = celula(p, real, data)
-                    u['leads'] += n
-            continue
+  .tmk-page .vazio{ text-align:center; padding:26px; color:var(--t-dim3);
+    font-size:12px; }
+  @media (max-width:1400px){
+    .tmk-page .cards{ grid-template-columns:repeat(5,1fr); }
+    .tmk-page .cards .ocbox{ grid-column:span 2; }
+  }
+</style>
 
-        if unit not in validas:
-            continue
+<div class="page-content tmk-page">
+  <div class="topo">
+    <div>
+      <div class="title-bar">
+        <div class="title-accent"></div>
+        <h1 class="page-title">Acompanhamento TMK</h1>
+      </div>
+      <p class="page-subtitle" style="margin-left:20px">
+        Desempenho individual no período · clique numa pessoa para abrir o detalhe</p>
+    </div>
+    <div class="filtros">
+      <div class="periodo">
+        <div class="fg"><label class="fl">Ano</label>
+          <select id="f-ano"></select></div>
+        <div class="fg"><label class="fl">Mês</label>
+          <select id="f-mes"></select></div>
+        <div class="fg"><label class="fl">Dia</label>
+          <select id="f-dia"></select></div>
+      </div>
+      <div class="fg"><label class="fl">Unidade</label>
+        <select id="f-unidade"></select></div>
+      <div class="fg"><label class="fl">Função</label>
+        <select id="f-funcao">
+          <option>Todas</option><option>Líder</option><option>Atendente</option>
+        </select></div>
+      <div class="fg"><label class="fl">Buscar</label>
+        <input class="busca" id="f-busca" placeholder="Nome do TMK..."/></div>
+      <div class="fg"><label class="fl">&nbsp;</label>
+        <div class="dd" id="dd-baixar">
+          <button type="button" class="dd-btn baixar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                 stroke-linecap="round" stroke-linejoin="round" style="width:12px;flex:0 0 auto">
+              <path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></svg>
+            Baixar
+            <svg class="seta" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="dd-menu">
+            <div class="dd-op" data-fmt="csv">Excel (.csv)</div>
+            <div class="dd-op" data-fmt="pdf">PDF</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        # ── Hora a Hora: agendamentos ──
-        for r in (a.get('rows') or []):
-            if not isinstance(r, dict):
-                continue
-            nome = (r.get('name') or '').strip()
-            if not nome:
-                continue
-            slots = r.get('slots') or {}
-            tot = sum(inteiro(slots.get(s['key'])) for s in TIME_SLOTS)
-            tot += inteiro(r.get('inclusao'))
-            if not tot:
-                continue
-            u, d = celula(pega(nome), unit, data)
-            u['ag'] += tot
-            d['ag'] += tot
+  <div class="cards" id="tmk-cards"></div>
 
-        # ── Comparecimento, vendas e punicoes ──
-        cd = a.get('comparecimento_data') or {}
-        if not isinstance(cd, dict):
-            continue
-        for nome, v in cd.items():
-            if not isinstance(nome, str):
-                continue
-            if nome.startswith('__') and nome.endswith('__'):
-                continue
-            nm = nome.strip()
-            n = inteiro(v)
-            if not nm or not n:
-                continue
-            u, d = celula(pega(nm), unit, data)
-            u['comp'] += n
-            d['comp'] += n
-        for chave, mapa in (('vendas', cd.get('__vendas__')),
-                            ('pun', cd.get('__punicoes__'))):
-            if not isinstance(mapa, dict):
-                continue
-            for nome, v in mapa.items():
-                nm = (nome or '').strip()
-                n = inteiro(v)
-                if not nm or not n:
-                    continue
-                u, d = celula(pega(nm), unit, data)
-                u[chave] += n
-                d[chave] += n
+  <div class="wrap">
+    <table>
+      <colgroup>
+        <col style="width:24%"><col style="width:8%"><col style="width:6%">
+        <col style="width:8%"><col style="width:8%"><col style="width:8%">
+        <col style="width:8%"><col style="width:10%"><col style="width:9%">
+        <col style="width:11%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="l">TMK</th>
+          <th>Dias trab.</th><th>Unid.</th><th>Leads</th><th>Agend.</th>
+          <th>Comp.</th><th>Conv.</th><th>Média/dia</th><th>Vendas</th><th>Punições</th>
+        </tr>
+      </thead>
+      <tbody id="tmk-corpo">
+        <tr><td colspan="10" class="vazio">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
 
-    # quem e lider vem do cadastro de Funcionarios
-    lideres = set()
-    try:
-        for e in (db.get_employees() or []):
-            if (e.get('funcao') or '') == 'LIDER':
-                lideres.add((e.get('name') or '').strip().upper())
-    except Exception:
-        pass
+{% block scripts %}
+<script>
+/* ══════════ Acompanhamento TMK ══════════ */
+var IC_ADV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
+var IC_FAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m10 14 4 4M14 14l-4 4"/></svg>';
+var IC_ATE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M12 11v6M9 14h6"/></svg>';
+var IC_CARET = '<svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>';
 
-    saida = []
-    for nome, p in pessoas.items():
-        unidades = []
-        dias_trab = set()
-        tot = {'ag': 0, 'comp': 0, 'vendas': 0, 'pun': 0}
-        for un, u in p['unidades'].items():
-            dias = []
-            for data in sorted(u['dias'].keys()):
-                d = u['dias'][data]
-                if d['ag'] or d['comp'] or d['vendas'] or d['pun']:
-                    dias.append({'data': data, 'ag': d['ag'], 'comp': d['comp'],
-                                 'vendas': d['vendas'], 'pun': d['pun']})
-                if d['ag']:
-                    dias_trab.add(data)          # dia trabalhado = dia com agendamento
-            unidades.append({'unidade': un, 'leads': u['leads'], 'ag': u['ag'],
-                             'comp': u['comp'], 'vendas': u['vendas'],
-                             'pun': u['pun'], 'dias': dias})
-            for k in tot:
-                tot[k] += u[k]
-        if not (tot['ag'] or tot['comp'] or tot['vendas'] or tot['pun'] or p['leads']):
-            continue
-        unidades.sort(key=lambda x: -x['ag'])
-        saida.append({
-            'nome': nome,
-            'lider': nome.strip().upper() in lideres,
-            'dias': len(dias_trab),
-            'leads': p['leads'],
-            'ag': tot['ag'], 'comp': tot['comp'],
-            'vendas': tot['vendas'], 'pun': tot['pun'],
-            # ainda nao existe a aba ADVERTENCIAS/FALTAS: chegam zeradas
-            'adv': [], 'fal': [], 'ates': [],
-            'unidades': unidades,
-        })
+// Os tres tipos de ocorrencia. Hoje chegam zerados; passam a vir da aba
+// ADVERTENCIAS/FALTAS quando ela existir — o resto da tela nao muda.
+var TIPOS = [
+  {ch:'adv',  cor:'#cf5f68', ic:IC_ADV, um:'Advertência', vv:'Advertências'},
+  {ch:'fal',  cor:'#4e92d9', ic:IC_FAL,
+   um:'Falta<br>sem justificativa', vv:'Faltas<br>sem justificativa',
+   chao:'falta sem justificativa'},
+  {ch:'ates', cor:'#3fa96a', ic:IC_ATE, um:'Atestado', vv:'Atestados'}
+];
 
-    # lideres primeiro; dentro de cada grupo, quem mais agendou
-    saida.sort(key=lambda x: (0 if x['lider'] else 1, -x['ag']))
-    return jsonify(saida)
+var MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+var DADOS = [];                                   // o que veio da API
+var FILTROS = {unidade:'Todas', funcao:'Todas', buscar:''};
+var ordem = {col:4, dir:'desc'};                  // começa por agendamentos
+var carregando = false;
+
+function semAcento(s){
+  return String(s == null ? '' : s).normalize('NFD')
+         .replace(/[̀-ͯ]/g, '').trim().toUpperCase();
+}
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+         .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function corConv(c){
+  return c >= 50 ? 'var(--t-green)' : (c >= 40 ? 'var(--t-gold)' : 'var(--t-red)');
+}
+
+/* ── período escolhido ─────────────────────────────────────────────────── */
+function valSel(id){
+  var e = document.getElementById(id);
+  return e ? e.value : '';
+}
+function periodoPartes(){
+  var ano = valSel('f-ano');
+  var mi  = parseInt(valSel('f-mes'), 10);
+  var dia = valSel('f-dia');
+  var mes = MESES_PT[mi] || '';
+  var mm  = String(mi + 1).padStart(2, '0');
+  var data;
+  if(!dia) data = '01/' + mm + ' até ' +
+                  new Date(Number(ano), mi + 1, 0).getDate() + '/' + mm;
+  else     data = String(dia).padStart(2, '0') + '/' + mm;
+  return [ano, mes, data];
+}
+function periodoAtual(){ return periodoPartes().join(' · '); }
+function recorte(comUnidade){
+  var p = [periodoAtual()];
+  if(comUnidade !== false && FILTROS.unidade !== 'Todas')
+    p.push('Unidade: ' + FILTROS.unidade);
+  if(FILTROS.funcao !== 'Todas') p.push('Função: ' + FILTROS.funcao);
+  if(FILTROS.buscar)             p.push('Busca: '  + FILTROS.buscar);
+  return p.join(' · ');
+}
+
+/* ── filtro de unidade: recorta a pessoa para a unidade escolhida ──────── */
+function vista(p){
+  if(FILTROS.unidade === 'Todas') return p;
+  var u = null;
+  (p.unidades || []).forEach(function(x){ if(x.unidade === FILTROS.unidade) u = x; });
+  if(!u) return null;
+  var dias = {};
+  (u.dias || []).forEach(function(d){ if(d.ag) dias[d.data] = 1; });
+  return {
+    nome:p.nome, lider:p.lider, dias:Object.keys(dias).length,
+    leads:u.leads, ag:u.ag, comp:u.comp, vendas:u.vendas, pun:u.pun,
+    adv:p.adv, fal:p.fal, ates:p.ates, unidades:[u]
+  };
+}
+function filtrada(){
+  return DADOS.map(function(p, i){ return {p: vista(p), i: i}; })
+    .filter(function(x){
+      if(!x.p) return false;
+      if(FILTROS.funcao === 'Líder'     && !x.p.lider) return false;
+      if(FILTROS.funcao === 'Atendente' &&  x.p.lider) return false;
+      if(FILTROS.buscar &&
+         semAcento(x.p.nome).indexOf(semAcento(FILTROS.buscar)) < 0) return false;
+      return true;
+    });
+}
+
+/* ── ordenação: líder sempre antes; a coluna manda dentro de cada grupo ── */
+var VALOR = [
+  function(p){ return p.nome; },
+  function(p){ return p.dias; },
+  function(p){ return (p.unidades || []).length; },
+  function(p){ return p.leads; },
+  function(p){ return p.ag; },
+  function(p){ return p.comp; },
+  function(p){ return p.ag ? p.comp / p.ag : 0; },
+  function(p){ return p.dias ? p.ag / p.dias : 0; },
+  function(p){ return p.vendas; },
+  function(p){ return p.pun; }
+];
+function comparaPessoas(a, b){
+  if(a.p.lider !== b.p.lider) return a.p.lider ? -1 : 1;
+  if(!ordem) return 0;
+  var f = VALOR[ordem.col], sinal = (ordem.dir === 'asc') ? 1 : -1;
+  var va = f(a.p), vb = f(b.p), cmp;
+  if(typeof va === 'number') cmp = va - vb;
+  else cmp = String(va).localeCompare(String(vb), 'pt-BR', {sensitivity:'base'});
+  return cmp * sinal;
+}
+
+/* ── gráfico do mês ────────────────────────────────────────────────────── */
+function fundo(cores){
+  if(!cores.length) return '';
+  if(cores.length === 1) return 'background:' + cores[0] + ';';
+  var p = 100 / cores.length;
+  return 'background:linear-gradient(90deg,' + cores.map(function(c, i){
+    return c + ' ' + (i * p).toFixed(2) + '% ' + ((i + 1) * p).toFixed(2) + '%';
+  }).join(',') + ');';
+}
+function grafico(p, modo){
+  var ano = Number(valSel('f-ano'));
+  var mi  = parseInt(valSel('f-mes'), 10);
+  var ult = new Date(ano, mi + 1, 0).getDate();
+  var mes = [];
+  for(var i = 0; i < ult; i++) mes.push(0);
+
+  (p.unidades || []).forEach(function(u){
+    (u.dias || []).forEach(function(d){
+      var n = Number(String(d.data).slice(8, 10));
+      if(n >= 1 && n <= ult) mes[n-1] += (modo === 'cp') ? (d.comp || 0) : (d.ag || 0);
+    });
+  });
+
+  var pico = Math.max.apply(null, mes) || 1;
+  var html = mes.map(function(v, i){
+    var dia = i + 1;
+    var dom = new Date(ano, mi, dia).getDay() === 0;
+    var ocor = TIPOS.filter(function(t){ return (p[t.ch] || []).indexOf(dia) >= 0; });
+    // dia sem lançamento mas COM ocorrência ganha um tracinho, senão ficaria
+    // igual a uma folga. A altura sai daqui: style inline vence a folha de estilo
+    var alt = v ? Math.max(3, Math.round(v / pico * 19)) : (ocor.length ? 5 : 0);
+    var cls = [];
+    if(!v) cls.push(dom ? 'dom' : 'off');
+    if(ocor.length) cls.push('oco');
+    var serie = (modo === 'cp') ? 'comparecimentos' : 'agendamentos';
+    var tit = ocor.length
+      ? ('Dia ' + dia + ' — ' +
+         ocor.map(function(t){ return t.chao || t.um.toLowerCase(); }).join(' e ') +
+         (v ? ' · ' + v + ' ' + serie : ''))
+      : v   ? ('Dia ' + dia + ' — ' + v + ' ' + serie)
+      : dom ? ('Dia ' + dia + ' — domingo')
+            : ('Dia ' + dia + ' — sem lançamento');
+    return '<span class="g ' + cls.join(' ') + '" title="' + esc(tit) + '">' +
+           '<u style="height:' + alt + 'px;' +
+           fundo(ocor.map(function(t){ return t.cor; })) + '"></u>' +
+           '<b>' + dia + '</b></span>';
+  }).join('');
+  return {html: html, pico: pico,
+          total: mes.reduce(function(s, v){ return s + v; }, 0)};
+}
+
+/* ── uma linha da tabela + o detalhe dela ──────────────────────────────── */
+function linhaDe(p, i){
+  var conv  = p.ag ? Math.round(p.comp / p.ag * 100) : 0;
+  var media = p.dias ? (p.ag / p.dias).toFixed(1).replace('.', ',') : '—';
+  var gAg = grafico(p, 'ag'), gCp = grafico(p, 'cp');
+
+  var linha =
+    '<tr class="p" id="l' + i + '" onclick="tmkAbre(' + i + ')">' +
+      '<td class="nome"><div class="pessoa">' + IC_CARET +
+        '<span class="av' + (p.lider ? ' lider' : '') + '">' +
+          esc((p.nome || '?').charAt(0).toUpperCase()) + '</span>' +
+        '<span class="nm" title="' + esc(p.nome) + '">' + esc(p.nome) + '</span>' +
+      '</div></td>' +
+      '<td class="n-fg">' + p.dias + '</td>' +
+      '<td class="n-dim">' + (p.unidades || []).length + '</td>' +
+      '<td class="n-blu">' + p.leads + '</td>' +
+      '<td class="n-gold">' + p.ag + '</td>' +
+      '<td class="n-grn">' + p.comp + '</td>' +
+      '<td class="conv" style="color:' + corConv(conv) + '">' + conv + '%</td>' +
+      '<td class="n-fg">' + media + '</td>' +
+      '<td class="' + (p.vendas ? 'n-vio' : 'n-off') + '">' + p.vendas + '</td>' +
+      '<td class="' + (p.pun ? 'n-red' : 'n-off') + '">' +
+        (p.pun ? '−' + p.pun : 0) + '</td>' +
+    '</tr>';
+
+  // unidades: cabeçalho uma vez, uma linha por unidade, e o total fechando
+  var cab = '<span class="h l">Unidade</span><span class="h">Leads</span>' +
+            '<span class="h">Agend.</span><span class="h">Comp.</span>' +
+            '<span class="h">Vendas</span><span class="h">Pun.</span>';
+  var corpoUni = (p.unidades || []).map(function(u){
+    function cel(cls, v){
+      return '<span class="d ' + cls + (v ? '' : ' zero') + '">' + v + '</span>';
+    }
+    return '<span class="u">' + esc(u.unidade) + '</span>' +
+           cel('ld', u.leads) + cel('', u.ag) + cel('', u.comp) +
+           cel('vd', u.vendas) + cel('pu', u.pun);
+  }).join('');
+  var soma = (p.unidades || []).reduce(function(a, u){
+    return [a[0]+u.leads, a[1]+u.ag, a[2]+u.comp, a[3]+u.vendas, a[4]+u.pun];
+  }, [0,0,0,0,0]);
+  var totUni = '<span class="fio"></span><span class="tt rot">Total</span>' +
+    ['ld','','','vd','pu'].map(function(cls, k){
+      return '<span class="tt ' + cls + (soma[k] ? '' : ' zero') + '">' +
+             soma[k] + '</span>';
+    }).join('');
+
+  var linhasOc = TIPOS.map(function(t){
+    var n = (p[t.ch] || []).length;
+    return '<div class="l ' + t.ch + (n ? ' on' : '') + '">' + t.ic +
+           '<span class="q">' + n + '</span>' +
+           '<span class="t">' + (n === 1 ? t.um : t.vv) + '</span></div>';
+  }).join('');
+
+  var det =
+    '<tr class="det" id="d' + i + '"><td colspan="10">' +
+      '<div class="sanfona"><div class="detbox">' +
+        '<div class="esq"><span class="unis">' + cab + corpoUni + totUni +
+          '</span></div>' +
+        '<div class="centro">' +
+          '<div class="abas">' +
+            '<button class="aba ag on" onclick="tmkSerie(' + i + ',\'ag\')">Agendamentos</button>' +
+            '<button class="aba cp" onclick="tmkSerie(' + i + ',\'cp\')">Comparecimento</button>' +
+          '</div>' +
+          '<div class="vista" id="v-ag-' + i + '">' +
+            '<span class="graf">' + gAg.html + '</span>' +
+            '<span class="res"><b>' + gAg.total + '</b> agendamentos · pico de <b>' +
+              gAg.pico + '</b> num dia</span>' +
+          '</div>' +
+          '<div class="vista" id="v-cp-' + i + '" style="display:none">' +
+            '<span class="graf cp">' + gCp.html + '</span>' +
+            '<span class="res"><b>' + gCp.total + '</b> comparecimentos · pico de <b>' +
+              gCp.pico + '</b> num dia</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="oc ocbox">' + linhasOc + '</div>' +
+      '</div></div></td></tr>';
+
+  return linha + det;
+}
+
+function tmkAbre(i){
+  var d = document.getElementById('d' + i), l = document.getElementById('l' + i);
+  if(!d || !l) return;
+  var abrindo = !d.classList.contains('aberto');
+  d.classList.toggle('aberto', abrindo);
+  l.classList.toggle('aberta', abrindo);
+}
+function tmkSerie(i, qual){
+  ['ag','cp'].forEach(function(q){
+    var v = document.getElementById('v-' + q + '-' + i);
+    if(v) v.style.display = (q === qual) ? '' : 'none';
+  });
+  var d = document.getElementById('d' + i);
+  if(!d) return;
+  [].forEach.call(d.querySelectorAll('.aba'), function(b){
+    b.classList.toggle('on', b.classList.contains(qual));
+  });
+}
+
+/* ── cartões do topo: somam exatamente o que está na tabela ────────────── */
+function pintaCards(lista){
+  var T = lista.map(function(x){ return x.p; }).reduce(function(a, p){
+    a.lds += p.leads; a.ag += p.ag; a.cp += p.comp;
+    a.vn += p.vendas; a.pu += p.pun; return a;
+  }, {lds:0, ag:0, cp:0, vn:0, pu:0});
+
+  var cards = [
+    ['TMK no período',     lista.length, 'var(--fg)'],
+    ['Leads',              T.lds, 'var(--t-blue)'],
+    ['Agendamentos',       T.ag,  'var(--t-gold)'],
+    ['Comparecimentos',    T.cp,  'var(--t-green)'],
+    ['Conv % Ags x Comp',  (T.ag ? Math.round(T.cp / T.ag * 100) : 0) + '%', 'var(--t-gold)'],
+    ['Vendas',             T.vn,  'var(--t-violet)'],
+    ['Punições',           T.pu,  'var(--t-red)']
+  ].map(function(c){
+    var v = (typeof c[1] === 'number') ? c[1].toLocaleString('pt-BR') : c[1];
+    return '<div class="c"><div class="k">' + c[0] + '</div>' +
+           '<div class="v" style="color:' + c[2] + '">' + v + '</div></div>';
+  }).join('');
+
+  cards += '<div class="ocbox">' + TIPOS.map(function(t){
+    var n = lista.reduce(function(s, x){ return s + (x.p[t.ch] || []).length; }, 0);
+    return '<div class="l ' + t.ch + (n ? ' on' : '') + '">' + t.ic +
+           '<span class="q">' + n + '</span>' +
+           '<span class="t">' + (n === 1 ? t.um : t.vv) + '</span></div>';
+  }).join('') + '</div>';
+
+  document.getElementById('tmk-cards').innerHTML = cards;
+}
+
+/* ── desenha ───────────────────────────────────────────────────────────── */
+function desenha(){
+  var abertos = [].map.call(document.querySelectorAll('tr.det.aberto'),
+                            function(t){ return t.id; });
+  var lista = filtrada().sort(comparaPessoas);
+  pintaCards(lista);
+
+  document.getElementById('tmk-corpo').innerHTML = lista.length
+    ? lista.map(function(x){ return linhaDe(x.p, x.i); }).join('')
+    : '<tr><td colspan="10" class="vazio">' +
+      (carregando ? 'Carregando...' : 'Ninguém com lançamento nesse recorte.') +
+      '</td></tr>';
+
+  abertos.forEach(function(id){
+    var d = document.getElementById(id);
+    if(!d) return;
+    d.classList.add('aberto');
+    var l = document.getElementById('l' + id.slice(1));
+    if(l) l.classList.add('aberta');
+  });
+}
+function marcaSetas(){
+  [].forEach.call(document.querySelectorAll('.tmk-page thead th'), function(th, i){
+    var base = th.dataset.base || th.textContent;
+    th.dataset.base = base;
+    var ativa = ordem && ordem.col === i;
+    var seta  = ativa ? (ordem.dir === 'asc' ? '▲' : '▼') : '⇅';
+    th.innerHTML = base + '<span class="th-seta' + (ativa ? ' on' : '') + '">' +
+                   seta + '</span>';
+  });
+}
+
+/* ── busca na API ──────────────────────────────────────────────────────── */
+async function carrega(){
+  carregando = true;
+  desenha();
+  var ano = valSel('f-ano');
+  var mes = parseInt(valSel('f-mes'), 10) + 1;
+  var dia = valSel('f-dia');
+  var url = '/api/acompanhamento_tmk?ano=' + ano + '&mes=' + mes +
+            (dia ? '&dia=' + dia : '');
+  try{
+    var r = await fetch(url);
+    if(r.status === 401){ window.location.href = '/login'; return; }
+    DADOS = r.ok ? (await r.json()) : [];
+    if(!Array.isArray(DADOS)) DADOS = [];
+  }catch(e){
+    DADOS = [];
+    if(typeof showToast !== 'undefined') showToast('Erro ao carregar.', 'error');
+  }
+  carregando = false;
+  desenha();
+}
+
+/* ── seletores ─────────────────────────────────────────────────────────── */
+function montaDias(){
+  var sel = document.getElementById('f-dia');
+  var ano = Number(valSel('f-ano'));
+  var mi  = parseInt(valSel('f-mes'), 10);
+  var ult = new Date(ano, mi + 1, 0).getDate();
+  var atual = sel.value;
+  sel.innerHTML = '<option value="">Mês inteiro</option>';
+  for(var d = 1; d <= ult; d++){
+    var o = document.createElement('option');
+    o.value = d; o.textContent = String(d).padStart(2, '0');
+    sel.appendChild(o);
+  }
+  if(atual && Number(atual) <= ult) sel.value = atual;
+}
+
+function onConstantsLoaded(){
+  var hoje = new Date();
+
+  var selAno = document.getElementById('f-ano');
+  for(var y = hoje.getFullYear() - 2; y <= hoje.getFullYear() + 1; y++){
+    var o = document.createElement('option');
+    o.value = y; o.textContent = y;
+    if(y === hoje.getFullYear()) o.selected = true;
+    selAno.appendChild(o);
+  }
+
+  var selMes = document.getElementById('f-mes');
+  MESES_PT.forEach(function(m, i){
+    var o = document.createElement('option');
+    o.value = i; o.textContent = m;
+    if(i === hoje.getMonth()) o.selected = true;
+    selMes.appendChild(o);
+  });
+
+  montaDias();
+
+  var selUni = document.getElementById('f-unidade');
+  selUni.innerHTML = '<option>Todas</option>';
+  (typeof UNITS !== 'undefined' ? UNITS : []).forEach(function(u){
+    var o = document.createElement('option');
+    o.value = u; o.textContent = u;
+    selUni.appendChild(o);
+  });
+
+  montaDropdowns();
+  marcaSetas();
+  carrega();
+}
+
+/* ── dropdowns próprios ────────────────────────────────────────────────── */
+function montaDropdowns(){
+  var SETA = '<svg class="seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+             'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+             '<path d="m6 9 6 6 6-6"/></svg>';
+
+  function fechaTodos(){
+    [].forEach.call(document.querySelectorAll('.tmk-page .dd-menu.open'),
+      function(m){ m.classList.remove('open'); });
+    [].forEach.call(document.querySelectorAll('.tmk-page .dd-btn.open'),
+      function(b){ b.classList.remove('open'); });
+  }
+  document.addEventListener('click', fechaTodos);
+
+  [].forEach.call(document.querySelectorAll('.tmk-page .fg select'), function(sel){
+    var id = sel.id;
+    var opcoes = [].map.call(sel.options, function(o){
+      return {t: o.textContent, v: o.value};
+    });
+    var atual = sel.selectedIndex < 0 ? 0 : sel.selectedIndex;
+
+    var dd = document.createElement('div');
+    dd.className = 'dd';
+    dd.innerHTML =
+      '<button type="button" class="dd-btn"><span class="rot">' +
+        esc(opcoes[atual] ? opcoes[atual].t : '') + '</span>' + SETA + '</button>' +
+      '<div class="dd-menu">' + opcoes.map(function(o, i){
+        return '<div class="dd-op' + (i === atual ? ' sel' : '') +
+               '" data-v="' + esc(o.v) + '">' + esc(o.t) + '</div>';
+      }).join('') + '</div>';
+
+    sel.style.display = 'none';
+    sel.parentNode.appendChild(dd);
+
+    var btn  = dd.querySelector('.dd-btn');
+    var menu = dd.querySelector('.dd-menu');
+    var rot  = dd.querySelector('.rot');
+
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var abrindo = !menu.classList.contains('open');
+      fechaTodos();
+      menu.classList.toggle('open', abrindo);
+      btn.classList.toggle('open', abrindo);
+    });
+    menu.addEventListener('click', function(e){
+      var op = e.target.closest('.dd-op');
+      if(!op) return;
+      [].forEach.call(menu.children, function(x){ x.classList.remove('sel'); });
+      op.classList.add('sel');
+      rot.textContent = op.textContent;
+      sel.value = op.getAttribute('data-v');
+      fechaTodos();
+
+      if(id === 'f-unidade')      { FILTROS.unidade = op.textContent; desenha(); }
+      else if(id === 'f-funcao')  { FILTROS.funcao  = op.textContent; desenha(); }
+      else {                        // ano, mês ou dia: volta na API
+        if(id !== 'f-dia') remontaDias(dd);
+        carrega();
+      }
+    });
+    dd.__sel = sel;
+  });
+
+  // ao trocar ano ou mês, a lista de dias muda
+  function remontaDias(){
+    montaDias();
+    var sel = document.getElementById('f-dia');
+    var dd  = sel.parentNode.querySelector('.dd');
+    if(!dd) return;
+    var menu = dd.querySelector('.dd-menu');
+    var rot  = dd.querySelector('.rot');
+    menu.innerHTML = [].map.call(sel.options, function(o, i){
+      return '<div class="dd-op' + (o.value === sel.value ? ' sel' : '') +
+             '" data-v="' + esc(o.value) + '">' + esc(o.textContent) + '</div>';
+    }).join('');
+    var atual = sel.options[sel.selectedIndex];
+    rot.textContent = atual ? atual.textContent : 'Mês inteiro';
+  }
+
+  var busca = document.getElementById('f-busca');
+  if(busca) busca.addEventListener('input', function(){
+    FILTROS.buscar = busca.value;
+    desenha();
+  });
+
+  var cab = document.querySelector('.tmk-page thead tr');
+  if(cab) cab.addEventListener('click', function(e){
+    var th = e.target.closest('th');
+    if(!th) return;
+    var col = [].indexOf.call(th.parentNode.children, th);
+    var padrao = (col === 0) ? 'asc' : 'desc';
+    ordem = (ordem && ordem.col === col)
+      ? {col: col, dir: (ordem.dir === 'asc' ? 'desc' : 'asc')}
+      : {col: col, dir: padrao};
+    marcaSetas();
+    desenha();
+  });
+
+  var ddB = document.getElementById('dd-baixar');
+  var bB = ddB.querySelector('.dd-btn'), mB = ddB.querySelector('.dd-menu');
+  bB.addEventListener('click', function(e){
+    e.stopPropagation();
+    var abrindo = !mB.classList.contains('open');
+    fechaTodos();
+    mB.classList.toggle('open', abrindo);
+    bB.classList.toggle('open', abrindo);
+  });
+  mB.addEventListener('click', function(e){
+    var op = e.target.closest('.dd-op');
+    if(!op) return;
+    fechaTodos();
+    if(op.getAttribute('data-fmt') === 'csv') baixaCSV(); else baixaPDF();
+  });
+}
+
+/* ══════════ Baixar: leva exatamente o que está na tela ══════════ */
+function listaDaTela(){
+  return filtrada().sort(comparaPessoas).map(function(x){ return x.p; });
+}
+function nomeArquivo(ext){
+  var t = ('acompanhamento_tmk_' + periodoAtual() +
+           (FILTROS.unidade !== 'Todas' ? '_' + FILTROS.unidade : ''))
+          .normalize('NFD').replace(/[̀-ͯ]/g, '')
+          .replace(/[^A-Za-z0-9]+/g, '_').replace(/_+$/, '').toLowerCase();
+  return t + '.' + ext;
+}
+function convDe(p){ return p.ag ? Math.round(p.comp / p.ag * 100) : 0; }
+function medDe(p){ return p.dias ? (p.ag / p.dias).toFixed(1).replace('.', ',') : '0'; }
+function brData(iso){
+  return String(iso).slice(8,10) + '/' + String(iso).slice(5,7);
+}
+
+function baixaCSV(){
+  var ps = listaDaTela(), per = periodoPartes();
+  var umSo = ps.length === 1;
+  var L = ['Acompanhamento TMK;' + recorte(), ''];
+
+  if(umSo){
+    // uma pessoa: vira a ficha dela, uma linha por data
+    var p = ps[0];
+    L.push(['Ano','Mês','Data','TMK','Unidade','Leads','Agendamentos',
+            'Comparecimentos','Conv %','Vendas','Punições'].join(';'));
+    (p.unidades || []).forEach(function(u){
+      (u.dias || []).forEach(function(d){
+        L.push([per[0], per[1], brData(d.data), p.nome, u.unidade, '',
+                d.ag, d.comp, (d.ag ? Math.round(d.comp/d.ag*100) : 0) + '%',
+                d.vendas, d.pun].join(';'));
+      });
+      L.push(['','','','', u.unidade + ' — total', u.leads, u.ag, u.comp,
+              (u.ag ? Math.round(u.comp/u.ag*100) : 0) + '%',
+              u.vendas, u.pun].join(';'));
+      L.push('');
+    });
+    L.push(['','','','TOTAL','', p.leads, p.ag, p.comp,
+            convDe(p) + '%', p.vendas, p.pun].join(';'));
+  } else {
+    L.push(['Ano','Mês','Data','TMK','Função','Dias trab.','Unidades','Leads',
+            'Agendamentos','Comparecimentos','Conv %','Média/dia','Vendas',
+            'Punições','Advertências','Faltas s/ justif.','Atestados'].join(';'));
+    var T = [0,0,0,0,0,0,0,0,0];
+    ps.forEach(function(p){
+      L.push([per[0], per[1], per[2], p.nome, p.lider ? 'Líder' : 'Atendente',
+              p.dias, (p.unidades||[]).length, p.leads, p.ag, p.comp,
+              convDe(p) + '%', medDe(p), p.vendas, p.pun,
+              (p.adv||[]).length, (p.fal||[]).length, (p.ates||[]).length].join(';'));
+      T[0]+=p.dias; T[1]+=p.leads; T[2]+=p.ag; T[3]+=p.comp;
+      T[4]+=p.vendas; T[5]+=p.pun;
+      T[6]+=(p.adv||[]).length; T[7]+=(p.fal||[]).length; T[8]+=(p.ates||[]).length;
+    });
+    L.push(['','','','TOTAL','', T[0], '', T[1], T[2], T[3],
+            (T[2] ? Math.round(T[3]/T[2]*100) : 0) + '%', '',
+            T[4], T[5], T[6], T[7], T[8]].join(';'));
+  }
+
+  var blob = new Blob(['﻿' + L.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nomeArquivo('csv');
+  a.click();
+}
+
+function baixaPDF(){
+  var ps = listaDaTela(), per = periodoPartes();
+  var uni = (FILTROS.unidade !== 'Todas') ? FILTROS.unidade : '';
+  var umSo = ps.length === 1;
+  var hoje = new Date().toLocaleDateString('pt-BR',
+             {day:'2-digit', month:'long', year:'numeric'});
+  var css =
+  '@page{ size:A4 ' + (umSo ? 'portrait' : 'landscape') + '; margin:10mm; }' +
+  '*{ box-sizing:border-box; margin:0; padding:0; }' +
+  'body{ font-family:Inter,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;' +
+        'color:#1c1c1e; font-size:8pt; background:#fff; }' +
+  '.hd{ display:flex; align-items:center; gap:4mm; border-bottom:.8pt solid #c9a227;' +
+       'padding-bottom:2.5mm; margin-bottom:2mm; }' +
+  '.hd b{ font-size:11.5pt; font-weight:600; letter-spacing:.02em; }' +
+  '.hd .tag{ font-size:6pt; color:#a08a40; margin-left:2mm;' +
+            'text-transform:uppercase; letter-spacing:.08em; }' +
+  '.hd span.sub{ font-size:6.5pt; color:#9a9a9f; display:block; margin-top:.8mm; }' +
+  '.hd .dt{ margin-left:auto; text-align:right; font-size:6.5pt; color:#9a9a9f; }' +
+  '.resumo{ display:flex; flex-wrap:wrap; gap:3mm 6mm; margin:2.5mm 0 3mm;' +
+           'justify-content:center; text-align:center; }' +
+  '.kpi{ min-width:16mm; }' +
+  '.kpi .k{ font-size:4.8pt; letter-spacing:.1em; text-transform:uppercase;' +
+          'color:#a0a0a5; white-space:nowrap; }' +
+  '.kpi .v{ font-size:10pt; font-weight:650; letter-spacing:-.02em; margin-top:.4mm; }' +
+  'table{ width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }' +
+  'th{ font-size:5.5pt; font-weight:700; letter-spacing:.1em; text-transform:uppercase;' +
+     'color:#8a8a90; text-align:right; padding:1.5mm; border-bottom:.8pt solid #dcdcd6; }' +
+  'th.u{ text-align:left; }' +
+  'td{ padding:1mm 1.5mm; border-bottom:.3pt solid #f0f0eb; font-size:7.5pt; }' +
+  'td.u{ text-align:left; } td.n{ text-align:right; color:#58585e; }' +
+  'td.per{ color:#a8a8ae; font-size:6.5pt; white-space:nowrap; }' +
+  'td.n.b{ color:#111; font-weight:650; }' +
+  '.tag{ font-size:5.5pt; color:#a08a40; margin-left:2mm; text-transform:uppercase;' +
+       'letter-spacing:.08em; }' +
+  'tfoot td{ border-top:1pt solid #c9a227; border-bottom:none; padding-top:1.6mm;' +
+           'font-weight:700; font-size:8pt; color:#111; }' +
+  '.blocos{ column-count:2; column-gap:7mm; }' +
+  '.bloco{ break-inside:avoid; page-break-inside:avoid; margin-bottom:2.6mm; }' +
+  '.bt{ border-bottom:.6pt solid #c9a227; padding-bottom:.8mm; margin-bottom:.6mm; }' +
+  '.bt b{ font-size:7.5pt; font-weight:700; letter-spacing:.04em; white-space:nowrap; }' +
+  '.bloco table{ width:100%; }' +
+  '.bloco td{ padding:.45mm 1mm; font-size:6.5pt; color:#6e6e74;' +
+            'border-bottom:.2pt solid #f4f4f0; }' +
+  '.bloco td.d{ text-align:left; white-space:nowrap; }' +
+  '.bloco td.n{ text-align:right; width:7mm; }' +
+  '.bloco tr.ch td{ font-size:5pt; font-weight:700; letter-spacing:.1em;' +
+                   'text-transform:uppercase; color:#8a8a90; padding-bottom:.6mm;' +
+                   'border-bottom:.4pt solid #e4e4e0; }' +
+  '.bloco tr.tt td{ border-top:.5pt solid #dcdcd6; border-bottom:none;' +
+                   'padding-top:.7mm; font-weight:700; color:#1c1c1e; }' +
+  '.bloco tr.tt td.d{ font-size:5.5pt; letter-spacing:.12em; text-transform:uppercase;' +
+                     'color:#9a9a9f; }';
+
+  var html;
+  if(umSo){
+    var p = ps[0];
+    var blocos = (p.unidades || []).map(function(u){
+      var linhas = (u.dias || []).map(function(d){
+        return '<tr><td class="d">' + brData(d.data) + '</td>' +
+               '<td class="n"></td><td class="n">' + d.ag + '</td>' +
+               '<td class="n">' + d.comp + '</td>' +
+               '<td class="n">' + (d.ag ? Math.round(d.comp/d.ag*100) : 0) + '%</td>' +
+               '<td class="n">' + (d.vendas || '') + '</td>' +
+               '<td class="n">' + (d.pun || '') + '</td></tr>';
+      }).join('');
+      return '<div class="bloco"><div class="bt"><b>' + esc(u.unidade) + '</b></div>' +
+        '<table><tr class="ch"><td class="d">Data</td><td class="n">Leads</td>' +
+        '<td class="n">Ags</td><td class="n">Comp</td><td class="n">Conv</td>' +
+        '<td class="n">Vnd</td><td class="n">Pun</td></tr>' + linhas +
+        '<tr class="tt"><td class="d">Total</td><td class="n">' + u.leads + '</td>' +
+        '<td class="n">' + u.ag + '</td><td class="n">' + u.comp + '</td>' +
+        '<td class="n">' + (u.ag ? Math.round(u.comp/u.ag*100) : 0) + '%</td>' +
+        '<td class="n">' + u.vendas + '</td><td class="n">' + u.pun + '</td></tr>' +
+        '</table></div>';
+    }).join('');
+
+    html = '<div class="hd"><div><b>' + esc(p.nome) + '</b>' +
+      (p.lider ? '<span class="tag">líder</span>' : '') +
+      '<span class="sub">' + esc(recorte()) + '</span></div>' +
+      '<div class="dt">' + (p.unidades||[]).length + ' unidades · ' + p.dias +
+      ' dias trabalhados<br>Emitido em ' + hoje + '</div></div>' +
+      '<div class="resumo">' + [
+        ['Leads', p.leads], ['Agendamentos', p.ag], ['Comparecimentos', p.comp],
+        ['Conv % Ags&nbsp;x&nbsp;Comp', convDe(p) + '%'], ['Vendas', p.vendas],
+        ['Punições', p.pun], ['Advertências', (p.adv||[]).length],
+        ['Faltas', (p.fal||[]).length], ['Atestados', (p.ates||[]).length]
+      ].map(function(k){
+        return '<div class="kpi"><div class="k">' + k[0] + '</div>' +
+               '<div class="v">' + k[1] + '</div></div>';
+      }).join('') + '</div>' +
+      '<div class="blocos">' + blocos + '</div>';
+  } else {
+    var T = [0,0,0,0,0,0,0,0,0];
+    var linhas = ps.map(function(p){
+      T[1]+=p.leads; T[2]+=p.ag; T[3]+=p.comp; T[4]+=p.vendas; T[5]+=p.pun;
+      T[6]+=(p.adv||[]).length; T[7]+=(p.fal||[]).length; T[8]+=(p.ates||[]).length;
+      return '<tr><td class="n per">' + per[0] + '</td>' +
+        '<td class="n per">' + per[1] + '</td><td class="n per">' + per[2] + '</td>' +
+        '<td class="u"><b>' + esc(p.nome) + '</b>' +
+          (p.lider ? '<span class="tag">líder</span>' : '') + '</td>' +
+        '<td class="n">' + p.leads + '</td><td class="n b">' + p.ag + '</td>' +
+        '<td class="n">' + p.comp + '</td>' +
+        '<td class="n b">' + convDe(p) + '%</td>' +
+        '<td class="n">' + medDe(p) + '</td>' +
+        '<td class="n">' + p.vendas + '</td><td class="n">' + p.pun + '</td>' +
+        '<td class="n">' + (p.adv||[]).length + '</td>' +
+        '<td class="n">' + (p.fal||[]).length + '</td>' +
+        '<td class="n">' + (p.ates||[]).length + '</td></tr>';
+    }).join('');
+
+    html = '<div class="hd"><div><b>ACOMPANHAMENTO TMK' +
+      (uni ? ' — ' + esc(uni) : '') + '</b>' +
+      '<span class="sub">' + esc(recorte(false)) + '</span></div>' +
+      '<div class="dt">' + ps.length + ' pessoa(s)<br>Emitido em ' + hoje +
+      '</div></div>' +
+      '<table><thead><tr><th>Ano</th><th>Mês</th><th>Data</th>' +
+      '<th class="u">TMK</th><th>Leads</th><th>Agend.</th><th>Comp.</th>' +
+      '<th>Conv.</th><th>Méd./dia</th><th>Vendas</th><th>Pun.</th>' +
+      '<th>Advert.</th><th>Faltas</th><th>Atest.</th></tr></thead>' +
+      '<tbody>' + linhas + '</tbody>' +
+      '<tfoot><tr><td class="n"></td><td class="n"></td><td class="n"></td>' +
+      '<td class="u">TOTAL</td><td class="n">' + T[1] + '</td>' +
+      '<td class="n">' + T[2] + '</td><td class="n">' + T[3] + '</td>' +
+      '<td class="n">' + (T[2] ? Math.round(T[3]/T[2]*100) : 0) + '%</td>' +
+      '<td class="n"></td><td class="n">' + T[4] + '</td>' +
+      '<td class="n">' + T[5] + '</td><td class="n">' + T[6] + '</td>' +
+      '<td class="n">' + T[7] + '</td><td class="n">' + T[8] + '</td>' +
+      '</tr></tfoot></table>';
+  }
+
+  var w = window.open('', '_blank');
+  if(!w){
+    if(typeof showToast !== 'undefined')
+      showToast('O navegador bloqueou a janela. Libere os pop-ups.', 'error');
+    return;
+  }
+  w.document.write('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">' +
+    '<title>Acompanhamento TMK</title><style>' + css + '</style></head><body>' +
+    html + '</body></html>');
+  w.document.close();
+  setTimeout(function(){ w.print(); }, 300);
+}
+</script>
+{% endblock %}
