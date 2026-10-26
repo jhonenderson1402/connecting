@@ -931,6 +931,191 @@ def api_delete_bairro(bid):
     db.delete_bairro(bid)
     return jsonify({'ok': True})
 # ── Acompanhamento Unidades ──────────────────────────────────────────────────
+# ── Acompanhamento TMK ───────────────────────────────────────────────────────
+@app.route('/acompanhamento-tmk')
+@login_required
+def acompanhamento_tmk_page():
+    return render_template('acompanhamento_tmk.html')
+
+
+@app.route('/api/acompanhamento_tmk', methods=['GET'])
+@login_required
+def api_acomp_tmk():
+    """Desempenho individual no periodo, por pessoa e por unidade.
+
+    Tudo sai do que ja existe: o Hora a Hora da cada unidade (agendamentos),
+    o Comparecimento (comparecimentos, vendas e punicoes) e as unidades
+    reservadas LEADS:: (leads por TMK). Nada de tabela nova.
+
+    Parametros: ano, mes e, opcionalmente, dia (1..31).
+    """
+    try:
+        ano = int(request.args.get('ano'))
+        mes = int(request.args.get('mes'))
+    except (TypeError, ValueError):
+        return _err('Informe "ano" e "mes".')
+    if not (1 <= mes <= 12) or not (1900 <= ano <= 2999):
+        return _err('Ano ou mes invalido.')
+
+    alvo = None
+    dia = request.args.get('dia')
+    if dia:
+        try:
+            d = int(dia)
+            if not (1 <= d <= 31):
+                raise ValueError
+            alvo = '%04d-%02d-%02d' % (ano, mes, d)
+        except (TypeError, ValueError):
+            return _err('Dia invalido.')
+
+    validas = set(_units())
+    lead_keys = _lead_keys()
+    pessoas = {}
+
+    def pega(nome):
+        p = pessoas.get(nome)
+        if p is None:
+            p = {'leads': 0, 'unidades': {}}
+            pessoas[nome] = p
+        return p
+
+    def celula(p, unidade, data):
+        u = p['unidades'].get(unidade)
+        if u is None:
+            u = {'leads': 0, 'ag': 0, 'comp': 0, 'vendas': 0, 'pun': 0, 'dias': {}}
+            p['unidades'][unidade] = u
+        d = u['dias'].get(data)
+        if d is None:
+            d = {'ag': 0, 'comp': 0, 'vendas': 0, 'pun': 0}
+            u['dias'][data] = d
+        return u, d
+
+    def inteiro(v):
+        try:
+            return int(v or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    for a in (db.get_appointments_by_month(ano, mes) or []):
+        data = a.get('date') or ''
+        if alvo and data != alvo:
+            continue
+        unit = a.get('unit') or ''
+
+        # ── leads por TMK: moram nas unidades reservadas LEADS:: ──
+        if unit.startswith(LEADS_PREFIX):
+            real = unit[len(LEADS_PREFIX):]
+            for r in (a.get('rows') or []):
+                if not isinstance(r, dict):
+                    continue
+                nome = (r.get('name') or '').strip()
+                if not nome:
+                    continue
+                ld = r.get('lead') or {}
+                n = sum(inteiro(ld.get(k)) for k in lead_keys)
+                if not n:
+                    continue
+                p = pega(nome)
+                p['leads'] += n
+                if real in validas:
+                    u, _d = celula(p, real, data)
+                    u['leads'] += n
+            continue
+
+        if unit not in validas:
+            continue
+
+        # ── Hora a Hora: agendamentos ──
+        for r in (a.get('rows') or []):
+            if not isinstance(r, dict):
+                continue
+            nome = (r.get('name') or '').strip()
+            if not nome:
+                continue
+            slots = r.get('slots') or {}
+            tot = sum(inteiro(slots.get(s['key'])) for s in TIME_SLOTS)
+            tot += inteiro(r.get('inclusao'))
+            if not tot:
+                continue
+            u, d = celula(pega(nome), unit, data)
+            u['ag'] += tot
+            d['ag'] += tot
+
+        # ── Comparecimento, vendas e punicoes ──
+        cd = a.get('comparecimento_data') or {}
+        if not isinstance(cd, dict):
+            continue
+        for nome, v in cd.items():
+            if not isinstance(nome, str):
+                continue
+            if nome.startswith('__') and nome.endswith('__'):
+                continue
+            nm = nome.strip()
+            n = inteiro(v)
+            if not nm or not n:
+                continue
+            u, d = celula(pega(nm), unit, data)
+            u['comp'] += n
+            d['comp'] += n
+        for chave, mapa in (('vendas', cd.get('__vendas__')),
+                            ('pun', cd.get('__punicoes__'))):
+            if not isinstance(mapa, dict):
+                continue
+            for nome, v in mapa.items():
+                nm = (nome or '').strip()
+                n = inteiro(v)
+                if not nm or not n:
+                    continue
+                u, d = celula(pega(nm), unit, data)
+                u[chave] += n
+                d[chave] += n
+
+    # quem e lider vem do cadastro de Funcionarios
+    lideres = set()
+    try:
+        for e in (db.get_employees() or []):
+            if (e.get('funcao') or '') == 'LIDER':
+                lideres.add((e.get('name') or '').strip().upper())
+    except Exception:
+        pass
+
+    saida = []
+    for nome, p in pessoas.items():
+        unidades = []
+        dias_trab = set()
+        tot = {'ag': 0, 'comp': 0, 'vendas': 0, 'pun': 0}
+        for un, u in p['unidades'].items():
+            dias = []
+            for data in sorted(u['dias'].keys()):
+                d = u['dias'][data]
+                if d['ag'] or d['comp'] or d['vendas'] or d['pun']:
+                    dias.append({'data': data, 'ag': d['ag'], 'comp': d['comp'],
+                                 'vendas': d['vendas'], 'pun': d['pun']})
+                if d['ag']:
+                    dias_trab.add(data)          # dia trabalhado = dia com agendamento
+            unidades.append({'unidade': un, 'leads': u['leads'], 'ag': u['ag'],
+                             'comp': u['comp'], 'vendas': u['vendas'],
+                             'pun': u['pun'], 'dias': dias})
+            for k in tot:
+                tot[k] += u[k]
+        if not (tot['ag'] or tot['comp'] or tot['vendas'] or tot['pun'] or p['leads']):
+            continue
+        unidades.sort(key=lambda x: -x['ag'])
+        saida.append({
+            'nome': nome,
+            'lider': nome.strip().upper() in lideres,
+            'dias': len(dias_trab),
+            'leads': p['leads'],
+            'ag': tot['ag'], 'comp': tot['comp'],
+            'vendas': tot['vendas'], 'pun': tot['pun'],
+            # ainda nao existe a aba ADVERTENCIAS/FALTAS: chegam zeradas
+            'adv': [], 'fal': [], 'ates': [],
+            'unidades': unidades,
+        })
+
+    # lideres primeiro; dentro de cada grupo, quem mais agendou
+    saida.sort(key=lambda x: (0 if x['lider'] else 1, -x['ag']))
+    return jsonify(saida)
 @app.route('/acompanhamento')
 @login_required
 def acompanhamento_page():
