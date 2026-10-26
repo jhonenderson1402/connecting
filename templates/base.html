@@ -137,10 +137,31 @@
         <div id="unit-links"></div>
 
         <p class="nav-label">Relatórios</p>
-        <a href="/acompanhamento" class="nav-item" data-path="/acompanhamento">
+        <a href="#" class="nav-item" id="acp-toggle" onclick="toggleAcomp(event)">
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></span>
           Acompanhamento
+          <svg class="nav-caret" id="acp-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </a>
+        <div id="acp-sub" class="nav-sub" style="display:none">
+          <a href="/acompanhamento" class="nav-item" data-path="/acompanhamento">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V7l6-4 6 4v14"/><path d="M10 10h4M10 14h4"/></svg></span>
+            Unidades
+          </a>
+          <a href="/acompanhamento-tmk" class="nav-item" data-path="/acompanhamento-tmk">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg></span>
+            TMK
+          </a>
+        </div>
+        <script>
+        function toggleAcomp(e){
+          if(e) e.preventDefault();
+          var s=document.getElementById('acp-sub'), a=document.getElementById('acp-arrow');
+          var open = s.style.display !== 'none';
+          s.style.display = open ? 'none' : 'block';
+          if(a) a.classList.toggle('open', !open);
+        }
+        if(location.pathname.indexOf('/acompanhamento') === 0){ toggleAcomp(); }
+        </script>
         <a href="/leads-recebidos" class="nav-item" data-path="/leads-recebidos">
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 19h16"/></svg></span>
           Leads Recebidos
