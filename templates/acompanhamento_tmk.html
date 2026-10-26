@@ -877,13 +877,16 @@ function baixaPDF(){
   '*{ box-sizing:border-box; margin:0; padding:0; }' +
   'body{ font-family:Inter,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;' +
         'color:#1c1c1e; font-size:8pt; background:#fff; }' +
-  '.hd{ display:flex; align-items:center; gap:4mm; border-bottom:.8pt solid #c9a227;' +
+  // três colunas: título à esquerda, logo no centro, emissão à direita
+  '.hd{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center;' +
+       'gap:4mm; border-bottom:.8pt solid #c9a227;' +
        'padding-bottom:2.5mm; margin-bottom:2mm; }' +
   '.hd b{ font-size:11.5pt; font-weight:600; letter-spacing:.02em; }' +
   '.hd .tag{ font-size:6pt; color:#a08a40; margin-left:2mm;' +
             'text-transform:uppercase; letter-spacing:.08em; }' +
   '.hd span.sub{ font-size:6.5pt; color:#9a9a9f; display:block; margin-top:.8mm; }' +
-  '.hd .dt{ margin-left:auto; text-align:right; font-size:6.5pt; color:#9a9a9f; }' +
+  '.hd .marca{ height:11mm; width:auto; display:block; }' +
+  '.hd .dt{ text-align:right; font-size:6.5pt; color:#9a9a9f; }' +
   '.resumo{ display:flex; flex-wrap:wrap; gap:3mm 6mm; margin:2.5mm 0 3mm;' +
            'justify-content:center; text-align:center; }' +
   '.kpi{ min-width:16mm; }' +
@@ -945,6 +948,7 @@ function baixaPDF(){
     html = '<div class="hd"><div><b>' + esc(p.nome) + '</b>' +
       (p.lider ? '<span class="tag">líder</span>' : '') +
       '<span class="sub">' + esc(recorte()) + '</span></div>' +
+      '<img class="marca" src="/static/logo.png" alt="Connecting">' +
       '<div class="dt">' + (p.unidades||[]).length + ' unidades · ' + p.dias +
       ' dias trabalhados<br>Emitido em ' + hoje + '</div></div>' +
       '<div class="resumo">' + [
@@ -979,6 +983,7 @@ function baixaPDF(){
     html = '<div class="hd"><div><b>ACOMPANHAMENTO TMK' +
       (uni ? ' — ' + esc(uni) : '') + '</b>' +
       '<span class="sub">' + esc(recorte(false)) + '</span></div>' +
+      '<img class="marca" src="/static/logo.png" alt="Connecting">' +
       '<div class="dt">' + ps.length + ' pessoa(s)<br>Emitido em ' + hoje +
       '</div></div>' +
       '<table><thead><tr><th>Ano</th><th>Mês</th><th>Data</th>' +
@@ -1006,7 +1011,11 @@ function baixaPDF(){
     '<title>Acompanhamento TMK</title><style>' + css + '</style></head><body>' +
     html + '</body></html>');
   w.document.close();
-  setTimeout(function(){ w.print(); }, 300);
+  // espera a logo carregar: imprimir antes disso sai com o espaço em branco
+  var marca = w.document.querySelector('.marca');
+  var imprime = function(){ setTimeout(function(){ w.print(); }, 250); };
+  if(marca && !marca.complete){ marca.onload = imprime; marca.onerror = imprime; }
+  else imprime();
 }
 </script>
 {% endblock %}
