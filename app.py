@@ -1187,11 +1187,19 @@ def api_acomp_tmk():
             'leads': p['leads'],
             'ag': tot['ag'], 'comp': tot['comp'],
             'vendas': tot['vendas'], 'pun': tot['pun'],
-            # ainda nao existe a aba ADVERTENCIAS/FALTAS: chegam zeradas
             'adv': [], 'fal': [], 'ates': [],
             'unidades': unidades,
         })
-
+    # ocorrencias da aba Faltas / Advertencias, pelo tipo de cada flag
+    try:
+        ocor = db.ocorrencias_por_tmk(ano, mes, int(dia) if dia else None)
+    except Exception:
+        ocor = {}
+    for p in saida:
+        o = ocor.get(p['nome']) or {}
+        p['adv']  = o.get('adv', [])
+        p['fal']  = o.get('falta', [])
+        p['ates'] = o.get('atestado', [])
     # lideres primeiro; dentro de cada grupo, quem mais agendou
     saida.sort(key=lambda x: (0 if x['lider'] else 1, -x['ag']))
     return jsonify(saida)
