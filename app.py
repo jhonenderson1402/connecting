@@ -572,7 +572,7 @@ def api_agendamentos_dia():
             'pessoas': pessoas,
         })
 
-        return jsonify({'date': date, 'v': VERSAO_APP, 'unidades': out})
+    return jsonify({'date': date, 'v': VERSAO_APP, 'unidades': out})
 @app.route('/api/constants')
 @login_required
 def api_constants():
