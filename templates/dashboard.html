@@ -214,19 +214,19 @@ body.tema-claro .rank-zero{ color:#d4d4cd !important; }
 (function(){
 function metasAnoMes(){ var now=new Date(); return {ano:now.getFullYear(), mes:parseInt(document.getElementById("filter-month").value)+1}; }
 function realizadoComp(list){ var arr=list||(typeof allAppointments!=="undefined"?allAppointments:[]); var un={}, ba={}, ea={}, ec={}; arr.forEach(function(a){ var cd=a.comparecimento_data||{}; var c=0; Object.keys(cd).forEach(function(k){ if(/^__.*__$/.test(k)) return; c+=Number(cd[k])||0; ec[k]=(ec[k]||0)+(Number(cd[k])||0); }); un[a.unit]=(un[a.unit]||0)+c; var bd=cd.__bairros__||{}; Object.keys(bd).forEach(function(nm){ ba[nm]=(ba[nm]||0)+(Number(bd[nm]&&bd[nm].comp)||0); }); (a.rows||[]).forEach(function(row){ var nm=(row.name||"").trim(); if(!nm) return; var ag=0, sl=row.slots||{}; Object.keys(sl).forEach(function(h){ ag+=Number(sl[h])||0; }); ea[nm]=(ea[nm]||0)+ag; }); }); return {un:un, ba:ba, ea:ea, ec:ec}; }
-function metaEmpRowHtml(name,key,mAg,rAg,mComp,rComp){ var ca=(mAg>0&&rAg>=mAg)?"#22c55e":"#a1a1aa"; var cc=(mComp>0&&rComp>=mComp)?"#22c55e":"#a1a1aa"; var conv=rAg>0?Math.round((rComp/rAg)*100):0; var cv=conv>=60?"#22c55e":(conv>=30?"#fbbf24":"#ef4444"); return "<div style=\"display:grid;grid-template-columns:1fr 66px 34px 66px 34px 42px;gap:4px;align-items:center;padding:4px 8px;border-bottom:1px solid #161616\"><span style=\"font-size:11px;color:#c7c7cc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">"+name+"</span><input type=\"number\" min=\"0\" class=\"input meta-input\" data-key=\""+key+"\" data-field=\"agend\" value=\""+(mAg||"")+"\" placeholder=\"0\" style=\"height:26px;text-align:center;font-size:11px\"/><span style=\"text-align:center;font-size:11px;font-weight:700;color:"+ca+"\">"+rAg+"</span><input type=\"number\" min=\"0\" class=\"input meta-input\" data-key=\""+key+"\" data-field=\"comp\" value=\""+(mComp||"")+"\" placeholder=\"0\" style=\"height:26px;text-align:center;font-size:11px\"/><span style=\"text-align:center;font-size:11px;font-weight:700;color:"+cc+"\">"+rComp+"</span><span style=\"text-align:right;font-size:11px;font-weight:700;color:"+cv+"\">"+conv+"%</span></div>"; }
+function metaEmpRowHtml(name,key,mAg,rAg,mComp,rComp){ var ca=(mAg>0&&rAg>=mAg)?"#22c55e":"#a1a1aa"; var cc=(mComp>0&&rComp>=mComp)?"#22c55e":"#a1a1aa"; var conv=rAg>0?Math.round((rComp/rAg)*100):0; var cv=conv>=60?"#22c55e":(conv>=30?"#fbbf24":"#ef4444"); return "<div style=\"display:grid;grid-template-columns:1fr 66px 34px 66px 34px 42px;gap:4px;align-items:center;padding:4px 8px;border-bottom:1px solid #161616\"><span style=\"font-size:11px;color:#c7c7cc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">"+name+"</span><input type=\"text\" inputmode=\"numeric\" class=\"input meta-input\" data-key=\""+key+"\" data-field=\"agend\" value=\""+(mAg?nBR(mAg):"")+"\" placeholder=\"0\" style=\"height:26px;text-align:center;font-size:11px\"/><span style=\"text-align:center;font-size:11px;font-weight:700;color:"+ca+"\">"+rAg+"</span><input type=\"text\" inputmode=\"numeric\" class=\"input meta-input\" data-key=\""+key+"\" data-field=\"comp\" value=\""+(mComp?nBR(mComp):"")+"\" placeholder=\"0\" style=\"height:26px;text-align:center;font-size:11px\"/><span style=\"text-align:center;font-size:11px;font-weight:700;color:"+cc+"\">"+rComp+"</span><span style=\"text-align:right;font-size:11px;font-weight:700;color:"+cv+"\">"+conv+"%</span></div>"; }
 function metaRowHtml(label, key, cMes, cDiaAtual, aMes, aDiaAtual, aHora, isUnit, cReal, aReal, dias){
   var bg  = isUnit ? "background:rgba(255,255,255,0.02);font-weight:600" : "";
   var lc  = isUnit ? "#e4e4e7" : "#a1a1aa";
   var GTC = "1fr 48px 48px 48px 48px 48px 48px 48px 48px 48px 42px";
 
   function inp(campo, valor, extra){
-    return '<input type="number" min="0" class="input meta-input" data-key="' + key +
-           '" data-field="' + campo + '" value="' + (valor || "") +
+    var n = Number(valor) || 0;
+    return '<input type="text" inputmode="numeric" class="input meta-input" data-key="' + key +
+           '" data-field="' + campo + '" value="' + (n ? nBR(n) : "") +
            '" placeholder="0" style="height:26px;text-align:center;font-size:11px;padding:0 2px;' +
            (extra || '') + '"/>';
   }
-
   // Um bloco = REALIZADO + FALTA NO MES + FALTA POR DIA.
   // Mesma conta da planilha: falta no mes = meta - realizado;
   // falta por dia = falta no mes / dias uteis que restam, arredondado.
@@ -455,7 +455,7 @@ window.saveMetas = async function(){
   inputs.forEach(function(inp){
     var k = inp.dataset.key;
     if(!byKey[k]) byKey[k] = {ag:0, comp:0, compdia:0, dia:0, hora:0};
-    var v = parseFloat(inp.value) || 0;
+    var v = nNum(inp.value);
     var f = inp.dataset.field;
     if(f === "agend")         byKey[k].ag      = v;
     else if(f === "comp_dia") byKey[k].compdia = v;
@@ -3096,7 +3096,7 @@ function recomputeTotal(){
     var tCM=0,tAM=0,tAH=0,fA=0,fC=0;
     var inps=[].slice.call(body.querySelectorAll('input.meta-input'));
     inps.forEach(function(inp){
-      var k=inp.getAttribute('data-key')||''; var f=inp.getAttribute('data-field')||''; var v=parseFloat(inp.value)||0;
+      var k=inp.getAttribute('data-key')||''; var f=inp.getAttribute('data-field')||''; var v=nNum(inp.value);
       if(k.indexOf('@f:')>=0){ if(f==='agend') fA+=v; else if(f==='comp') fC+=v; }
       else { if(f==='comp') tCM+=v; else if(f==='agend') tAM+=v; else if(f==='hora') tAH+=v; }
     });
@@ -3115,7 +3115,7 @@ function recomputeTotal(){
       if(!dias || !row) return;
       var ipM = row.querySelector('input.meta-input[data-field="' + alvo  + '"]');
       var ipD = row.querySelector('input.meta-input[data-field="' + campo + '"]');
-      var meta = ipM ? (parseFloat(ipM.value) || 0) : 0;
+      var meta = ipM ? nNum(ipM.value) : 0;
       var fMes = Math.max(0, meta - real);
       var fDia = (meta > 0) ? Math.round(fMes / dias) : 0;
 
@@ -3174,6 +3174,16 @@ function recomputeTotal(){
     mo=new MutationObserver(safe);
     mo.observe(target,{childList:true});
     document.addEventListener('input', function(e){ var mb=document.getElementById('metas-body'); if(mb && e.target && mb.contains(e.target) && e.target.classList && e.target.classList.contains('meta-input')) recomputeTotal(); });
+    // Ao sair do campo, formata o que foi digitado: 8650 vira 8.650.
+    // Enquanto digita fica sem ponto, senao o cursor pula de lugar.
+    document.addEventListener('focusout', function(e){
+      var mb=document.getElementById('metas-body');
+      if(!(mb && e.target && mb.contains(e.target) &&
+           e.target.classList && e.target.classList.contains('meta-input'))) return;
+      var n = nNum(e.target.value);
+      e.target.value = n ? nBR(n) : '';
+      recomputeTotal();
+    });
     safe();
   }
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',attach); } else { attach(); }
