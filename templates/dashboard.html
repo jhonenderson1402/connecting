@@ -239,11 +239,11 @@ function metaRowHtml(label, key, cMes, cDiaAtual, aMes, aDiaAtual, aHora, isUnit
     var fDia  = (temR && dias > 0 && mNum > 0) ? Math.round(fMes / dias) : null;
 
     var sReal = '<span style="text-align:center;font-size:11.5px;font-weight:700;color:' +
-                (temR ? '#22c55e' : '#3f3f46') + '">' + (temR ? real : '—') + '</span>';
+                (temR ? '#22c55e' : '#3f3f46') + '">' + (temR ? nBR(real) : '—') + '</span>';
 
     var sMes  = '<span class="falta-mes" style="text-align:center;font-size:11.5px;font-weight:700;color:' +
                 (fMes === null ? '#3f3f46' : (fMes === 0 ? '#22c55e' : '#a1a1aa')) + '">' +
-                (fMes === null ? '—' : fMes) + '</span>';
+                (fMes === null ? '—' : nBR(fMes)) + '</span>';
 
     var attr  = (fDia === null) ? ''
               : ' data-real="' + real + '" data-dias="' + dias + '" data-meta="' + campoMeta + '"';
@@ -251,7 +251,7 @@ function metaRowHtml(label, key, cMes, cDiaAtual, aMes, aDiaAtual, aHora, isUnit
                 ' title="(meta do mês − realizado) ÷ dias úteis que faltam"' +
                 ' style="text-align:center;font-size:13px;font-weight:800;color:' +
                 (fDia === null ? '#3f3f46' : (fDia === 0 ? '#22c55e' : '#f59e0b')) + '">' +
-                (fDia === null ? '—' : fDia) + '</span>' +
+                (fDia === null ? '—' : nBR(fDia)) + '</span>' +
                 inp(campoDia, (fDia === null ? valorDiaAtual : fDia), 'display:none');
 
     return sReal + sMes + sDia;
@@ -406,15 +406,15 @@ window.openMetas = async function(){
   html += '<div style="display:grid;grid-template-columns:' + GTC +
     ';gap:4px;padding:8px;font-weight:800;font-size:11px;border-top:2px solid #3a3a3a">' +
     '<span style="color:#e5e5e5">TOTAL</span>' +
-    '<span style="text-align:center;color:#fbbf24">'+tCM+'</span>' +
-    '<span style="text-align:center;color:#22c55e">'+tCR+'</span>' +
-    '<span style="text-align:center;color:#a1a1aa">'+tCFM+'</span>' +
-    '<span style="text-align:center;color:#f59e0b" title="'+_dica+'">'+(diasRest>0?tCFD:'—')+'</span>' +
-    '<span style="text-align:center;color:#fbbf24">'+tAM+'</span>' +
-    '<span style="text-align:center;color:#22c55e">'+tAR+'</span>' +
-    '<span style="text-align:center;color:#a1a1aa">'+tAFM+'</span>' +
-    '<span style="text-align:center;color:#f59e0b" title="'+_dica+'">'+(diasRest>0?tAFD:'—')+'</span>' +
-    '<span style="text-align:center;color:#fbbf24">'+tAH+'</span>' +
+    '<span style="text-align:center;color:#fbbf24">'+nBR(tCM)+'</span>' +
+    '<span style="text-align:center;color:#22c55e">'+nBR(tCR)+'</span>' +
+    '<span style="text-align:center;color:#a1a1aa">'+nBR(tCFM)+'</span>' +
+    '<span style="text-align:center;color:#f59e0b" title="'+_dica+'">'+(diasRest>0?nBR(tCFD):'—')+'</span>' +
+    '<span style="text-align:center;color:#fbbf24">'+nBR(tAM)+'</span>' +
+    '<span style="text-align:center;color:#22c55e">'+nBR(tAR)+'</span>' +
+    '<span style="text-align:center;color:#a1a1aa">'+nBR(tAFM)+'</span>' +
+    '<span style="text-align:center;color:#f59e0b" title="'+_dica+'">'+(diasRest>0?nBR(tAFD):'—')+'</span>' +
+    '<span style="text-align:center;color:#fbbf24">'+nBR(tAH)+'</span>' +
         '<span style="text-align:right;color:#f59e0b">'+(tCM>0?Math.round(tCR/tCM*100):0)+'%</span></div>';
 
   html += '<div style="margin-top:10px;padding:6px 8px 4px;font-size:10px;font-weight:800;color:#fbbf24;letter-spacing:.05em;border-top:1px solid #333">FUNCIONARIOS (META x REALIZADO)</div>';
@@ -437,9 +437,9 @@ window.openMetas = async function(){
     });
   });
   html += '<div style="display:grid;grid-template-columns:1fr 66px 34px 66px 34px 42px;gap:4px;padding:6px 8px;font-weight:800;font-size:10px;border-top:2px solid #3a3a3a">' +
-    '<span style="color:#e5e5e5">TOTAL</span><span style="text-align:center;color:#fbbf24">'+fA+'</span>' +
-    '<span style="text-align:center;color:#22c55e">'+fFA+'</span><span style="text-align:center;color:#fbbf24">'+fC+'</span>' +
-    '<span style="text-align:center;color:#22c55e">'+fFC+'</span>' +
+    '<span style="color:#e5e5e5">TOTAL</span><span style="text-align:center;color:#fbbf24">'+nBR(fA)+'</span>' +
+    '<span style="text-align:center;color:#22c55e">'+nBR(fFA)+'</span><span style="text-align:center;color:#fbbf24">'+nBR(fC)+'</span>' +
+    '<span style="text-align:center;color:#22c55e">'+nBR(fFC)+'</span>' +
     '<span style="text-align:right;color:#f59e0b">'+(fFA>0?Math.round(fFC/fFA*100):0)+'%</span></div>';
 
   document.getElementById("metas-body").innerHTML = html;
@@ -2873,13 +2873,13 @@ function recomputeTotal(){
       var fMes = Math.max(0, meta - real);
       var fDia = (meta > 0) ? Math.round(fMes / dias) : 0;
 
-      sp.textContent = fDia;
+      sp.textContent = nBR(fDia);
       sp.style.color = (fDia === 0) ? '#22c55e' : '#f59e0b';
       if(ipD) ipD.value = fDia;
 
       var sm = sp.previousElementSibling;   // a celula de FALTA P/ MES
       if(sm && sm.classList && sm.classList.contains('falta-mes')){
-        sm.textContent = fMes;
+        sm.textContent = nBR(fMes);
         sm.style.color = (fMes === 0) ? '#22c55e' : '#a1a1aa';
       }
       if(campo === 'comp_dia'){ tCFM += fMes; tCFD += fDia; }
@@ -2890,19 +2890,19 @@ function recomputeTotal(){
     if(uT){
       var s=uT.querySelectorAll('span');
       if(s.length>=11){
-        s[1].textContent = tCM;    // COMP META MES
-        s[3].textContent = tCFM;   // COMP FALTA MES
-        s[4].textContent = tCFD;   // COMP FALTA DIA
-        s[5].textContent = tAM;    // AGEND META MES
-        s[7].textContent = tAFM;   // AGEND FALTA MES
-        s[8].textContent = tAFD;   // AGEND FALTA DIA
-        s[9].textContent = tAH;    // AGEND HORA
-        var tCR = parseFloat((s[2].textContent||'0').replace(/[^0-9.-]/g,''))||0;
+        s[1].textContent = nBR(tCM);    // COMP META MES
+        s[3].textContent = nBR(tCFM);   // COMP FALTA MES
+        s[4].textContent = nBR(tCFD);   // COMP FALTA DIA
+        s[5].textContent = nBR(tAM);    // AGEND META MES
+        s[7].textContent = nBR(tAFM);   // AGEND FALTA MES
+        s[8].textContent = nBR(tAFD);   // AGEND FALTA DIA
+        s[9].textContent = nBR(tAH);    // AGEND HORA
+        var tCR = parseFloat((s[2].textContent||'0').replace(/\./g,'').replace(/[^0-9-]/g,''))||0;
         s[10].textContent = (tCM>0?Math.round(tCR/tCM*100):0)+'%';
       }
     }
     var fT=findTotal(wraps[1]);
-    if(fT){ var s2=fT.querySelectorAll('span'); if(s2.length>=4){ s2[1].textContent=fA; s2[3].textContent=fC; } }
+    if(fT){ var s2=fT.querySelectorAll('span'); if(s2.length>=4){ s2[1].textContent=nBR(fA); s2[3].textContent=nBR(fC); } }
   }  function restyleMetas(){
     var body=document.getElementById('metas-body'); if(!body) return;
     var kids=[].slice.call(body.children);
