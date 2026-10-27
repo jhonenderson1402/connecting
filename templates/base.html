@@ -32,9 +32,18 @@
     }
 
     /* Navegação */
-    .sidebar-nav{ flex:1; padding:0 12px 8px; overflow-y:auto; }
-    .sidebar-nav::-webkit-scrollbar{ width:0; }
-
+    /* min-height:0 e obrigatorio: sem ele um filho de flex se recusa a
+       encolher e o overflow-y nunca chega a rolar nada. */
+    .sidebar-nav{ flex:1; min-height:0; padding:0 12px 8px; overflow-y:auto;
+                  scrollbar-width:thin; scrollbar-color:transparent transparent; }
+    .sidebar-nav:hover{ scrollbar-color:#3f3f46 transparent; }
+    .sidebar-nav::-webkit-scrollbar{ width:6px; }
+    .sidebar-nav::-webkit-scrollbar-track{ background:transparent; }
+    .sidebar-nav::-webkit-scrollbar-thumb{ background:transparent; border-radius:3px;
+                                           transition:background .15s; }
+    .sidebar-nav:hover::-webkit-scrollbar-thumb{ background:#3f3f46; }
+    .sidebar-nav::-webkit-scrollbar-thumb:hover{ background:#52525b; }
+    body.tema-claro .sidebar-nav:hover::-webkit-scrollbar-thumb{ background:#c4c4bd; }
     .sidebar .nav-label{
       font-size:9.5px; font-weight:600; letter-spacing:.13em; text-transform:uppercase;
       color:#52525b; padding:18px 10px 8px;
