@@ -671,7 +671,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
 
     <!-- comemoracao de meta batida -->
     <div id="tg-intro">
-      <video id="tg-video" playsinline preload="auto" src="/static/tigre_rugindo.mp4"></video>
+    <video id="tg-video" playsinline preload="auto"></video>
     </div>
     <div id="tg-palco">
       <div id="tg-veu"></div>
@@ -1068,7 +1068,21 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       ajusta();
     }
     /* ══════════════ Comemoração de meta batida ══════════════ */
-    var TG_UNIDADES = ['MANAUS', 'MANOA', 'MANAUS CENTRO'];   // ganham a abertura do tigre
+    /* Cada unidade aponta para o video da equipe dela.
+       Quem nao estiver aqui comemora sem video, direto na caixa. */
+    var TG_VIDEOS = {
+      'MANAUS':        '/static/tigre_rugindo.mp4',
+      'MANOA':         '/static/tigre_rugindo.mp4',
+      'MANAUS CENTRO': '/static/tigre_rugindo.mp4',
+      'FORTALEZA':     '/static/camaleao.mp4',
+      'SAO LUIZ':      '/static/camaleao.mp4',
+      'SAO LUIS':      '/static/camaleao.mp4'
+    };
+    function tgVideoDe(nome){
+      var k = String(nome || '').normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+      return TG_VIDEOS[k] || null;
+    }
     var tgPalco  = document.getElementById('tg-palco');
     var tgIntro  = document.getElementById('tg-intro');
     var tgVideo  = document.getElementById('tg-video');
@@ -1253,27 +1267,39 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
     }
 
     /* ── abertura com o tigre, só para as unidades do grupo ── */
-    function tgAbertura(u, tipo){
-      if(!tgIntro || !tgVideo){ tgFesta(u, tipo); return; }
+    function tgAbertura(u, tipo, src){
+      if(!tgIntro || !tgVideo || !src){ tgFesta(u, tipo); return; }
       tgIntro.className = 'on';
       tgVideo.className = '';
       try{ tgVideo.pause(); tgVideo.currentTime = 0; }catch(e){}
+      if(tgVideo.getAttribute('src') !== src){ tgVideo.setAttribute('src', src); }
       tgVideo.muted = !tgSomLiberado;
       void tgIntro.offsetWidth;
       requestAnimationFrame(function(){ tgIntro.classList.add('escuro'); });
 
+      var congelou = false, desistiu = false;
+
+      // se o arquivo nao existir ou o navegador recusar, nao deixa a tela presa no preto
+      function desiste(){
+        if(congelou || desistiu) return;
+        desistiu = true;
+        tgIntro.className = ''; tgIntro.style.zIndex = '';
+        tgFesta(u, tipo);
+      }
+      tgVideo.onerror = desiste;
+
       setTimeout(function(){
+        if(desistiu) return;
         tgVideo.classList.add('aparece');
         var p = tgVideo.play();
         if(p && p.catch) p.catch(function(){
           tgVideo.muted = true;
-          tgVideo.play().catch(function(){});
+          tgVideo.play().catch(desiste);
         });
       }, 1000);
 
-      var congelou = false;
       function congela(){
-        if(congelou) return;
+        if(congelou || desistiu) return;
         congelou = true;
         try{
           tgVideo.pause();
@@ -1291,9 +1317,8 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         }, 10200);
       }
       tgVideo.onended = congela;
-      setTimeout(congela, 1000 + 7000);      // rede de seguranca
+      setTimeout(congela, 1000 + 8000);      // rede de seguranca
     }
-
     /* ── fila: nunca duas unidades ao mesmo tempo ── */
     function tgEnfileira(u, tipo){
       tgFila.push({ u:u, tipo:tipo });
@@ -1303,8 +1328,8 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       if(tgOcupado || !tgFila.length) return;
       var it = tgFila.shift();
       tgOcupado = true;
-      var nome = (it.u.unidade || '').toUpperCase();
-      if(TG_UNIDADES.indexOf(nome) >= 0) tgAbertura(it.u, it.tipo);
+      var vid = tgVideoDe(it.u.unidade);
+      if(vid) tgAbertura(it.u, it.tipo, vid);
       else tgFesta(it.u, it.tipo);
     }
 
