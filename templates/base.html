@@ -128,6 +128,15 @@
     }
     body.tema-claro .sidebar-footer{ color:#c4c4bd; }
   </style>
+  <script>
+    /* Numero no formato brasileiro: 17116 vira 17.116.
+       Usado nas telas que mostram totais. Nao mexe em ano, percentual,
+       telefone nem em campo de digitacao. */
+    window.nBR = function(v){
+      var n = Number(v);
+      return isFinite(n) ? n.toLocaleString('pt-BR') : v;
+    };
+  </script>
 </head>
 <body>
   <div class="app-wrapper">
