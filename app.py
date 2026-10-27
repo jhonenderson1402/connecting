@@ -524,12 +524,18 @@ def api_agendamentos_dia():
     # Meta de agendamentos do dia, por unidade (campo META AGEND DIA).
     # Linhas de bairro nao entram: a caixa e da unidade inteira.
     meta_de = {}
+    meta_mes_de = {}
     try:
         ano = int(date[0:4]); mes = int(date[5:7])
         for m in (db.get_metas(ano, mes) or []):
             if not (m.get('bairro') or ''):
+                u = m.get('unidade') or ''
                 try:
-                    meta_de[m.get('unidade') or ''] = int(float(m.get('meta_dia') or 0))
+                    meta_de[u] = int(float(m.get('meta_dia') or 0))
+                except (TypeError, ValueError):
+                    pass
+                try:
+                    meta_mes_de[u] = int(float(m.get('meta_agend') or 0))
                 except (TypeError, ValueError):
                     pass
     except Exception:
@@ -543,6 +549,7 @@ def api_agendamentos_dia():
             'unidade': u,
             'total': sum(p['ags'] for p in pessoas),
             'meta_dia': meta_de.get(u, 0),
+            'meta_mes': meta_mes_de.get(u, 0),
             'pessoas': pessoas,
         })
 
