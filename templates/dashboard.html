@@ -668,8 +668,22 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
     <div class="ag-palco" id="ag-palco">
       <div class="ag-grade" id="ag-grade"><div class="loading">Carregando...</div></div>
     </div>
-  </div>
 
+    <!-- comemoracao de meta batida -->
+    <div id="tg-intro">
+      <video id="tg-video" playsinline preload="auto" src="/static/tigre_rugindo.mp4"></video>
+    </div>
+    <div id="tg-palco">
+      <div id="tg-veu"></div>
+      <canvas id="tg-fogos"></canvas>
+      <div id="tg-faixa">
+        <div class="tg-bloco" id="tg-b1"><div class="t1"></div><div class="linha"></div></div>
+        <div class="tg-bloco" id="tg-b2"><div class="t1"></div><div class="t2"></div></div>
+        <div class="tg-bloco" id="tg-b3"><div class="t3">Destaques</div>
+          <div class="tg-podio" id="tg-podio"></div></div>
+      </div>
+    </div>
+  </div>
 <style>
   /* ───────────── modo normal (dentro do Resumo Geral) ───────────── */
   #ag-card .card-header .ag-sub{ margin-left:12px; font-size:11px; color:var(--muted-fg); }
@@ -857,6 +871,83 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
   #ag-card:-webkit-full-screen .ag-uni .ag-uni-f{ padding:5px 13px; font-size:9.5px;
                                                   color:#6b6b75; background:rgba(255,255,255,.018);
                                                   border-top-color:#1e1e23; }
+
+  /* ══════════ Comemoração de meta batida ══════════ */
+  .ag-meta .okmes{ font-size:8.5px; font-weight:800; letter-spacing:.11em;
+                   text-transform:uppercase; color:var(--green); }
+  .ag-meta.mesok{ background:rgba(34,197,94,.055); }
+
+  #tg-palco{ position:fixed; inset:0; z-index:9000; display:none; }
+  #tg-palco.on{ display:block; }
+  #tg-veu{ position:absolute; inset:0; background:rgba(4,4,6,.86);
+           backdrop-filter:blur(7px); -webkit-backdrop-filter:blur(7px);
+           opacity:0; transition:opacity .55s ease; }
+  #tg-palco.on #tg-veu{ opacity:1; }
+  #tg-palco.saindo #tg-veu{ opacity:0; }
+  #tg-palco.comtigre #tg-veu{ background:rgba(4,4,6,.70); }
+  #tg-fogos{ position:absolute; inset:0; pointer-events:none; }
+
+  .tg-voando{ position:fixed; z-index:9100; margin:0; transform-origin:top left;
+              transition:transform .72s cubic-bezier(.22,.9,.26,1), box-shadow .72s ease;
+              box-shadow:0 30px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(34,197,94,.5),
+                         0 0 46px 6px rgba(34,197,94,.22); }
+
+  #tg-faixa{ position:absolute; left:0; right:0; text-align:center; z-index:9200;
+             pointer-events:none; }
+  #tg-faixa .t1{ font-size:clamp(20px,3.4vw,46px); font-weight:900; letter-spacing:.1em;
+                 color:#fff; line-height:1.1;
+                 text-shadow:0 0 28px rgba(34,197,94,.65), 0 3px 16px rgba(0,0,0,.8); }
+  #tg-faixa .t1 b{ color:var(--green); font-weight:900; }
+  #tg-faixa .t2{ margin-top:10px; font-size:clamp(13px,1.6vw,22px); font-weight:750;
+                 letter-spacing:.22em; text-transform:uppercase; color:var(--primary);
+                 text-shadow:0 2px 14px rgba(0,0,0,.85); }
+  #tg-faixa .linha{ width:0; height:2px; margin:14px auto 0; border-radius:2px;
+                    background:linear-gradient(90deg,transparent,#22c55e,#fbbf24,transparent);
+                    transition:width .8s ease; }
+  #tg-faixa.aberta .linha{ width:min(460px,60vw); }
+  #tg-faixa .tg-bloco{ opacity:0; transform:translateY(16px) scale(.92);
+                       transition:opacity .45s ease,
+                                  transform .55s cubic-bezier(.2,.9,.25,1); }
+  #tg-faixa .tg-bloco.mostra{ opacity:1; transform:translateY(0) scale(1); }
+  #tg-faixa .tg-bloco.sai{ opacity:0; transform:translateY(-14px) scale(.96); }
+
+  #tg-faixa .t3{ font-size:clamp(15px,1.9vw,26px); font-weight:800; letter-spacing:.3em;
+                 text-transform:uppercase; color:#fff; margin-bottom:16px;
+                 text-shadow:0 0 22px rgba(251,191,36,.5), 0 3px 14px rgba(0,0,0,.8); }
+  .tg-podio{ display:flex; gap:10px; justify-content:center; }
+  .tg-pd{ display:flex; align-items:center; gap:10px; padding:9px 16px 9px 10px;
+          border-radius:11px; min-width:clamp(180px,17vw,250px);
+          background:rgba(18,18,20,.92); border:1px solid rgba(255,255,255,.1);
+          box-shadow:0 10px 30px rgba(0,0,0,.55);
+          opacity:0; transform:translateY(18px) scale(.9);
+          transition:opacity .4s ease, transform .5s cubic-bezier(.2,.9,.25,1); }
+  .tg-pd.mostra{ opacity:1; transform:translateY(0) scale(1); }
+  .tg-pd .p{ width:clamp(26px,2.4vw,34px); height:clamp(26px,2.4vw,34px); border-radius:9px;
+             flex:0 0 auto; display:grid; place-items:center;
+             font-size:clamp(13px,1.3vw,17px); font-weight:900;
+             background:rgba(255,255,255,.07); color:#a1a1aa; }
+  .tg-pd .n{ font-size:clamp(12px,1.25vw,17px); font-weight:750; color:#fafafa;
+             text-align:left; white-space:nowrap; }
+  .tg-pd .q{ margin-left:auto; font-size:clamp(13px,1.3vw,18px); font-weight:800;
+             color:var(--green); font-variant-numeric:tabular-nums; }
+  .tg-pd .q small{ font-size:.55em; font-weight:700; color:var(--muted-fg);
+                   letter-spacing:.1em; margin-left:3px; }
+  .tg-pd.ouro{ border-color:rgba(251,191,36,.6); background:rgba(32,26,10,.95);
+               box-shadow:0 12px 36px rgba(0,0,0,.6), 0 0 26px 2px rgba(251,191,36,.2); }
+  .tg-pd.ouro .p{ background:rgba(251,191,36,.18); color:var(--primary); }
+  .tg-pd.ouro .n{ color:var(--primary); }
+
+  /* abertura com o tigre */
+  #tg-intro{ position:fixed; inset:0; z-index:9500; display:none; background:#000;
+             opacity:0; transition:opacity 1.1s ease; overflow:hidden; }
+  #tg-intro.on{ display:block; }
+  #tg-intro.escuro{ opacity:1; }
+  #tg-intro.sumindo{ opacity:0; transition:opacity .8s ease; }
+  #tg-intro.fundo{ opacity:1; transition:opacity .8s ease; }
+  #tg-video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+             opacity:0; background:#000; transition:opacity .9s ease; }
+  #tg-video.aparece{ opacity:1; }
+  #tg-intro.fundo #tg-video{ opacity:1; filter:saturate(.9) contrast(1.05); }
   </style>
 
   <script>
@@ -952,11 +1043,16 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
                       ? '<span class="ok">✓ Meta batida</span>'
                       : '<span class="falta" style="color:' + cor + '"><small>Faltam</small>' + falta + '</span>') +
                   '</div><div class="ag-barra"><i style="width:' + pct + '%;background:' + cor + '"></i></div></div>';
+        } else if((Number(u.meta_mes) || 0) > 0){
+          // meta do dia veio zero mas o mes tem meta: o mes ja fechou
+          bloco = '<div class="ag-meta mesok"><div class="l">' +
+                    '<span class="okmes">✓ Meta do mês alcançada</span></div>' +
+                  '<div class="ag-barra"><i style="width:100%;background:#22c55e"></i></div></div>';
         } else {
           bloco = '<div class="ag-semmeta">Meta do dia não cadastrada</div>';
         }
 
-        return '<div class="ag-uni' + lider + '">' +
+        return '<div class="ag-uni' + lider + '" data-uni="' + esc(u.unidade) + '">' +
                  '<div class="ag-uni-h"><span class="nm">' + esc(u.unidade) + '</span>' +
                  '<span class="sm">' + (u.total || 0) + '<small>AGS</small></span></div>' +
                  '<table><thead><tr><th class="c">Pos</th><th>TMK</th><th class="r">Ags</th></tr></thead>' +
@@ -967,8 +1063,276 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       }).join('');
 
       total(soma);
+      tgConfere(comGente);
       primeira = false;
       ajusta();
+    }
+    /* ══════════════ Comemoração de meta batida ══════════════ */
+    var TG_UNIDADES = ['MANAUS', 'MANOA', 'MANAUS CENTRO'];   // ganham a abertura do tigre
+    var tgPalco  = document.getElementById('tg-palco');
+    var tgIntro  = document.getElementById('tg-intro');
+    var tgVideo  = document.getElementById('tg-video');
+    var tgFaixa  = document.getElementById('tg-faixa');
+    var tgB1     = document.getElementById('tg-b1');
+    var tgB2     = document.getElementById('tg-b2');
+    var tgB3     = document.getElementById('tg-b3');
+    var tgPodio  = document.getElementById('tg-podio');
+    var tgCanvas = document.getElementById('tg-fogos');
+    var tgCtx    = tgCanvas ? tgCanvas.getContext('2d') : null;
+    var tgOcupado = false, tgAnimando = false, tgParts = [], tgFila = [];
+
+    function tgJaFez(unidade){
+      try{ return localStorage.getItem('festa::' + hojeISO() + '::' + unidade) !== null; }
+      catch(e){ return false; }
+    }
+    function tgMarca(unidade, tipo){
+      try{
+        localStorage.setItem('festa::' + hojeISO() + '::' + unidade, tipo || '1');
+        // limpa marcas de outros dias para nao crescer sem fim
+        var hoje = hojeISO();
+        for(var i = localStorage.length - 1; i >= 0; i--){
+          var k = localStorage.key(i);
+          if(k && k.indexOf('festa::') === 0 && k.indexOf('festa::' + hoje) !== 0)
+            localStorage.removeItem(k);
+        }
+      }catch(e){}
+    }
+
+    /* ── fogos ── */
+    var TG_CORES = ['#fbbf24','#22c55e','#eab308','#4ade80','#fde68a','#ffffff','#f97316'];
+    function tgTamanho(){
+      if(!tgCanvas) return;
+      var r = tgPalco.getBoundingClientRect();
+      var dpr = window.devicePixelRatio || 1;
+      tgCanvas.width = r.width * dpr; tgCanvas.height = r.height * dpr;
+      tgCanvas.style.width = r.width + 'px'; tgCanvas.style.height = r.height + 'px';
+      tgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      tgCanvas._w = r.width; tgCanvas._h = r.height;
+    }
+    function tgExplode(x, y){
+      var n = 54 + (Math.random() * 22 | 0);
+      var cor = TG_CORES[(Math.random() * TG_CORES.length) | 0];
+      var misto = Math.random() < 0.45;
+      for(var i = 0; i < n; i++){
+        var a = (Math.PI * 2 * i) / n + Math.random() * 0.13;
+        var v = 2.6 + Math.random() * 4.4;
+        tgParts.push({ x:x, y:y, vx:Math.cos(a)*v, vy:Math.sin(a)*v, g:0.045,
+                       at:1, dec:0.012 + Math.random()*0.012, r:1.4 + Math.random()*1.8,
+                       cor: misto ? TG_CORES[(Math.random()*TG_CORES.length)|0] : cor });
+      }
+    }
+    function tgFoguete(x, y){
+      var h = tgCanvas._h || window.innerHeight;
+      tgParts.push({ foguete:true, x:x, y:h + 10, vx:(Math.random()-0.5)*0.7,
+                     vy:-(h - y)/46, g:0, at:1, dec:0, r:1.9, cor:'#fde68a', alvo:y });
+    }
+    function tgQuadro(){
+      if(!tgAnimando || !tgCtx) return;
+      var W = tgCanvas._w, H = tgCanvas._h;
+      tgCtx.clearRect(0, 0, W, H);
+      for(var i = tgParts.length - 1; i >= 0; i--){
+        var p = tgParts[i];
+        p.vy += p.g; p.x += p.vx; p.y += p.vy;
+        if(p.foguete){
+          tgCtx.globalAlpha = 1; tgCtx.fillStyle = p.cor;
+          tgCtx.beginPath(); tgCtx.arc(p.x, p.y, p.r, 0, 6.3); tgCtx.fill();
+          tgCtx.globalAlpha = .28; tgCtx.fillRect(p.x - 1, p.y, 2, 16);
+          if(p.y <= p.alvo){ tgExplode(p.x, p.y); tgParts.splice(i, 1); }
+          continue;
+        }
+        p.at -= p.dec;
+        if(p.at <= 0){ tgParts.splice(i, 1); continue; }
+        tgCtx.globalAlpha = Math.max(0, p.at);
+        tgCtx.fillStyle = p.cor;
+        tgCtx.beginPath(); tgCtx.arc(p.x, p.y, p.r, 0, 6.3); tgCtx.fill();
+      }
+      tgCtx.globalAlpha = 1;
+      requestAnimationFrame(tgQuadro);
+    }
+
+    function tgPodioHtml(pessoas){
+      var tops = (pessoas || []).filter(function(p){ return (p.ags || 0) > 0; }).slice(0, 3);
+      tgPodio.innerHTML = tops.map(function(p, i){
+        return '<div class="tg-pd' + (i === 0 ? ' ouro' : '') + '">' +
+                 '<span class="p">' + (i + 1) + '</span>' +
+                 '<span class="n">' + esc(p.nome) + '</span>' +
+                 '<span class="q">' + p.ags + '<small>AGS</small></span></div>';
+      }).join('');
+    }
+
+    /* ── a comemoração em si ── */
+    /* A caixa da unidade mora dentro da grade, que tem transform:scale — e dentro
+       de um elemento transformado o position:fixed deixa de valer a tela inteira.
+       Por isso eu clono a caixa para fora e animo o clone; a original so fica
+       invisivel no lugar dela, segurando o espaco na grade. */
+    function tgFesta(u, tipo){
+      var cx = tgPalco && tgPalco.parentNode
+             ? tgPalco.parentNode.querySelector('.ag-uni[data-uni="' +
+                 String(u.unidade).replace(/"/g, '') + '"]')
+             : null;
+      if(!cx || !tgPalco){ tgOcupado = false; tgProxima(); return; }
+
+      tgPalco.classList.remove('saindo');
+      tgPalco.classList.add('on');                // precisa estar visivel para medir
+
+      var r   = cx.getBoundingClientRect();       // posicao real, ja com a escala da grade
+      var pr  = tgPalco.getBoundingClientRect();
+      var LARG = pr.width, ALT = pr.height;
+      var w = cx.offsetWidth, h = cx.offsetHeight;
+      var e0 = w ? (r.width / w) : 1;             // escala que a grade esta aplicando
+
+      tgTamanho(); tgParts = []; tgAnimando = true; requestAnimationFrame(tgQuadro);
+
+      var clone = cx.cloneNode(true);
+      clone.classList.add('tg-voando');
+      clone.style.left = r.left + 'px';
+      clone.style.top  = r.top + 'px';
+      clone.style.width = w + 'px';
+      clone.style.transform = 'scale(' + e0 + ')';
+      tgPalco.appendChild(clone);
+      cx.style.visibility = 'hidden';
+
+      var escala = Math.min(2.1 * e0, (ALT * 0.52) / h, (LARG * 0.44) / w);
+      if(!(escala > 0)) escala = e0;
+      var dx = (pr.left + LARG / 2 - (w * escala) / 2) - r.left;
+      var dy = (pr.top + ALT * 0.60 - (h * escala) / 2) - r.top;
+      requestAnimationFrame(function(){
+        clone.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + escala + ')';
+      });
+      tgFaixa.style.top = Math.max(10, ALT * 0.60 - (h * escala) / 2 - 178) + 'px';
+
+      [[420, .26, .26, .74, .20], [1150, .14, .34, .88, .30],
+       [2100, .40, .16, .62, .30], [3300, .22, .22, .80, .26],
+       [6000, .33, .22, .70, .17], [7400, .18, .28, .85, .24]
+      ].forEach(function(f){
+        setTimeout(function(){
+          tgFoguete(LARG * f[1], ALT * f[2]);
+          tgFoguete(LARG * f[3], ALT * f[4]);
+        }, f[0]);
+      });
+
+      tgB1.querySelector('.t1').innerHTML =
+        'META BATIDA DO <b>' + (tipo === 'dia' ? 'DIA' : 'MÊS') + '</b>';
+      tgB2.querySelector('.t1').textContent = 'PARABÉNS';
+      tgB2.querySelector('.t2').textContent = u.unidade;
+      tgPodioHtml(u.pessoas);
+      tgB1.className = 'tg-bloco'; tgB2.className = 'tg-bloco'; tgB3.className = 'tg-bloco';
+      tgB2.style.display = 'none'; tgB3.style.display = 'none'; tgB1.style.display = '';
+      tgFaixa.classList.remove('aberta');
+
+      setTimeout(function(){ tgB1.classList.add('mostra'); tgFaixa.classList.add('aberta'); }, 800);
+      setTimeout(function(){ tgB1.classList.add('sai'); }, 2900);
+      setTimeout(function(){
+        tgB1.style.display = 'none'; tgB2.style.display = '';
+        requestAnimationFrame(function(){ tgB2.classList.add('mostra'); });
+      }, 3350);
+      setTimeout(function(){ tgB2.classList.add('sai'); }, 5300);
+      setTimeout(function(){
+        tgB2.style.display = 'none'; tgB3.style.display = '';
+        requestAnimationFrame(function(){ tgB3.classList.add('mostra'); });
+        tgPodio.querySelectorAll('.tg-pd').forEach(function(el, i){
+          setTimeout(function(){ el.classList.add('mostra'); }, 180 + i * 300);
+        });
+      }, 5750);
+      setTimeout(function(){ tgB3.classList.add('sai'); }, 8900);
+      setTimeout(function(){
+        clone.style.transform = 'scale(' + e0 + ')';
+        tgPalco.classList.add('saindo');
+      }, 9300);
+      setTimeout(function(){
+        if(clone.parentNode) clone.parentNode.removeChild(clone);
+        cx.style.visibility = '';
+        tgPalco.classList.remove('on','saindo','comtigre');
+        tgAnimando = false; tgParts = [];
+        if(tgCtx) tgCtx.clearRect(0, 0, tgCanvas._w || 0, tgCanvas._h || 0);
+        tgB1.className = 'tg-bloco'; tgB2.className = 'tg-bloco'; tgB3.className = 'tg-bloco';
+        tgPodio.innerHTML = '';
+        tgOcupado = false;
+        tgProxima();
+      }, 10100);
+    }
+
+    /* ── abertura com o tigre, só para as unidades do grupo ── */
+    function tgAbertura(u, tipo){
+      if(!tgIntro || !tgVideo){ tgFesta(u, tipo); return; }
+      tgIntro.className = 'on';
+      tgVideo.className = '';
+      try{ tgVideo.pause(); tgVideo.currentTime = 0; }catch(e){}
+      tgVideo.muted = !tgSomLiberado;
+      void tgIntro.offsetWidth;
+      requestAnimationFrame(function(){ tgIntro.classList.add('escuro'); });
+
+      setTimeout(function(){
+        tgVideo.classList.add('aparece');
+        var p = tgVideo.play();
+        if(p && p.catch) p.catch(function(){
+          tgVideo.muted = true;
+          tgVideo.play().catch(function(){});
+        });
+      }, 1000);
+
+      var congelou = false;
+      function congela(){
+        if(congelou) return;
+        congelou = true;
+        try{
+          tgVideo.pause();
+          var d = tgVideo.duration;
+          if(d && isFinite(d)) tgVideo.currentTime = Math.max(0, d - 0.04);
+        }catch(e){}
+        tgIntro.style.zIndex = '8900';
+        tgIntro.classList.add('fundo');
+        tgPalco.classList.add('comtigre');
+        tgFesta(u, tipo);
+        setTimeout(function(){ tgIntro.classList.add('sumindo'); }, 9400);
+        setTimeout(function(){
+          tgIntro.className = ''; tgIntro.style.zIndex = '';
+          try{ tgVideo.pause(); tgVideo.currentTime = 0; }catch(e){}
+        }, 10200);
+      }
+      tgVideo.onended = congela;
+      setTimeout(congela, 1000 + 7000);      // rede de seguranca
+    }
+
+    /* ── fila: nunca duas unidades ao mesmo tempo ── */
+    function tgEnfileira(u, tipo){
+      tgFila.push({ u:u, tipo:tipo });
+      tgProxima();
+    }
+    function tgProxima(){
+      if(tgOcupado || !tgFila.length) return;
+      var it = tgFila.shift();
+      tgOcupado = true;
+      var nome = (it.u.unidade || '').toUpperCase();
+      if(TG_UNIDADES.indexOf(nome) >= 0) tgAbertura(it.u, it.tipo);
+      else tgFesta(it.u, it.tipo);
+    }
+
+    /* som: o navegador so libera depois de um clique na pagina */
+    var tgSomLiberado = false;
+    ['click','keydown','touchstart'].forEach(function(ev){
+      document.addEventListener(ev, function(){ tgSomLiberado = true; },
+                                { once:true, capture:true });
+    });
+    window.addEventListener('resize', function(){ if(tgAnimando) tgTamanho(); });
+
+    /* ── decide quem comemora, olhando o que acabou de chegar ── */
+    function tgConfere(unidades){
+      (unidades || []).forEach(function(u){
+        var nome = u.unidade || '';
+        if(!nome) return;
+        var meta    = Number(u.meta_dia) || 0;
+        var metaMes = Number(u.meta_mes) || 0;
+        var feito   = u.total || 0;
+        var tipo = null;
+        if(metaMes > 0 && meta === 0) tipo = 'mês';        // mes fechado
+        else if(meta > 0 && feito >= meta) tipo = 'dia';
+        if(!tipo) return;
+        if(tgJaFez(nome)) return;
+        tgMarca(nome, tipo);
+        if(primeira) return;      // ao abrir a tela nao dispara o que ja estava batido
+        tgEnfileira(u, tipo);
+      });
     }
 
     // Escolhe o numero de colunas e, se ainda assim passar da altura
