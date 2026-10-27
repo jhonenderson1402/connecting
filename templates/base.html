@@ -136,6 +136,12 @@
       var n = Number(v);
       return isFinite(n) ? n.toLocaleString('pt-BR') : v;
     };
+    /* Le um numero que pode estar formatado: "8.650" vira 8650. */
+    window.nNum = function(v){
+      var t = String(v == null ? '' : v).replace(/\./g,'').replace(',', '.');
+      var n = parseFloat(t.replace(/[^0-9.\-]/g,''));
+      return isFinite(n) ? n : 0;
+    };
   </script>
 </head>
 <body>
