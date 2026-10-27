@@ -1340,7 +1340,19 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
                                 { once:true, capture:true });
     });
     window.addEventListener('resize', function(){ if(tgAnimando) tgTamanho(); });
-
+    /* ── recarrega sozinho quando o sistema e atualizado ──
+       O servidor manda um carimbo de versao a cada consulta. Se ele mudar,
+       e porque entrou um deploy novo e esta tela esta rodando codigo velho.
+       Espera a comemoracao terminar antes de recarregar, para nao cortar. */
+    var tgVersao = null, tgQuerRecarregar = false;
+    function confereVersao(v){
+      if(!v) return;
+      if(tgVersao === null){ tgVersao = v; return; }
+      if(v !== tgVersao) tgQuerRecarregar = true;
+      if(tgQuerRecarregar && !tgOcupado && !tgFila.length){
+        location.reload();
+      }
+    }
     /* ── decide quem comemora, olhando o que acabou de chegar ── */
     function tgConfere(unidades){
       (unidades || []).forEach(function(u){
@@ -1447,7 +1459,9 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         var r = await fetch('/api/agendamentos_dia?date=' + hojeISO(),
                             ctl ? { signal: ctl.signal } : undefined);
         if(r.ok){
-          desenha(await r.json());
+          var dados = await r.json();
+          desenha(dados);
+          confereVersao(dados && dados.v);
           var ag = new Date();
           if(s){
             s.style.color = '';
