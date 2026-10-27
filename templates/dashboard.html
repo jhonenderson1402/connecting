@@ -1649,9 +1649,9 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
     };
 
     function colunas(n){
-      if(n <= 2) return n || 1;
+      if(n <= 1) return 1;
       if(n <= 4) return 2;
-      if(n <= 6) return 3;
+      if(n <= 9) return 3;
       return 4;
     }
 
@@ -1659,6 +1659,11 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       card.style.removeProperty('--f');
       grid.style.removeProperty('grid-template-columns');
       grid.style.removeProperty('grid-template-rows');
+      [].forEach.call(grid.querySelectorAll('.rank-unit-box'), function(b){
+        b.style.removeProperty('grid-column');
+        b.style.removeProperty('grid-row');
+        b.style.removeProperty('--f');
+      });
       [].forEach.call(grid.querySelectorAll('.rank-row'), function(r){
         r.style.removeProperty('display');
       });
@@ -1667,22 +1672,58 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       });
     }
 
+    // Encolhe a letra do conjunto ate a caixa mais cheia caber.
+    // O fator vai no elemento "alvo"; como ele e herdado, a caixa geral
+    // pode ter o seu proprio e nao obriga as unidades a encolher junto.
+    function encolhe(els, alvo){
+      if(!els.length) return;
+      var f = 1;
+      alvo.style.setProperty('--f', 1);
+      for(var k = 0; k < 30; k++){
+        var passou = els.some(function(b){ return b.scrollHeight > b.clientHeight + 1; });
+        if(!passou) break;
+        f -= 0.035;
+        if(f < 0.3) f = 0.3;
+        alvo.style.setProperty('--f', f);
+        if(f === 0.3) break;
+      }
+    }
+
     function aplica(){
       if(!emTV()){ limpa(); return; }
 
       var boxes = [].slice.call(grid.querySelectorAll('.rank-unit-box'));
       if(!boxes.length) return;
 
-      var c = colunas(boxes.length);
-      grid.style.setProperty('grid-template-columns', 'repeat(' + c + ',1fr)', 'important');
-      grid.style.setProperty('grid-template-rows',
-        'repeat(' + Math.ceil(boxes.length / c) + ',1fr)', 'important');
+      var geral  = grid.querySelector('#rank-geral-box');
+      var outras = boxes.filter(function(b){ return b !== geral; });
 
+      // A caixa geral fica numa coluna estreita a esquerda, com a altura
+      // inteira da tela, mostrando todo mundo. As unidades ficam ao lado.
+      if(geral && outras.length){
+        var c = colunas(outras.length);
+        var linhas = Math.max(1, Math.ceil(outras.length / c));
+        grid.style.setProperty('grid-template-columns',
+          '0.78fr repeat(' + c + ',1fr)', 'important');
+        grid.style.setProperty('grid-template-rows',
+          'repeat(' + linhas + ',1fr)', 'important');
+        geral.style.gridColumn = '1';
+        geral.style.gridRow = '1 / span ' + linhas;
+      } else {
+        var c2 = colunas(boxes.length);
+        grid.style.setProperty('grid-template-columns',
+          'repeat(' + c2 + ',1fr)', 'important');
+        grid.style.setProperty('grid-template-rows',
+          'repeat(' + Math.ceil(boxes.length / c2) + ',1fr)', 'important');
+      }
+
+      // o corte no top 15 vale so para as unidades; a geral mostra todos
       boxes.forEach(function(box){
+        var todos = (box === geral);
         var rows = [].slice.call(box.querySelectorAll('.rank-row'));
         var sobra = 0;
         rows.forEach(function(r, i){
-          if(i >= LIMITE){ r.style.display = 'none'; sobra++; }
+          if(!todos && i >= LIMITE){ r.style.display = 'none'; sobra++; }
           else r.style.removeProperty('display');
         });
         var f = box.querySelector('.rank-tv-f');
@@ -1692,17 +1733,9 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         } else if(f && f.parentNode){ f.parentNode.removeChild(f); }
       });
 
-      // encolhe a letra ate a caixa mais cheia caber
-      var fator = 1;
-      card.style.setProperty('--f', 1);
-      for(var k = 0; k < 24; k++){
-        var passou = boxes.some(function(b){ return b.scrollHeight > b.clientHeight + 1; });
-        if(!passou) break;
-        fator -= 0.04;
-        card.style.setProperty('--f', fator);
-      }
+      encolhe(outras, card);
+      if(geral) encolhe([geral], geral);
     }
-
     var tmr;
     function reaplica(){ clearTimeout(tmr); tmr = setTimeout(aplica, 90); }
 
