@@ -23,7 +23,13 @@ input,select,button { font-family:inherit; }
 /* ── Layout ──────────────────────────────────────────────────────────────── */
 .app-wrapper { display:flex; min-height:100vh; }
 .sidebar {
-  width:var(--sidebar-w); min-height:100vh; background:hsl(220,12%,8%);
+  width:var(--sidebar-w); background:hsl(220,12%,8%);
+  /* Altura TRAVADA no tamanho da tela. Com min-height a barra crescia junto
+     com a lista de menus e o rodape do usuario ficava fora do alcance, sem
+     como rolar ate ele. A segunda linha usa a medida nova (dvh), que desconta
+     a barra do navegador no celular; navegador antigo ignora e usa a de cima. */
+  height:100vh;
+  height:100dvh;
   border-right:1px solid var(--border); display:flex; flex-direction:column;
   flex-shrink:0; position:fixed; top:0; left:0; z-index:100;
   transition:transform .25s;
