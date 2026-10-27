@@ -1335,6 +1335,21 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       });
     }
 
+    /* Atalho de teste. No console do navegador (F12):
+       tgTeste('MANAUS CENTRO')          -> abertura do tigre + meta do dia
+       tgTeste('FORTALEZA', 'mês')       -> comemoração sem tigre, meta do mês  */
+    window.tgTeste = function(nome, tipo){
+      var cx = document.querySelector('.ag-uni[data-uni="' +
+               String(nome || '').replace(/"/g, '') + '"]');
+      if(!cx){ console.warn('Nao achei a unidade "' + nome + '" na tela.'); return; }
+      var pes = [];
+      cx.querySelectorAll('tbody tr').forEach(function(tr){
+        var n = tr.querySelector('.nome'), a = tr.querySelector('.ags');
+        if(n && a) pes.push({ nome: n.textContent, ags: Number(a.textContent) || 0 });
+      });
+      tgEnfileira({ unidade: nome, pessoas: pes }, tipo || 'dia');
+    };
+
     // Escolhe o numero de colunas e, se ainda assim passar da altura
     // disponivel, reduz tudo proporcionalmente ate caber.
     function ajusta(){
