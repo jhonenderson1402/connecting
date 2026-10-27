@@ -118,7 +118,13 @@
     border-radius:9px; padding:2px 6px; }
 
   /* calendario de periodo */
-  .cal-per{ position:absolute; z-index:200; width:268px; background:var(--card);
+  /* O calendario e pendurado no body, FORA do .fa-page — entao as cores
+     declaradas la nao chegam aqui e var(--t-gold) sai vazio, deixando o dia
+     escolhido com texto quase preto sobre fundo escuro. Por isso ele carrega
+     a propria copia das variaveis que usa. */
+  .cal-per{ --t-line:#1d1d22; --t-dim:#9496a3; --t-dim2:#5c5e6d;
+    --t-dim3:#383a45; --t-gold:#dda43c;
+    position:absolute; z-index:200; width:268px; background:var(--card);
     border:1px solid var(--border); border-radius:12px; padding:12px;
     box-shadow:0 18px 44px rgba(0,0,0,.7); }
   .cal-per .topo{ display:flex; align-items:center; gap:8px; margin-bottom:11px; }
