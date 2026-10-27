@@ -483,6 +483,25 @@ def api_clear_leads(unit, date):
     db.clear_appointment(LEADS_PREFIX + unit, date)
     return jsonify({'ok': True})
 # ── API: Constantes ───────────────────────────────────────────────────────────
+# Carimbo da versao publicada. Sai da data dos arquivos, e nao do momento em que
+# o processo subiu: assim os dois workers do Gunicorn devolvem o MESMO valor.
+# Se fosse a hora de inicio, cada worker teria o seu e a tela ficaria
+# recarregando em looping, alternando entre os dois.
+def _versao_app():
+    base = os.path.dirname(os.path.abspath(__file__))
+    alvos = [os.path.abspath(__file__),
+             os.path.join(base, 'templates', 'dashboard.html'),
+             os.path.join(base, 'templates', 'base.html'),
+             os.path.join(base, 'static', 'style.css')]
+    marcas = []
+    for p in alvos:
+        try:
+            marcas.append(int(os.path.getmtime(p)))
+        except OSError:
+            pass
+    return str(max(marcas)) if marcas else '0'
+
+VERSAO_APP = _versao_app()
 # ── Resumo de Agendamentos do dia (Hora a Hora) ─────────────────────────────
 # Rota enxuta: devolve so nome e total de cada TMK, por unidade. Feita para a
 # tela do Resumo Geral se atualizar sozinha sem rebaixar o dashboard inteiro.
@@ -553,7 +572,7 @@ def api_agendamentos_dia():
             'pessoas': pessoas,
         })
 
-    return jsonify({'date': date, 'unidades': out})
+        return jsonify({'date': date, 'v': VERSAO_APP, 'unidades': out})
 @app.route('/api/constants')
 @login_required
 def api_constants():
