@@ -102,12 +102,71 @@
     color:var(--fg); }
   .obs::placeholder{ color:var(--t-dim3); }
   .obs.lid{ color:var(--t-blue); font-weight:500; text-transform:uppercase; }
-  .dt{ background:transparent; border:1px solid transparent; color:var(--fg);
-    border-radius:6px; padding:3px 5px; font-size:11.5px; font-family:inherit;
-    font-variant-numeric:tabular-nums; outline:none; width:100%;
-    color-scheme:dark; transition:all .12s; }
-  .dt:hover{ background:rgba(255,255,255,.03); }
-  .dt:focus{ border-color:var(--t-gold); background:rgba(221,164,60,.06); }
+  /* a celula da data: mostra uma data, ou as duas quando e periodo */
+  .bt-data{ display:inline-flex; align-items:center; gap:7px; width:100%;
+    background:transparent; border:1px solid transparent; color:var(--fg);
+    border-radius:7px; padding:4px 8px; font-size:11.5px; font-family:inherit;
+    font-variant-numeric:tabular-nums; cursor:pointer; text-align:left;
+    white-space:nowrap; transition:all .12s; }
+  .bt-data:hover{ background:rgba(255,255,255,.04); border-color:var(--border); }
+  .bt-data svg{ width:12px; height:12px; flex:0 0 auto; color:var(--t-dim3); }
+  .bt-data.faixa{ background:rgba(221,164,60,.08); border-color:rgba(221,164,60,.32); }
+  .bt-data.faixa svg{ color:var(--t-gold); }
+  .bt-data .tr{ color:var(--t-dim3); margin:0 1px; }
+  .bt-data .dias{ margin-left:auto; font-size:8.5px; font-weight:750;
+    letter-spacing:.07em; color:var(--t-gold); background:rgba(221,164,60,.14);
+    border-radius:9px; padding:2px 6px; }
+
+  /* calendario de periodo */
+  .cal-per{ position:absolute; z-index:200; width:268px; background:var(--card);
+    border:1px solid var(--border); border-radius:12px; padding:12px;
+    box-shadow:0 18px 44px rgba(0,0,0,.7); }
+  .cal-per .topo{ display:flex; align-items:center; gap:8px; margin-bottom:11px; }
+  .cal-per .topo b{ font-size:11.5px; font-weight:650; }
+  .cal-per .topo .x{ margin-left:auto; cursor:pointer; color:var(--t-dim2);
+    font-size:14px; line-height:1; }
+  .cal-per .campos{ display:flex; align-items:center; gap:7px; margin-bottom:12px; }
+  .cal-per .cp{ flex:1; background:var(--secondary); border:1px solid var(--border);
+    border-radius:7px; padding:6px 8px; text-align:center; font-size:11.5px;
+    font-variant-numeric:tabular-nums; color:var(--t-dim); }
+  .cal-per .cp.on{ border-color:var(--t-gold); color:var(--fg); }
+  .cal-per .cp small{ display:block; font-size:7px; font-weight:700;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--t-dim3);
+    margin-bottom:2px; }
+  .cal-per .tr{ color:var(--t-dim3); font-size:11px; }
+  .cal-per .mes{ display:flex; align-items:center; margin-bottom:8px; }
+  .cal-per .mes b{ font-size:11.5px; font-weight:650; text-transform:capitalize; }
+  .cal-per .nav{ margin-left:auto; display:flex; gap:3px; }
+  .cal-per .nav button{ width:23px; height:23px; border-radius:6px; cursor:pointer;
+    background:var(--secondary); border:1px solid var(--border); color:var(--t-dim);
+    font-family:inherit; font-size:11px; padding:0; }
+  .cal-per .nav button:hover{ color:var(--fg); border-color:var(--t-dim3); }
+  .cal-per .grade{ display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+  .cal-per .grade .dw{ font-size:8px; font-weight:700; color:var(--t-dim3);
+    text-align:center; padding:3px 0 5px; }
+  .cal-per .grade button{ height:29px; border:none; background:transparent;
+    color:var(--fg); font-family:inherit; font-size:11.5px; cursor:pointer;
+    font-variant-numeric:tabular-nums; }
+  .cal-per .grade button.fora{ color:var(--t-dim3); }
+  .cal-per .grade button:hover{ background:rgba(255,255,255,.07); }
+  .cal-per .grade button.meio{ background:rgba(221,164,60,.13); }
+  .cal-per .grade button.ini, .cal-per .grade button.fim{ background:var(--t-gold);
+    color:#17120a; font-weight:700; }
+  .cal-per .grade button.ini{ border-radius:7px 0 0 7px; }
+  .cal-per .grade button.fim{ border-radius:0 7px 7px 0; }
+  .cal-per .grade button.ini.fim{ border-radius:7px; }
+  .cal-per .grade button.hoje{ box-shadow:inset 0 0 0 1px var(--t-dim3);
+    border-radius:7px; }
+  .cal-per .pe{ display:flex; align-items:center; gap:8px; margin-top:11px;
+    padding-top:11px; border-top:1px solid var(--t-line); }
+  .cal-per .pe .resumo{ font-size:10.5px; color:var(--t-dim2); }
+  .cal-per .pe .resumo b{ color:var(--t-gold); font-weight:650; }
+  .cal-per .pe button{ height:29px; padding:0 13px; border-radius:7px; cursor:pointer;
+    font-family:inherit; font-size:11.5px; font-weight:700;
+    border:1px solid var(--border); background:var(--secondary); color:var(--t-dim); }
+  .cal-per .pe .ap{ margin-left:auto; background:rgba(221,164,60,.14);
+    border-color:rgba(221,164,60,.45); color:var(--t-gold); }
+  .cal-per .pe .ap:hover{ background:rgba(221,164,60,.24); }
   .del2{ width:21px; height:21px; display:grid; place-items:center;
     background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3);
     border-radius:5px; color:var(--t-red); font-size:10.5px; line-height:1;
@@ -335,6 +394,128 @@ function liderDe(nome){
   return l;
 }
 
+/* ══════════ periodo: uma linha pode cobrir varios dias ══════════ */
+var DIAS_SEM = ['D','S','T','Q','Q','S','S'];
+function isoDe(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') +
+         '-' + String(d.getDate()).padStart(2,'0');
+}
+function dataDe(s){
+  return new Date(Number(s.slice(0,4)), Number(s.slice(5,7)) - 1, Number(s.slice(8,10)));
+}
+/* o fim nunca pode ser menor que o inicio; registro antigo nem tem fim */
+function fimDe(r){ return (r.fim && r.fim >= r.data) ? r.fim : r.data; }
+function qtdDias(r){
+  return Math.round((dataDe(fimDe(r)) - dataDe(r.data)) / 86400000) + 1;
+}
+function celulaData(r){
+  var CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/>' +
+    '<path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+  if(fimDe(r) !== r.data){
+    return '<button class="bt-data faixa" onclick="abreData(event,\'' + r.id + '\')">' +
+      CAL + '<span>' + brData(r.data) + '</span><span class="tr">-</span>' +
+      '<span>' + brData(fimDe(r)) + '</span>' +
+      '<span class="dias">' + qtdDias(r) + ' DIAS</span></button>';
+  }
+  return '<button class="bt-data" onclick="abreData(event,\'' + r.id + '\')">' +
+         CAL + '<span>' + brData(r.data) + '</span></button>';
+}
+
+var calAberto = null;
+function fechaData(){ if(calAberto){ calAberto.remove(); calAberto = null; } }
+document.addEventListener('click', fechaData);
+
+function abreData(ev, id){
+  ev.stopPropagation();
+  fechaData(); fechaMenu(); fechaLista();
+  var reg = null;
+  REG.forEach(function(r){ if(String(r.id) === String(id)) reg = r; });
+  if(!reg) return;
+
+  var ini = reg.data, fim = fimDe(reg), vendo = dataDe(ini), escolhendoFim = false;
+
+  var el = document.createElement('div');
+  el.className = 'cal-per';
+  document.body.appendChild(el);
+  var r = ev.currentTarget.getBoundingClientRect();
+  el.style.left = Math.min(r.left, window.innerWidth - 290) + 'px';
+  el.style.top  = (r.bottom + window.scrollY + 6) + 'px';
+  el.addEventListener('click', function(e){ e.stopPropagation(); });
+  calAberto = el;
+
+  function celulas(){
+    var ano = vendo.getFullYear(), mes = vendo.getMonth();
+    var comeca = new Date(ano, mes, 1).getDay();
+    var ult = new Date(ano, mes + 1, 0).getDate();
+    var ultAnt = new Date(ano, mes, 0).getDate();
+    var cs = [];
+    for(var i = comeca - 1; i >= 0; i--) cs.push({d: ultAnt - i, m: mes - 1});
+    for(var d = 1; d <= ult; d++) cs.push({d: d, m: mes});
+    var extra = 1;
+    while(cs.length % 7 !== 0) cs.push({d: extra++, m: mes + 1});
+    return cs.map(function(c){
+      return {txt: c.d, iso: isoDe(new Date(ano, c.m, c.d)), fora: c.m !== mes};
+    });
+  }
+  function quantos(){
+    return Math.round((dataDe(fim) - dataDe(ini)) / 86400000) + 1;
+  }
+  function pinta(){
+    var n = quantos();
+    el.innerHTML =
+      '<div class="topo"><b>Período</b><span class="x">✕</span></div>' +
+      '<div class="campos">' +
+        '<div class="cp on"><small>Início</small>' + brData(ini) + '</div>' +
+        '<span class="tr">→</span>' +
+        '<div class="cp' + (fim !== ini ? ' on' : '') + '"><small>Fim</small>' +
+          brData(fim) + '</div></div>' +
+      '<div class="mes"><b>' + MESES[vendo.getMonth()].toLowerCase() + ' de ' +
+        vendo.getFullYear() + '</b><div class="nav">' +
+        '<button data-nav="-1">\u2039</button><button data-nav="1">\u203a</button>' +
+      '</div></div><div class="grade">' +
+        DIAS_SEM.map(function(d){ return '<span class="dw">' + d + '</span>'; }).join('') +
+        celulas().map(function(c){
+          var cls = [];
+          if(c.fora) cls.push('fora');
+          if(c.iso === ini) cls.push('ini');
+          if(c.iso === fim) cls.push('fim');
+          if(c.iso > ini && c.iso < fim) cls.push('meio');
+          if(c.iso === isoDe(new Date())) cls.push('hoje');
+          return '<button data-d="' + c.iso + '"' +
+                 (cls.length ? ' class="' + cls.join(' ') + '"' : '') + '>' + c.txt + '</button>';
+        }).join('') +
+      '</div><div class="pe"><span class="resumo"><b>' + n + '</b> dia' +
+        (n > 1 ? 's' : '') + '</span><button class="ap">Aplicar</button></div>';
+  }
+  pinta();
+
+  el.addEventListener('click', function(e){
+    var nav = e.target.closest('[data-nav]');
+    if(nav){
+      vendo = new Date(vendo.getFullYear(),
+                       vendo.getMonth() + Number(nav.getAttribute('data-nav')), 1);
+      pinta(); return;
+    }
+    if(e.target.classList.contains('x')){ fechaData(); return; }
+    var dia = e.target.closest('[data-d]');
+    if(dia){
+      var v = dia.getAttribute('data-d');
+      if(!escolhendoFim){ ini = v; fim = v; escolhendoFim = true; }
+      else if(v >= ini){ fim = v; escolhendoFim = false; }
+      else { ini = v; fim = v; }
+      pinta(); return;
+    }
+    if(e.target.classList.contains('ap')){
+      reg.data = ini;
+      reg.fim  = fim;
+      if(reg.tmk) salva(reg);
+      fechaData();
+      desenha();
+    }
+  });
+}
+
 /* ── salvar: cada mudança vai para o banco, com um respiro ── */
 var timers = {};
 function salva(r){
@@ -378,7 +559,8 @@ function dataAtual(){
 }
 var seqNova = 0;
 function adicionaLinha(){
-  var r = {id: 'n' + (++seqNova), data: dataAtual(), lider:'', tmk:'',
+  var hoje = dataAtual();
+  var r = {id: 'n' + (++seqNova), data: hoje, fim: hoje, lider:'', tmk:'',
            flag_id: 0, obs:''};
   REG.push(r);
   desenha();
@@ -412,8 +594,7 @@ function desenha(){
         '＋ Selecionar colaborador</button>';
     return '<tr id="fr' + r.id + '">' +
       '<td class="mes">' + mesDe(r.data) + '</td>' +
-      '<td><input class="dt" type="date" value="' + r.data + '" ' +
-        'onchange="mudaCampo(\'' + r.id + '\',\'data\',this.value)"/></td>' +
+      '<td>' + celulaData(r) + '</td>' +
       '<td><input class="obs lid" list="lideres" value="' + esc(r.lider) + '" ' +
         'placeholder="—" oninput="mudaCampo(\'' + r.id + '\',\'lider\',this.value)"/></td>' +
       '<td onclick="' + (r.tmk ? 'abrePessoas(event,\'' + r.id + '\')' : '') + '">' +
@@ -760,7 +941,9 @@ function baixaCSV(){
   out.push(['Ano','Mês','Data','Líder','TMK','Motivo','Observação'].join(';'));
   L.forEach(function(r){
     var f = flagDe(r.flag_id);
-    out.push([per[0], mesDe(r.data), brData(r.data), r.lider, r.tmk,
+    var dia = (fimDe(r) !== r.data) ? brData(r.data) + ' a ' + brData(fimDe(r))
+                                     : brData(r.data);
+    out.push([per[0], mesDe(r.data), dia, r.lider, r.tmk,
               f ? f.nome : '', r.obs].join(';'));
   });
   out.push(''); out.push('Resumo;');
@@ -803,7 +986,8 @@ function baixaPDF(){
         (f.icone ? f.icone + ' ' : '') + esc(f.nome) + '</span>'
       : '<span class="fl vazia">sem motivo</span>';
     return '<tr><td class="mes">' + mesDe(r.data) + '</td>' +
-      '<td class="n">' + brData(r.data) + '</td>' +
+      '<td class="n">' + (fimDe(r) !== r.data
+          ? brData(r.data) + ' a ' + brData(fimDe(r)) : brData(r.data)) + '</td>' +
       '<td class="lid">' + esc(r.lider || '—') + '</td>' +
       (umSo ? '' : '<td class="u"><b>' + esc(r.tmk) + '</b></td>') +
       '<td>' + pil + '</td>' +
@@ -927,38 +1111,24 @@ async function copiaZap(){
     return;
   }
 
-  // junta dias seguidos da mesma pessoa, mesmo motivo e mesma observação
+  // o periodo ja vem pronto no registro: nao precisa mais juntar dias seguidos
   L.sort(function(a, b){
-    var ka = a.tmk + '|' + a.flag_id + '|' + (a.obs || '') + '|' + a.data;
-    var kb = b.tmk + '|' + b.flag_id + '|' + (b.obs || '') + '|' + b.data;
-    return ka < kb ? -1 : ka > kb ? 1 : 0;
+    return a.data === b.data ? String(a.tmk).localeCompare(String(b.tmk), 'pt-BR')
+                             : a.data.localeCompare(b.data);
   });
-  var blocos = [];
-  L.forEach(function(x){
-    var u = blocos[blocos.length - 1];
-    if(u && u.tmk === x.tmk && u.flag_id === x.flag_id &&
-       u.obs === (x.obs || '') && diaSeguinte(u.fim) === x.data){ u.fim = x.data; }
-    else blocos.push({tmk:x.tmk, flag_id:x.flag_id, obs:(x.obs || ''),
-                      ini:x.data, fim:x.data});
-  });
-  blocos.sort(function(a, b){
-    return a.ini !== b.ini ? (a.ini < b.ini ? -1 : 1)
-                           : a.tmk.localeCompare(b.tmk, 'pt-BR');
-  });
-
   var txt = 'RELATÓRIO DE FALTAS - ' +
             (MESES[mi] || '').toUpperCase() + '/' + ano + '\n\n';
-  txt += blocos.map(function(b){
-    var f = flagDe(b.flag_id);
-    var dia = b.ini === b.fim ? dmy(b.ini) : dmy(b.ini) + ' a ' + dmy(b.fim);
+  txt += L.map(function(r){
+    var f = flagDe(r.flag_id);
+    var dia = (fimDe(r) !== r.data) ? dmy(r.data) + ' a ' + dmy(fimDe(r)) : dmy(r.data);
     var mot = f ? f.nome : 'SEM MOTIVO';
-    if(b.obs) mot += ' (' + b.obs + ')';
+    if(r.obs) mot += ' (' + r.obs + ')';
     if(f && f.icone) mot += ' ' + f.icone;
-    return dia + ' - ' + b.tmk + ' - ' + mot;
+    return dia + ' - ' + r.tmk + ' - ' + mot;
   }).join('\n\n');
-  poeNaArea(txt, blocos.length);
+  poeNaArea(txt, L.length);
 }
-  function ligaBaixar(){
+function ligaBaixar(){
   var dd = document.getElementById('dd-baixar');
   var btn = dd.querySelector('.btn2'), menu = dd.querySelector('.dd-menu');
   btn.addEventListener('click', function(e){
