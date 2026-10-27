@@ -239,6 +239,20 @@ def _run_migrations():
             print("[migration] Coluna 'regiao' adicionada à tabela unidades.")
         except Exception:
             conn.rollback()  # Coluna já existe, ignora
+        # Migração: coluna 'data_fim' em ocorrencias (atestado de varios dias)
+        try:
+            conn.execute(text("ALTER TABLE ocorrencias ADD COLUMN data_fim VARCHAR(10) DEFAULT ''"))
+            conn.commit()
+            print("[migration] Coluna 'data_fim' adicionada à tabela ocorrencias.")
+        except Exception:
+            conn.rollback()  # Coluna já existe, ignora
+        # Registro antigo vira periodo de um dia so (fim = inicio)
+        try:
+            conn.execute(text("UPDATE ocorrencias SET data_fim = data "
+                              "WHERE data_fim IS NULL OR data_fim = ''"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
         # Migração 3: cria a tabela 'metas' se não existir (Base.metadata.create_all já cobre,
         # mas garantimos aqui para bancos que rodaram create_all antes deste modelo existir).
         # Nada a fazer além do create_all; deixado como marcador.
@@ -1084,7 +1098,8 @@ class Flag(Base):
 class Ocorrencia(Base):
     __tablename__ = 'ocorrencias'
     id      = Column(Integer, primary_key=True, autoincrement=True)
-    data    = Column(String(10), nullable=False)    # YYYY-MM-DD
+    data     = Column(String(10), nullable=False)   # inicio, YYYY-MM-DD
+    data_fim = Column(String(10), default='')       # fim do periodo; vazio = um dia so
     lider   = Column(String(200), default='')
     tmk     = Column(String(200), default='')
     flag_id = Column(Integer, default=0)
@@ -1192,22 +1207,26 @@ def delete_flag(fid):
 
 
 def _ocor_to_dict(o):
-    return {'id': o.id, 'data': o.data, 'lider': o.lider or '',
-            'tmk': o.tmk or '', 'flag_id': o.flag_id or 0, 'obs': o.obs or ''}
-
+    return {'id': o.id, 'data': o.data, 'fim': (o.data_fim or o.data),
+            'lider': o.lider or '', 'tmk': o.tmk or '',
+            'flag_id': o.flag_id or 0, 'obs': o.obs or ''}
 
 def get_ocorrencias(ano, mes, dia=None):
-    """Todos os registros do mes (ou de um dia), do mais antigo ao mais novo."""
+    """Todos os registros que ENCOSTAM no periodo pedido, nao so os que comecam
+    nele. Um atestado de 28/10 a 03/11 aparece tanto em outubro quanto em
+    novembro, porque a pessoa esteve fora nos dois meses."""
     if dia:
-        ini = '%04d-%02d-%02d' % (ano, mes, dia)
-        fim = ini
+        ini = fim = '%04d-%02d-%02d' % (ano, mes, dia)
     else:
         ini = '%04d-%02d-01' % (ano, mes)
         fim = '%04d-%02d-31' % (ano, mes)
     with SessionLocal() as s:
         rows = s.scalars(
             select(Ocorrencia)
-            .where(and_(Ocorrencia.data >= ini, Ocorrencia.data <= fim))
+            .where(and_(
+                Ocorrencia.data <= fim,
+                func.coalesce(func.nullif(Ocorrencia.data_fim, ''),
+                              Ocorrencia.data) >= ini))
             .order_by(Ocorrencia.data, Ocorrencia.tmk, Ocorrencia.id)
         ).all()
         return [_ocor_to_dict(r) for r in rows]
@@ -1224,6 +1243,9 @@ def upsert_ocorrencia(dados):
     data = (dados.get('data') or '').strip()
     if not re.match(r'^\d{4}-\d{2}-\d{2}$', data):
         raise ValueError("Data invalida. Use YYYY-MM-DD.")
+    fim = (dados.get('fim') or '').strip()
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', fim) or fim < data:
+        fim = data              # sem fim valido, vale um dia so
     tmk   = (dados.get('tmk') or '').strip()
     lider = (dados.get('lider') or '').strip().upper()
     obs   = (dados.get('obs') or '')[:500]
@@ -1235,11 +1257,12 @@ def upsert_ocorrencia(dados):
     with SessionLocal() as s:
         o = s.scalar(select(Ocorrencia).where(Ocorrencia.id == oid)) if oid else None
         if o is None:
-            o = Ocorrencia(data=data, lider=lider, tmk=tmk, flag_id=flag_id,
-                           obs=obs, updated_at=now)
+            o = Ocorrencia(data=data, data_fim=fim, lider=lider, tmk=tmk,
+                           flag_id=flag_id, obs=obs, updated_at=now)
             s.add(o)
         else:
             o.data = data
+            o.data_fim = fim
             o.lider = lider
             o.tmk = tmk
             o.flag_id = flag_id
@@ -1256,9 +1279,32 @@ def delete_ocorrencia(oid):
         s.commit()
 
 
+def _dias_do_periodo(ini, fim, ano, mes, dia=None):
+    """Abre o intervalo dia a dia e devolve so os dias que caem no mes pedido.
+    Um atestado de 28/10 a 03/11 devolve [28,29,30,31] quando o mes e outubro,
+    e [1,2,3] quando e novembro. O teto de 400 voltas e uma trava contra
+    periodo absurdo digitado errado."""
+    from datetime import timedelta
+    try:
+        d = datetime.strptime(ini, '%Y-%m-%d').date()
+        f = datetime.strptime(fim or ini, '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        return []
+    if f < d:
+        f = d
+    out = []
+    voltas = 0
+    while d <= f and voltas < 400:
+        if d.year == ano and d.month == mes and (not dia or d.day == dia):
+            out.append(d.day)
+        d += timedelta(days=1)
+        voltas += 1
+    return out
+
 def ocorrencias_por_tmk(ano, mes, dia=None):
     """Para o Acompanhamento TMK: {NOME: {'adv':[dias], 'falta':[...],
-    'atestado':[...]}}. So entram as flags que tem tipo."""
+    'atestado':[...]}}. So entram as flags que tem tipo. O periodo e aberto
+    dia a dia aqui, entao um atestado de 6 dias conta 6 dias."""
     tipos = {}
     for f in get_flags():
         if f['tipo']:
@@ -1269,13 +1315,10 @@ def ocorrencias_por_tmk(ano, mes, dia=None):
         nome = (o['tmk'] or '').strip()
         if not tipo or not nome:
             continue
-        try:
-            d = int(o['data'][8:10])
-        except (TypeError, ValueError):
-            continue
         p = saida.setdefault(nome, {'adv': [], 'falta': [], 'atestado': []})
-        if d not in p[tipo]:
-            p[tipo].append(d)
+        for d in _dias_do_periodo(o.get('data'), o.get('fim'), ano, mes, dia):
+            if d not in p[tipo]:
+                p[tipo].append(d)
     for p in saida.values():
         for k in p:
             p[k].sort()
