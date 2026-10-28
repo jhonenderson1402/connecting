@@ -234,7 +234,7 @@
       <div id="unidades"></div>
 
       <div class="bloco">
-        <div class="bloco-h"><span class="t">Indicação e destaques</span></div>
+        <div class="bloco-h"><span class="t">Indicação e rank</span></div>
         <div class="bloco-c">
           <div class="somatot" style="margin:0 0 12px;padding-top:0;border-top:none">
             Total de Leads Geral
@@ -245,10 +245,10 @@
             <input type="number" id="indic" value="0" oninput="monta()">
           </div>
           <div style="font-size:9px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;
-                      color:var(--mut);margin:4px 0 8px">Destaques — colaboradores</div>
+                      color:var(--mut);margin:4px 0 8px">Rank — colaboradores</div>
           <div id="dest-col"></div>
           <div style="font-size:9px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;
-                      color:var(--mut);margin:14px 0 8px">Destaques — unidades</div>
+                      color:var(--mut);margin:14px 0 8px">Rank — unidades</div>
           <div id="dest-uni"></div>
         </div>
       </div>
@@ -828,7 +828,7 @@ function desenhaTudo(cv){
   y += alt + 2;
 
   /* destaques */
-  y = SECAO(ct, y, 'DESTAQUES DO DIA');
+  y = SECAO(ct, y, 'RANK PARÁ, AMAZONAS E NORDESTE');
   gap = 16; cw = (IR - IM - gap) / 2;
   var grupos = [['COLABORADORES', DEST_COL], ['UNIDADES', DEST_UNI]];
   for(i = 0; i < 2; i++){
