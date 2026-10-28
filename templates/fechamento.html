@@ -289,6 +289,7 @@ var SEM_LEADS = ['Triagem'];     /* leads da Triagem ficam fora do total */
 
 var TOTAIS = [];
 var UNIS = [];
+
 var DEST_COL = [{nome:'', q:0}, {nome:'', q:0}, {nome:'', q:0}];
 var DEST_UNI = [{nome:'', q:0}, {nome:'', q:0}, {nome:'', q:0}];
 
@@ -689,13 +690,13 @@ function desenhaTudo(cv){
   gap = 14; cw = (IR - IM - 3 * gap) / 4;
   for(i = 0; i < 4; i++){
     x = IM + i * (cw + gap);
-    PAINEL(ct, x, y, cw, 116);
+    PAINEL(ct, x, y, cw, 104);
     RET(ct, x, y, cw, 4, kpis[i][2] ? C.ouro : C.borda);
     CAP(ct, x + cw / 2, y + 22, kpis[i][0].toUpperCase(), fnt(600, 14), C.fraco, 1.8, 'c');
-    T(ct, x + cw / 2, y + 42, kpis[i][1], fnt(900, 54),
+    T(ct, x + cw / 2, y + 38, kpis[i][1], fnt(900, 48),
       kpis[i][2] ? C.ouro : C.tinta, 'c');
   }
-  y += 116 + 16;
+  y += 104 + 12;
 
   /* agendamentos por unidade */
   y = SECAO(ct, y, 'AGENDAMENTOS POR UNIDADE');
@@ -703,17 +704,18 @@ function desenhaTudo(cv){
   /* quantas fileiras forem precisas: com 7 unidades a setima vinha por cima
      do titulo da secao seguinte */
   var fileiras = Math.max(1, Math.ceil(TOTAIS.length / 3));
-  for(i = 0; i < TOTAIS.length; i++){
-    x = IM + (i % 3) * (cw + gap);
-    yy = y + Math.floor(i / 3) * (94 + gap);
-    PAINEL(ct, x, yy, cw, 94);
+  var ALTC = 74;                     // cartao mais baixo: a altura que sobra
+  for(i = 0; i < TOTAIS.length; i++){ // vai para a tabela de leads, que e a
+    x = IM + (i % 3) * (cw + gap);    // parte que precisa de letra maior
+    yy = y + Math.floor(i / 3) * (ALTC + gap);
+    PAINEL(ct, x, yy, cw, ALTC);
     var nmU = TOTAIS[i].nome;
-    ct.font = fnt(700, 21);
-    while(nmU.length > 3 && ct.measureText(nmU).width > cw - 40) nmU = nmU.slice(0, -2);
-    T(ct, x + 20, yy + 11, nmU, fnt(700, 21), C.tinta);
-    T(ct, x + 20, yy + 38, nBRf(TOTAIS[i].qtd), fnt(900, 46), C.tinta);
+    ct.font = fnt(700, 19);
+    while(nmU.length > 3 && ct.measureText(nmU).width > cw - 36) nmU = nmU.slice(0, -2);
+    T(ct, x + 18, yy + 9, nmU, fnt(700, 19), C.tinta);
+    T(ct, x + 18, yy + 31, nBRf(TOTAIS[i].qtd), fnt(900, 36), C.tinta);
   }
-  y += fileiras * 94 + (fileiras - 1) * gap + 16;
+  y += fileiras * ALTC + (fileiras - 1) * gap + 12;
 
   /* leads e conversao */
   y = SECAO(ct, y, 'LEADS E CONVERSÃO POR CANAL');
@@ -728,18 +730,23 @@ function desenhaTudo(cv){
     if(us.length) vis.push({nome:UNIS[i].nome, canais:us, obs:UNIS[i].obs});
   }
 
+  /* Linha mais justa que antes (30 em vez de 34): aperta o espacamento e
+     deixa a letra grande, em vez do contrario. */
   function altura(k){
-    var a = Math.round(34 * k) + Math.round(42 * k);
+    var a = Math.round(30 * k) + Math.round(38 * k);
     for(var q = 0; q < vis.length; q++){
-      a += Math.round(34 * k) + vis[q].canais.length * Math.round(34 * k) +
-           (vis[q].obs && vis[q].obs.trim() ? Math.round(24 * k) : 0) + Math.round(42 * k);
+      a += Math.round(30 * k) + vis[q].canais.length * Math.round(30 * k) +
+           (vis[q].obs && vis[q].obs.trim() ? Math.round(22 * k) : 0) + Math.round(38 * k);
     }
     return a;
   }
-  var RESERVA = 236, disp = (IH - 54 - 16) - y - RESERVA, k = 1;
-  while(k > 0.62 && altura(k) > disp) k -= 0.02;
-  var LN = Math.round(34 * k);
-  function g(t, peso){ return fnt(peso || 400, Math.max(13, Math.round(t * k))); }
+  var RESERVA = 212, disp = (IH - 54 - 16) - y - RESERVA, k = 1;
+  while(k > 0.50 && altura(k) > disp) k -= 0.02;
+  var LN = Math.round(30 * k);
+  /* Piso em dois estagios: no dia normal a letra nao desce de 16px; so num
+     dia com muita unidade e canal ela vai abaixo disso, para caber. */
+  var PISO = (k >= 0.72) ? 16 : 12;
+  function g(t, peso){ return fnt(peso || 400, Math.max(PISO, Math.round(t * k))); }
 
   var alt = altura(k);
   PAINEL(ct, IM, y, IR - IM, alt, '#fcfbf9');
@@ -780,7 +787,7 @@ function desenhaTudo(cv){
     }
     if(u.obs && u.obs.trim()){
       T(ct, IM + 44, yy - 4, u.obs.trim(), g(18, 'italic 400'), C.fraco);
-      yy += Math.round(24 * k);
+      yy += Math.round(22 * k);
     }
     LIN(ct, IM + 44, yy - 2, c3, C.borda, 1);
     yy += Math.round(6 * k);
@@ -790,7 +797,7 @@ function desenhaTudo(cv){
     T(ct, c2, yy, nBRf(sa), g(21, 700), C.tinta, 'r');
     T(ct, c3, yy, sl > 0 ? ps + '%' : '—', g(21, 700),
       sl > 0 ? corConv(ps) : C.fraco, 'r');
-    yy += Math.round(36 * k);
+    yy += Math.round(38 * k);
     if(i < vis.length - 1) LIN(ct, IM + 24, yy - 6, IR - 24, C.borda, 1);
   }
 
@@ -814,11 +821,11 @@ function desenhaTudo(cv){
   var grupos = [['COLABORADORES', DEST_COL], ['UNIDADES', DEST_UNI]];
   for(i = 0; i < 2; i++){
     x = IM + i * (cw + gap);
-    PAINEL(ct, x, y, cw, 188);
+    PAINEL(ct, x, y, cw, 164);
     RET(ct, x, y, cw, 34, C.faixa);
     CAP(ct, x + 20, y + 10, grupos[i][0], fnt(700, 14), '#ffffff', 2.2);
     CAP(ct, x + cw - 20, y + 10, 'AGS', fnt(600, 12), C.claro, 1.6, 'r');
-    yy = y + 48;
+    yy = y + 42;
     for(j = 0; j < grupos[i][1].length; j++){
       var dd = grupos[i][1][j];
       T(ct, x + 20, yy + 4, String(j + 1), fnt(900, 21), C.ouroE);
@@ -827,10 +834,10 @@ function desenhaTudo(cv){
       while(nm.length > 2 && ct.measureText(nm).width > cw - 135) nm = nm.slice(0, -2);
       T(ct, x + 50, yy + 3, nm, fnt(400, 22), C.corpo);
       T(ct, x + cw - 20, yy + 2, String(dd.q || 0), fnt(700, 23), C.tinta, 'r');
-      yy += 44;
+      yy += 38;
     }
   }
-  y += 188;
+  y += 164;
 
   /* rodape */
   var yr = IH - 54;
