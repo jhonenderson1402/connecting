@@ -721,7 +721,10 @@ function desenhaTudo(cv){
 
   var vis = [];
   for(i = 0; i < UNIS.length; i++){
-    var us = UNIS[i].canais.filter(function(c){ return (+c.leads || 0) > 0; });
+    /* entra se tiver lead OU agendamento: so lead vazio nao pode apagar uma
+       unidade que agendou — era o que fazia o Manaus sumir do fechamento */
+    var us = UNIS[i].canais.filter(function(c){
+      return (+c.leads || 0) > 0 || (+c.ags || 0) > 0; });
     if(us.length) vis.push({nome:UNIS[i].nome, canais:us, obs:UNIS[i].obs});
   }
 
@@ -766,10 +769,12 @@ function desenhaTudo(cv){
     yy += LN;
     for(j = 0; j < u.canais.length; j++){
       var c = u.canais[j], p = trunc(c.ags, c.leads);
+      var temL = (+c.leads || 0) > 0;
       T(ct, IM + 44, yy, c.rot, g(21), C.corpo);
-      T(ct, c1, yy, nBRf(c.leads), g(21), C.corpo, 'r');
+      T(ct, c1, yy, temL ? nBRf(c.leads) : '—', g(21), C.corpo, 'r');
       T(ct, c2, yy, nBRf(c.ags), g(21, 600), C.tinta, 'r');
-      T(ct, c3, yy, p + '%', g(21, 700), corConv(p), 'r');
+      T(ct, c3, yy, temL ? p + '%' : '—', g(21, 700),
+        temL ? corConv(p) : C.fraco, 'r');
       LIN(ct, IM + 44, yy + LN - 6, c3, C.fio, 1);
       yy += LN;
     }
@@ -781,9 +786,10 @@ function desenhaTudo(cv){
     yy += Math.round(6 * k);
     var ps = trunc(sa, sl);
     T(ct, IM + 44, yy, 'Total', g(21, 700), C.tinta);
-    T(ct, c1, yy, nBRf(sl), g(21, 700), C.tinta, 'r');
+    T(ct, c1, yy, sl > 0 ? nBRf(sl) : '—', g(21, 700), C.tinta, 'r');
     T(ct, c2, yy, nBRf(sa), g(21, 700), C.tinta, 'r');
-    T(ct, c3, yy, ps + '%', g(21, 700), corConv(ps), 'r');
+    T(ct, c3, yy, sl > 0 ? ps + '%' : '—', g(21, 700),
+      sl > 0 ? corConv(ps) : C.fraco, 'r');
     yy += Math.round(36 * k);
     if(i < vis.length - 1) LIN(ct, IM + 24, yy - 6, IR - 24, C.borda, 1);
   }
