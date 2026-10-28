@@ -164,12 +164,14 @@
   .destaque .md{ font-size:11px; font-weight:800; text-align:center;
                  color:#19160d; background:var(--mut); border-radius:50%;
                  width:20px; height:20px; line-height:20px; }
-  #dest-col .destaque:nth-child(1) .md, #dest-uni .destaque:nth-child(1) .md{
-    background:linear-gradient(145deg,#fde68a,#d9a21a); }
-  #dest-col .destaque:nth-child(2) .md, #dest-uni .destaque:nth-child(2) .md{
-    background:linear-gradient(145deg,#e6e6ea,#a8a8b2); }
-  #dest-col .destaque:nth-child(3) .md, #dest-uni .destaque:nth-child(3) .md{
-    background:linear-gradient(145deg,#e0a271,#9c5f2e); }
+  .destaque:nth-child(2) .md{ background:linear-gradient(145deg,#fde68a,#d9a21a); }
+  .destaque:nth-child(3) .md{ background:linear-gradient(145deg,#e6e6ea,#a8a8b2); }
+  .destaque:nth-child(4) .md{ background:linear-gradient(145deg,#e0a271,#9c5f2e); }
+  #ranks{ display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; }
+  @media (max-width:1400px){ #ranks{ grid-template-columns:1fr; } }
+  .rank-cx{ border:1px solid var(--bd2); border-radius:8px; padding:8px 9px 5px; }
+  .rank-tit{ width:100%; margin-bottom:6px; font-weight:800; font-size:12px;
+             letter-spacing:.04em; color:var(--pri); }
   .destaque input{ width:100%; }
   .destaque input.q{ text-align:right; font-weight:700;
                      font-variant-numeric:tabular-nums; }
@@ -260,11 +262,8 @@
             <input type="number" id="indic" value="0" oninput="monta()">
           </div>
           <div style="font-size:9px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;
-                      color:var(--mut);margin:4px 0 8px">Rank — colaboradores</div>
-          <div id="dest-col"></div>
-          <div style="font-size:9px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;
-                      color:var(--mut);margin:14px 0 8px">Rank — unidades</div>
-          <div id="dest-uni"></div>
+                      color:var(--mut);margin:4px 0 8px">Ranks — o título de cada um é editável</div>
+          <div id="ranks"></div>
         </div>
       </div>
 
@@ -329,8 +328,16 @@ var VALORES = {};                /* sigla -> quantidade */
 var TOTAIS = [];
 var UNIS = [];
 
-var DEST_COL = [{nome:'', q:0}, {nome:'', q:0}, {nome:'', q:0}];
-var DEST_UNI = [{nome:'', q:0}, {nome:'', q:0}, {nome:'', q:0}];
+/* Ranks da imagem: o titulo de cada um e digitado, entao da para trocar
+   "Nordeste" por outra regiao sem mexer no codigo. */
+var TITULOS_PADRAO = ['Colaboradores', 'Pará', 'Amazonas', 'Nordeste'];
+var RANKS = [];
+function ranksVazios(){
+  return TITULOS_PADRAO.map(function(t){
+    return {titulo:t, itens:[{nome:'',q:0},{nome:'',q:0},{nome:'',q:0}]};
+  });
+}
+RANKS = ranksVazios();
 
 function sem(s){
   return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -433,10 +440,18 @@ async function carregaDia(data){
         u.canais.push({rot:rot, leads:0, ags:0});
     });
   });
-  DEST_COL = (d.dest_col && d.dest_col.length === 3) ? d.dest_col
-           : [{nome:'',q:0},{nome:'',q:0},{nome:'',q:0}];
-  DEST_UNI = (d.dest_uni && d.dest_uni.length === 3) ? d.dest_uni
-           : [{nome:'',q:0},{nome:'',q:0},{nome:'',q:0}];
+  if(d.ranks && d.ranks.length){
+    RANKS = d.ranks;
+  } else {
+    /* registro antigo: aproveita os dois ranks que existiam */
+    RANKS = ranksVazios();
+    if(d.dest_col && d.dest_col.length === 3) RANKS[0].itens = d.dest_col;
+    if(d.dest_uni && d.dest_uni.length === 3) RANKS[1].itens = d.dest_uni;
+  }
+  RANKS.forEach(function(r){
+    while(r.itens.length < 3) r.itens.push({nome:'',q:0});
+  });
+
   document.getElementById('indic').value = Number(d.indicacao) || 0;
   VALORES = (d.siglas && typeof d.siglas === 'object') ? d.siglas : {};
 
@@ -468,8 +483,7 @@ function dados(){
     total_leads: totalLeads(),
     indicacao:   Number(document.getElementById('indic').value) || 0,
     unidades:    UNIS,
-    dest_col:    DEST_COL,
-    dest_uni:    DEST_UNI,
+    ranks:       RANKS,
     siglas:      VALORES
   };
 }
@@ -583,17 +597,19 @@ function atualizaUnidade(iu){
 }
 
 function desenhaDestaques(){
-  function bloco(lista, alvo, id){
-    document.getElementById(id).innerHTML = lista.map(function(d, i){
+  document.getElementById('ranks').innerHTML = RANKS.map(function(r, ir){
+    var linhas = r.itens.slice(0, 3).map(function(d, i){
       return '<div class="destaque"><span class="md">' + (i+1) + '</span>' +
         '<input type="text" value="' + esc(d.nome) + '" placeholder="nome"' +
-          ' oninput="setD(\'' + alvo + '\',' + i + ',\'nome\',this.value)">' +
+          ' oninput="setD(' + ir + ',' + i + ',\'nome\',this.value)">' +
         '<input type="number" class="q" value="' + (d.q || '') + '" placeholder="0"' +
-          ' oninput="setD(\'' + alvo + '\',' + i + ',\'q\',this.value)"></div>';
+          ' oninput="setD(' + ir + ',' + i + ',\'q\',this.value)"></div>';
     }).join('');
-  }
-  bloco(DEST_COL, 'col', 'dest-col');
-  bloco(DEST_UNI, 'uni', 'dest-uni');
+    return '<div class="rank-cx">' +
+      '<input class="rank-tit" type="text" value="' + esc(r.titulo) + '"' +
+      ' placeholder="nome do rank" oninput="setT(' + ir + ',this.value)">' +
+      linhas + '</div>';
+  }).join('');
 }
 
 function setC(iu, ic, campo, v){
@@ -604,11 +620,11 @@ function setC(iu, ic, campo, v){
 }
 
 function setObs(iu, v){ UNIS[iu].obs = v; monta(); agendaSalvar(); }
-function setD(alvo, i, campo, v){
-  var L = (alvo === 'col') ? DEST_COL : DEST_UNI;
-  L[i][campo] = (campo === 'q') ? (Number(v) || 0) : v;
+function setD(ir, i, campo, v){
+  RANKS[ir].itens[i][campo] = (campo === 'q') ? (Number(v) || 0) : v;
   monta(); agendaSalvar();
 }
+function setT(ir, v){ RANKS[ir].titulo = v; monta(); agendaSalvar(); }
 
 /* ── Confere as somas e repinta a imagem ───────────────────────────────────── */
 function monta(){
@@ -755,7 +771,11 @@ function visiveis(){
   }
   return v;
 }
-
+/* Dois ranks por fileira; a folha cresce conforme a quantidade de ranks. */
+function alturaRanks(){
+  var fil = Math.max(1, Math.ceil(RANKS.length / 2));
+  return fil * 164 + (fil - 1) * 16;
+}
 function desenhaTudo(cv){
   var i, j, y, yy, x, cw, gap;
 
@@ -763,7 +783,7 @@ function desenhaTudo(cv){
   var vis = visiveis();
   var filAnt = Math.max(1, Math.ceil(TOTAIS.length / 3));
   var antes = 224 + 26 + 104 + 12 + 35 + filAnt * 74 + (filAnt - 1) * 14 + 12 + 35;
-  var depois = 2 + 35 + 164 + 16 + 54;        // destaques + rodape
+  var depois = 2 + 35 + alturaRanks() + 16 + 54;   // ranks + rodape
   IH = Math.max(IH_MIN, Math.round(antes + alturaTabela(vis) + depois));
   if(cv.height !== IH){ cv.height = IH; }
 
@@ -902,27 +922,31 @@ function desenhaTudo(cv){
   /* destaques */
   y = SECAO(ct, y, 'RANK PARÁ, AMAZONAS E NORDESTE');
   gap = 16; cw = (IR - IM - gap) / 2;
-  var grupos = [['COLABORADORES', DEST_COL], ['UNIDADES', DEST_UNI]];
-  for(i = 0; i < 2; i++){
-    x = IM + i * (cw + gap);
-    PAINEL(ct, x, y, cw, 164);
-    RET(ct, x, y, cw, 34, C.faixa);
-    CAP(ct, x + 20, y + 10, grupos[i][0], fnt(700, 14), '#ffffff', 2.2);
-    CAP(ct, x + cw - 20, y + 10, 'AGS', fnt(600, 12), C.claro, 1.6, 'r');
-    yy = y + 42;
-    for(j = 0; j < grupos[i][1].length; j++){
-      var dd = grupos[i][1][j];
-      T(ct, x + 20, yy + 4, String(j + 1), fnt(900, 21), C.ouroE);
+  for(i = 0; i < RANKS.length; i++){
+    x  = IM + (i % 2) * (cw + gap);
+    yy = y + Math.floor(i / 2) * (164 + gap);
+    PAINEL(ct, x, yy, cw, 164);
+    RET(ct, x, yy, cw, 34, C.faixa);
+    /* o titulo e digitado, entao e truncado para nao invadir o "AGS" */
+    var tt = (RANKS[i].titulo || '').toUpperCase();
+    ct.font = fnt(700, 14);
+    while(tt.length > 2 &&
+          ct.measureText(tt).width + tt.length * 2.2 > cw - 90) tt = tt.slice(0, -1);
+    CAP(ct, x + 20, yy + 10, tt, fnt(700, 14), '#ffffff', 2.2);
+    CAP(ct, x + cw - 20, yy + 10, 'AGS', fnt(600, 12), C.claro, 1.6, 'r');
+    var yl = yy + 42;
+    for(j = 0; j < 3; j++){
+      var dd = RANKS[i].itens[j] || {nome:'', q:0};
+      T(ct, x + 20, yl + 4, String(j + 1), fnt(900, 21), C.ouroE);
       var nm = dd.nome || '';
       ct.font = fnt(400, 22);
       while(nm.length > 2 && ct.measureText(nm).width > cw - 135) nm = nm.slice(0, -2);
-      T(ct, x + 50, yy + 3, nm, fnt(400, 22), C.corpo);
-      T(ct, x + cw - 20, yy + 2, String(dd.q || 0), fnt(700, 23), C.tinta, 'r');
-      yy += 38;
+      T(ct, x + 50, yl + 3, nm, fnt(400, 22), C.corpo);
+      T(ct, x + cw - 20, yl + 2, String(dd.q || 0), fnt(700, 23), C.tinta, 'r');
+      yl += 38;
     }
   }
-  y += 164;
-
+  y += alturaRanks();
   /* rodape */
   var yr = IH - 54;
   RET(ct, 0, yr, IW, 54, C.faixa);
