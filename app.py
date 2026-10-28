@@ -74,6 +74,8 @@ def _units():
 LEADS_PREFIX = "LEADS::"
 # "Unidade" reservada do Acompanhamento Unidades (uma linha por bairro, por dia)
 ACOMP_UNIT = "ACOMP::GERAL"
+# O fechamento do dia guarda o preenchimento aqui, no mesmo esquema.
+FECH_UNIT  = "FECH::GERAL"
 MONTHS = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO",
           "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"]
 TIME_SLOTS = [
@@ -389,7 +391,8 @@ def api_appointments():
     # Nunca expõe as "unidades" reservadas (Leads e Acompanhamento) nos agendamentos nem no dashboard
     appts = [a for a in appts
              if not a['unit'].startswith(LEADS_PREFIX)
-             and a['unit'] != ACOMP_UNIT and a['unit'] != LEADSAG_UNIT]
+             and a['unit'] != ACOMP_UNIT and a'unit' != LEADSAG_UNIT
+             and a['unit'] != FECH_UNIT]
     if unit:
         appts = [a for a in appts if a['unit'] == unit]
     return jsonify(appts)
@@ -1276,7 +1279,35 @@ def api_meses_com_dados():
     if not (1900 <= ano <= 2999):
         return _err('Ano fora do intervalo.')
     return jsonify(db.meses_com_dados(ano, ACOMP_UNIT))
+# ── Fechamento do dia ────────────────────────────────────────────────────────
+# Guarda o preenchimento na mesma tabela de appointments, com um "unit"
+# reservado — mesmo padrao do Acompanhamento e dos Leads Recebidos, entao
+# nao precisa de tabela nova nem de migracao.
 
+@app.route('/fechamento')
+@login_required
+def fechamento_page():
+    return render_template('fechamento.html')
+
+@app.route('/api/fechamento/<date>', methods=['GET'])
+@login_required
+def api_get_fechamento(date):
+    if not _valid_date(date):
+        return _err('Data inválida. Use YYYY-MM-DD.')
+    appt = db.get_appointment(FECH_UNIT, date)
+    linhas = (appt or {}).get('rows') or []
+    return jsonify(linhas[0] if isinstance(linhas, list) and linhas else {})
+
+@app.route('/api/fechamento/<date>', methods=['POST'])
+@login_required
+def api_save_fechamento(date):
+    if not _valid_date(date):
+        return _err('Data inválida. Use YYYY-MM-DD.')
+    dados = request.get_json(silent=True)
+    if not isinstance(dados, dict):
+        return _err('Envie um objeto com os dados do fechamento.')
+    db.upsert_appointment(FECH_UNIT, date, '', [dados])
+    return jsonify({'ok': True})
 # ── Leads Recebidos (por local e agência) ────────────────────────────────────
 LEADSAG_UNIT = "LEADSAG::GERAL"
 @app.route('/leads-recebidos')
