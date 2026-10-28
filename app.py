@@ -391,7 +391,7 @@ def api_appointments():
     # Nunca expõe as "unidades" reservadas (Leads e Acompanhamento) nos agendamentos nem no dashboard
     appts = [a for a in appts
              if not a['unit'].startswith(LEADS_PREFIX)
-             and a['unit'] != ACOMP_UNIT and a'unit' != LEADSAG_UNIT
+             and a['unit'] != ACOMP_UNIT and a['unit'] != LEADSAG_UNIT
              and a['unit'] != FECH_UNIT]
     if unit:
         appts = [a for a in appts if a['unit'] == unit]
