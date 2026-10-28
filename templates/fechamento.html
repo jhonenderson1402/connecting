@@ -464,23 +464,25 @@ function desenhaUnidades(){
           ' oninput="setC(' + iu + ',' + ic + ',\'leads\',this.value)">' +
         '<input type="number" value="' + (c.ags || '') + '" placeholder="0"' +
           ' oninput="setC(' + iu + ',' + ic + ',\'ags\',this.value)">' +
-        '<span class="pct" style="color:' + (c.leads > 0 ? corPct(p) : '#3f3f46') + '">' +
+        '<span class="pct" id="pct-' + iu + '-' + ic + '"' +
+          ' style="color:' + (c.leads > 0 ? corPct(p) : '#3f3f46') + '">' +
           (c.leads > 0 ? p + '%' : '—') + '</span></div>';
     }).join('');
     var tl = u.canais.reduce(function(s,c){ return s + (Number(c.leads)||0); }, 0);
     var ta = u.canais.reduce(function(s,c){ return s + (Number(c.ags)||0); }, 0);
     return '<div class="bloco">' +
       '<div class="bloco-h"><span class="t">' + esc(u.nome) + '</span>' +
-        '<span class="d">' +
+        '<span class="d" id="nc-' + iu + '">' +
         u.canais.filter(function(c){ return c.leads > 0; }).length +
         ' canal(is)</span></div>' +
       '<div class="bloco-c">' +
         '<div class="cabc"><span>Canal</span><span>Leads</span><span>Agend.</span>' +
           '<span>Conv.</span></div>' + linhas +
         '<div class="canal total"><span class="nm">Total</span>' +
-          '<span class="tn">' + n(tl) + '</span>' +
-          '<span class="tn">' + n(ta) + '</span>' +
-          '<span class="pct" style="color:' + (tl > 0 ? corPct(pct(ta,tl)) : '#3f3f46') + '">' +
+          '<span class="tn" id="tl-' + iu + '">' + n(tl) + '</span>' +
+          '<span class="tn" id="ta-' + iu + '">' + n(ta) + '</span>' +
+          '<span class="pct" id="tp-' + iu + '"' +
+          ' style="color:' + (tl > 0 ? corPct(pct(ta,tl)) : '#3f3f46') + '">' +
           (tl > 0 ? pct(ta,tl) + '%' : '—') + '</span></div>' +
         '<div class="obs" style="margin-top:7px"><div class="campo">' +
           '<input type="text" value="' + esc(u.obs) + '"' +
@@ -488,6 +490,32 @@ function desenhaUnidades(){
           ' oninput="setObs(' + iu + ',this.value)"></div></div>' +
       '</div></div>';
   }).join('');
+}
+
+/* Atualiza so as celulas calculadas daquela unidade. Refazer o HTML do bloco
+   destruia o campo que estava sendo digitado e o cursor saltava fora. */
+function atualizaUnidade(iu){
+  var u = UNIS[iu];
+  if(!u) return;
+  u.canais.forEach(function(c, ic){
+    var sp = document.getElementById('pct-' + iu + '-' + ic);
+    if(!sp) return;
+    var p = pct(c.ags, c.leads);
+    sp.textContent = (c.leads > 0) ? p + '%' : '—';
+    sp.style.color = (c.leads > 0) ? corPct(p) : '#3f3f46';
+  });
+  var tl = u.canais.reduce(function(s,c){ return s + (Number(c.leads)||0); }, 0);
+  var ta = u.canais.reduce(function(s,c){ return s + (Number(c.ags)||0); }, 0);
+  var a = document.getElementById('tl-' + iu); if(a) a.textContent = n(tl);
+  var b = document.getElementById('ta-' + iu); if(b) b.textContent = n(ta);
+  var c2 = document.getElementById('tp-' + iu);
+  if(c2){
+    c2.textContent = (tl > 0) ? pct(ta,tl) + '%' : '—';
+    c2.style.color = (tl > 0) ? corPct(pct(ta,tl)) : '#3f3f46';
+  }
+  var d = document.getElementById('nc-' + iu);
+  if(d) d.textContent = u.canais.filter(function(c){ return c.leads > 0; }).length +
+                        ' canal(is)';
 }
 
 function desenhaDestaques(){
@@ -506,8 +534,9 @@ function desenhaDestaques(){
 
 function setC(iu, ic, campo, v){
   UNIS[iu].canais[ic][campo] = Number(v) || 0;
-  desenhaUnidades(); monta(); agendaSalvar();
+  atualizaUnidade(iu); monta(); agendaSalvar();
 }
+
 function setObs(iu, v){ UNIS[iu].obs = v; monta(); agendaSalvar(); }
 function setGeral(v){ TOTAL_GERAL = Number(v) || 0; monta(); agendaSalvar(); }
 function setD(alvo, i, campo, v){
@@ -563,11 +592,37 @@ var C = {
 
 function fnt(peso, tam){ return peso + ' ' + tam + 'px Lato, Inter, sans-serif'; }
 
-var _logo = null;
+var _logo = null, _corte = null;
 function carregaLogo(cb){
   if(_logo){ cb(); return; }
   var im = new Image();
-  im.onload = function(){ _logo = im; cb(); };
+  im.onload = function(){
+    _logo = im;
+    /* A logo.png tem muito vazio transparente em volta. Desenhada inteira
+       ela vira um quadrado que estoura a faixa do topo e empurra o titulo
+       para fora dela. Entao mede o retangulo que realmente tem pixel. */
+    try{
+      var c = document.createElement('canvas');
+      c.width = im.width; c.height = im.height;
+      var x = c.getContext('2d');
+      x.drawImage(im, 0, 0);
+      var d = x.getImageData(0, 0, im.width, im.height).data;
+      var x0 = im.width, y0 = im.height, x1 = -1, y1 = -1;
+      for(var py = 0; py < im.height; py++){
+        for(var px = 0; px < im.width; px++){
+          if(d[(py * im.width + px) * 4 + 3] > 8){
+            if(px < x0) x0 = px;
+            if(px > x1) x1 = px;
+            if(py < y0) y0 = py;
+            if(py > y1) y1 = py;
+          }
+        }
+      }
+      if(x1 > x0 && y1 > y0)
+        _corte = {x:x0, y:y0, w:x1 - x0 + 1, h:y1 - y0 + 1};
+    }catch(e){ _corte = null; }
+    cb();
+  };
   im.onerror = function(){ cb(); };          // sem logo, desenha o resto
   im.src = '/static/logo.png';
 }
@@ -632,8 +687,10 @@ function desenhaTudo(cv){
   RET(ct, 0, ALT - 6, IW, 6, C.ouro);
   var lh = 98;                                   // altura da logo a 228 de largura
   if(_logo){
-    lh = Math.round(_logo.height * 228 / _logo.width);
-    ct.drawImage(_logo, Math.round(IMEIO - 114), 30, 228, lh);
+    var cx0 = _corte ? _corte.x : 0, cy0 = _corte ? _corte.y : 0;
+    var cw0 = _corte ? _corte.w : _logo.width, ch0 = _corte ? _corte.h : _logo.height;
+    lh = Math.round(ch0 * 228 / cw0);
+    ct.drawImage(_logo, cx0, cy0, cw0, ch0, Math.round(IMEIO - 114), 30, 228, lh);
   }
   y = 30 + lh + 14;
   CAP(ct, IMEIO, y, 'FECHAMENTO DO DIA', fnt(700, 22), '#ffffff', 4.2, 'c');
@@ -663,14 +720,20 @@ function desenhaTudo(cv){
   /* agendamentos por unidade */
   y = SECAO(ct, y, 'AGENDAMENTOS POR UNIDADE');
   gap = 14; cw = (IR - IM - 2 * gap) / 3;
+  /* quantas fileiras forem precisas: com 7 unidades a setima vinha por cima
+     do titulo da secao seguinte */
+  var fileiras = Math.max(1, Math.ceil(TOTAIS.length / 3));
   for(i = 0; i < TOTAIS.length; i++){
     x = IM + (i % 3) * (cw + gap);
     yy = y + Math.floor(i / 3) * (94 + gap);
     PAINEL(ct, x, yy, cw, 94);
-    T(ct, x + 20, yy + 11, TOTAIS[i].nome, fnt(700, 21), C.tinta);
+    var nmU = TOTAIS[i].nome;
+    ct.font = fnt(700, 21);
+    while(nmU.length > 3 && ct.measureText(nmU).width > cw - 40) nmU = nmU.slice(0, -2);
+    T(ct, x + 20, yy + 11, nmU, fnt(700, 21), C.tinta);
     T(ct, x + 20, yy + 38, nBRf(TOTAIS[i].qtd), fnt(900, 46), C.tinta);
   }
-  y += 2 * 94 + gap + 16;
+  y += fileiras * 94 + (fileiras - 1) * gap + 16;
 
   /* leads e conversao */
   y = SECAO(ct, y, 'LEADS E CONVERSÃO POR CANAL');
