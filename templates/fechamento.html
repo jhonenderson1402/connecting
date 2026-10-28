@@ -223,8 +223,7 @@
         <div class="bloco-c">
           <div class="somatot" style="margin:0 0 10px;padding-top:0;border-top:none">
             Agendamentos total
-            <span class="dica" id="dica-topo"></span>
-            <input type="number" id="tot-topo" value="0" oninput="monta()">
+            <span class="tn" id="tot-topo" style="margin-left:auto">0</span>
           </div>
           <table class="tot" id="tab-tot"></table>
           <div class="cadeado">🔒 Estes números vêm do Hora a Hora do dia. Manôa e
@@ -314,6 +313,11 @@ function hoje(d){
          '-' + String(d.getDate()).padStart(2,'0');
 }
 
+/* O total do dia e a soma das unidades — nao se digita. */
+function totalDia(){
+  return TOTAIS.reduce(function(s,t){ return s + (Number(t.qtd) || 0); }, 0);
+}
+
 function unisVazias(){
   return BLOCOS_PADRAO.map(function(nome){
     return {nome:nome, obs:'', canais:CANAIS.map(function(r){
@@ -385,12 +389,6 @@ async function carregaDia(data){
   document.getElementById('dt-alvo').value = alvo;
 
   await carregaTotais(data);
-  if(d.total_dia !== undefined && d.total_dia !== null){
-    document.getElementById('tot-topo').value = Number(d.total_dia) || 0;
-  } else {
-    document.getElementById('tot-topo').value =
-      TOTAIS.reduce(function(s,t){ return s + (Number(t.qtd)||0); }, 0);
-  }
 
   desenhaUnidades();
   desenhaDestaques();
@@ -403,7 +401,7 @@ function dados(){
   return {
     data_fech:   document.getElementById('dt-fech').value,
     data_alvo:   document.getElementById('dt-alvo').value,
-    total_dia:   Number(document.getElementById('tot-topo').value) || 0,
+    total_dia:   totalDia(),
     total_leads: TOTAL_GERAL,
     indicacao:   Number(document.getElementById('indic').value) || 0,
     unidades:    UNIS,
@@ -453,6 +451,8 @@ function desenhaTotais(){
     return '<tr><td class="n">' + n(t.qtd) + '</td><td class="u">' +
            esc(t.nome) + '</td></tr>';
   }).join('');
+  var e = document.getElementById('tot-topo');
+  if(e) e.textContent = n(totalDia());
 }
 
 function desenhaUnidades(){
@@ -547,12 +547,6 @@ function setD(alvo, i, campo, v){
 
 /* ── Confere as somas e repinta a imagem ───────────────────────────────────── */
 function monta(){
-  var somaLin = TOTAIS.reduce(function(s,t){ return s + (Number(t.qtd)||0); }, 0);
-  var topo = Number(document.getElementById('tot-topo').value) || 0;
-  var dt = document.getElementById('dica-topo');
-  dt.textContent = 'soma das linhas: ' + n(somaLin);
-  dt.className = 'dica' + (somaLin !== topo ? ' dif' : '');
-
   var geral = UNIS.reduce(function(s,u){
     if(SEM_LEADS.indexOf(u.nome) >= 0) return s;
     return s + u.canais.reduce(function(a,c){ return a + (Number(c.leads)||0); }, 0);
@@ -566,7 +560,6 @@ function monta(){
     requestAnimationFrame(function(){ monta._ag = false; pinta(); }); }
 }
 
-document.getElementById('tot-topo').addEventListener('input', agendaSalvar);
 document.getElementById('indic').addEventListener('input', agendaSalvar);
 document.getElementById('dt-alvo').addEventListener('input', agendaSalvar);
 
@@ -699,12 +692,12 @@ function desenhaTudo(cv){
     dBR(val('dt-alvo')), fnt(400, 20), C.claro, 'c');
 
   /* indicadores */
-  var totalDia = +val('tot-topo') || 0;
+  var totalDiaN = totalDia();
   var leadsGer = TOTAL_GERAL;
   y = ALT + 26;
   var kpis = [['Leads recebidos', nBRf(leadsGer), false],
-              ['Agendamentos', nBRf(totalDia), true],
-              ['Conversão', trunc(totalDia, leadsGer) + '%', false],
+              ['Agendamentos', nBRf(totalDiaN), true],
+              ['Conversão', trunc(totalDiaN, leadsGer) + '%', false],
               ['Indicação', pad2(+val('indic') || 0), false]];
   gap = 14; cw = (IR - IM - 3 * gap) / 4;
   for(i = 0; i < 4; i++){
