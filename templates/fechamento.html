@@ -784,10 +784,24 @@ function visiveis(){
   }
   return v;
 }
-/* Dois ranks por fileira; a folha cresce conforme a quantidade de ranks. */
+/* O primeiro rank ocupa a largura toda; os demais vao de tres em tres
+   na(s) fileira(s) de baixo. A folha cresce conforme a quantidade. */
 function alturaRanks(){
-  var fil = Math.max(1, Math.ceil(RANKS.length / 2));
+  var fil = 1 + Math.ceil(Math.max(0, RANKS.length - 1) / 3);
   return fil * 164 + (fil - 1) * 16;
+}
+
+/* Onde cada rank e com que largura e desenhado. */
+function caixasRanks(){
+  var gap = 16, larg = IR - IM, cw3 = (larg - 2 * gap) / 3, r = [];
+  for(var i = 0; i < RANKS.length; i++){
+    if(i === 0){ r.push({x:IM, y:0, w:larg}); continue; }
+    var k = i - 1;
+    r.push({x: IM + (k % 3) * (cw3 + gap),
+            y: (1 + Math.floor(k / 3)) * (164 + gap),
+            w: cw3});
+  }
+  return r;
 }
 function desenhaTudo(cv){
   var i, j, y, yy, x, cw, gap;
@@ -934,10 +948,11 @@ function desenhaTudo(cv){
 
   /* destaques */
   y = SECAO(ct, y, (val('tit-rank') || TITULO_SECAO_PADRAO).toUpperCase());
-  gap = 16; cw = (IR - IM - gap) / 2;
+  var cxs = caixasRanks();
   for(i = 0; i < RANKS.length; i++){
-    x  = IM + (i % 2) * (cw + gap);
-    yy = y + Math.floor(i / 2) * (164 + gap);
+    x  = cxs[i].x;
+    yy = y + cxs[i].y;
+    cw = cxs[i].w;
     PAINEL(ct, x, yy, cw, 164);
     RET(ct, x, yy, cw, 34, C.faixa);
     /* o titulo e digitado, entao e truncado para nao invadir o "AGS" */
