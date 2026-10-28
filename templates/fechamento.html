@@ -261,6 +261,11 @@
             <label>Indicação</label>
             <input type="number" id="indic" value="0" oninput="monta()">
           </div>
+          <div class="campo" style="margin-bottom:12px">
+            <label>Título da seção na imagem</label>
+            <input type="text" id="tit-rank" placeholder="RANK PARÁ, AMAZONAS E NORDESTE"
+                   oninput="monta();agendaSalvar()">
+          </div>
           <div style="font-size:9px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;
                       color:var(--mut);margin:4px 0 8px">Ranks — o título de cada um é editável</div>
           <div id="ranks"></div>
@@ -331,6 +336,7 @@ var UNIS = [];
 /* Ranks da imagem: o titulo de cada um e digitado, entao da para trocar
    "Nordeste" por outra regiao sem mexer no codigo. */
 var TITULOS_PADRAO = ['Colaboradores', 'Pará', 'Amazonas', 'Nordeste'];
+var TITULO_SECAO_PADRAO = 'RANK PARÁ, AMAZONAS E NORDESTE';
 var RANKS = [];
 function ranksVazios(){
   return TITULOS_PADRAO.map(function(t){
@@ -451,6 +457,7 @@ async function carregaDia(data){
   RANKS.forEach(function(r){
     while(r.itens.length < 3) r.itens.push({nome:'',q:0});
   });
+  document.getElementById('tit-rank').value = d.titulo_rank || TITULO_SECAO_PADRAO;
 
   document.getElementById('indic').value = Number(d.indicacao) || 0;
   VALORES = (d.siglas && typeof d.siglas === 'object') ? d.siglas : {};
@@ -484,6 +491,7 @@ function dados(){
     indicacao:   Number(document.getElementById('indic').value) || 0,
     unidades:    UNIS,
     ranks:       RANKS,
+    titulo_rank: val('tit-rank'),
     siglas:      VALORES
   };
 }
@@ -734,6 +742,11 @@ function LIN(ct, x0, y0, x1, cor, larg){
 }
 function SECAO(ct, y, rotulo){
   RET(ct, IM, y, 7, 26, C.ouro);
+  /* titulo digitado pode ser comprido: corta antes de sair da folha */
+  ct.font = fnt(700, 18);
+  while(rotulo.length > 3 &&
+        ct.measureText(rotulo).width + rotulo.length * 2.8 > IR - IM - 20)
+    rotulo = rotulo.slice(0, -1);
   CAP(ct, IM + 20, y + 4, rotulo, fnt(700, 18), C.tinta, 2.8);
   return y + 35;
 }
@@ -920,7 +933,7 @@ function desenhaTudo(cv){
   y += alt + 2;
 
   /* destaques */
-  y = SECAO(ct, y, 'RANK PARÁ, AMAZONAS E NORDESTE');
+  y = SECAO(ct, y, (val('tit-rank') || TITULO_SECAO_PADRAO).toUpperCase());
   gap = 16; cw = (IR - IM - gap) / 2;
   for(i = 0; i < RANKS.length; i++){
     x  = IM + (i % 2) * (cw + gap);
