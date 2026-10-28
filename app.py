@@ -1263,7 +1263,21 @@ def api_acomp_mes():
         return _err('Informe ano e mes válidos.')
     out = [{'date': a['date'], 'rows': a['rows']}
            for a in db.get_appointments_by_month(ano, mes) if a['unit'] == ACOMP_UNIT]
-    return jsonify(out)# ── Leads Recebidos (por local e agência) ────────────────────────────────────
+    return jsonify(out)
+
+@app.route('/api/meses_com_dados', methods=['GET'])
+@login_required
+def api_meses_com_dados():
+    """Meses do ano que ja tem lancamento no Acompanhamento Unidades."""
+    try:
+        ano = int(request.args.get('ano'))
+    except (TypeError, ValueError):
+        return _err('Informe um ano válido.')
+    if not (1900 <= ano <= 2999):
+        return _err('Ano fora do intervalo.')
+    return jsonify(db.meses_com_dados(ano, ACOMP_UNIT))
+
+# ── Leads Recebidos (por local e agência) ────────────────────────────────────
 LEADSAG_UNIT = "LEADSAG::GERAL"
 @app.route('/leads-recebidos')
 @login_required
