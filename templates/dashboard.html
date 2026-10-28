@@ -1923,6 +1923,28 @@ function onConstantsLoaded() {
 
   loadEmployees();
   loadDashboard();   // ele já dispara o loadRanking
+  marcarMesesComDados();
+}
+
+// ── Marca em amarelo os meses que ja tem dados no Acompanhamento Unidades.
+// Mesmo padrao do seletor de DIA da tela Acompanhamento.
+async function marcarMesesComDados(){
+  const sel = document.getElementById('filter-month');
+  if(!sel) return;
+  let meses = [];
+  try{
+    const r = await fetch('/api/meses_com_dados?ano=' + new Date().getFullYear());
+    meses = r.ok ? await r.json() : [];
+  }catch(e){ meses = []; }
+  const tem = {};
+  (meses || []).forEach(function(m){ tem[Number(m)] = true; });
+  [].forEach.call(sel.options, function(o){
+    // o value vai de 0 a 11; o mes do servidor vem de 1 a 12
+    const marcado = !!tem[parseInt(o.value) + 1];
+    o.style.backgroundColor = marcado ? 'rgba(251,191,36,0.28)' : '';
+    o.style.color           = marcado ? '#fde68a' : '';
+    o.style.fontWeight      = marcado ? '700' : '';
+  });
 }
 function updateDaySelect(id, monthIndex, year, selectedDay) {
   const sel = document.getElementById(id);
