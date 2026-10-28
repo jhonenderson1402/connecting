@@ -1,0 +1,842 @@
+{% extends "base.html" %}
+{% block content %}
+<link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet"/>
+<style>
+
+  :root{
+    --bg:#0a0a0b; --card:#111113; --card2:#141417; --sec:#1a1a1e; --bd:#242429;
+    --bd2:#2e2e35; --fg:#fafafa; --fg2:#c9c9d1; --mut:#75757f; --mut2:#55555e;
+    --pri:#fbbf24; --pri-d:#f59e0b; --gre:#22c55e; --red:#ef4444;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ background:var(--bg); color:var(--fg);
+        font-family:Inter,system-ui,sans-serif; font-size:13px;
+        -webkit-font-smoothing:antialiased; }
+  ::selection{ background:rgba(251,191,36,.26); }
+
+  /* rolagem discreta, no tom da pagina */
+  *::-webkit-scrollbar{ width:10px; height:10px; }
+  *::-webkit-scrollbar-track{ background:transparent; }
+  *::-webkit-scrollbar-thumb{ background:#2a2a31; border-radius:6px;
+                              border:3px solid var(--bg); }
+  *::-webkit-scrollbar-thumb:hover{ background:#3a3a44; }
+
+  /* ── cabecalho ───────────────────────────────────────────────────────────── */
+  .page-header{
+    position:sticky; top:0; z-index:20;
+    display:flex; align-items:flex-end; gap:16px; padding:16px 20px 14px;
+    background:linear-gradient(180deg,#121214,#0d0d0f);
+    border-bottom:1px solid var(--bd);
+    box-shadow:0 1px 0 rgba(255,255,255,.03), 0 10px 26px -18px #000;
+  }
+  .page-title{ font-size:20px; font-weight:800; letter-spacing:-.02em;
+               display:flex; align-items:center; gap:9px; }
+  .page-title::before{
+    content:''; width:4px; height:19px; border-radius:3px;
+    background:linear-gradient(180deg,var(--pri),var(--pri-d));
+  }
+  .page-subtitle{ font-size:11px; color:var(--mut); margin:3px 0 0 13px; }
+  .filtros{ margin-left:auto; display:flex; gap:10px; align-items:flex-end; }
+
+  .campo{ display:flex; flex-direction:column; gap:5px; }
+  .campo label{ font-size:8.5px; font-weight:750; letter-spacing:.13em;
+                text-transform:uppercase; color:var(--mut); }
+
+  input[type=date], input[type=text], input[type=number]{
+    height:28px; padding:0 10px; border-radius:7px; background:var(--sec);
+    border:1px solid var(--bd2); color:var(--fg); font-family:inherit;
+    font-size:12.5px; transition:border-color .13s, box-shadow .13s, background .13s;
+  }
+  input::placeholder{ color:var(--mut2); }
+  input:hover{ border-color:#3a3a43; }
+  input:focus{ outline:none; border-color:var(--pri); background:#1d1b14;
+               box-shadow:0 0 0 3px rgba(251,191,36,.13); }
+  input::-webkit-outer-spin-button, input::-webkit-inner-spin-button{
+    -webkit-appearance:none; margin:0; }
+  input[type=number]{ -moz-appearance:textfield; }
+  input[type=date]{ color-scheme:dark; }
+
+  .bt-ouro{ height:32px; padding:0 15px; border-radius:8px; cursor:pointer; border:none;
+            background:linear-gradient(135deg,var(--pri),var(--pri-d)); color:#19160d;
+            font-size:12.5px; font-weight:750; font-family:inherit;
+            box-shadow:0 2px 10px -2px rgba(251,191,36,.4);
+            transition:filter .13s, transform .13s, box-shadow .13s; }
+  .bt-ouro:hover{ filter:brightness(1.07); box-shadow:0 4px 16px -3px rgba(251,191,36,.5); }
+  .bt-ouro:active{ transform:translateY(1px); }
+  .bt-linha{ height:32px; padding:0 14px; border-radius:8px; cursor:pointer;
+             background:var(--sec); border:1px solid var(--bd2); color:var(--fg2);
+             font-size:12.5px; font-weight:650; font-family:inherit;
+             transition:border-color .13s, color .13s, background .13s; }
+  .bt-linha:hover{ border-color:var(--pri); color:var(--fg); background:#1d1b14; }
+  .bt-linha:active{ transform:translateY(1px); }
+
+  .corpo{ display:grid; grid-template-columns:1fr 452px; gap:16px;
+          padding:14px 20px 32px; align-items:start; }
+  @media (max-width:1180px){ .corpo{ grid-template-columns:1fr; } }
+
+  /* ── blocos ──────────────────────────────────────────────────────────────── */
+  .bloco{ background:var(--card); border:1px solid var(--bd); border-radius:10px;
+          margin-bottom:9px; overflow:hidden;
+          transition:border-color .14s; }
+  .bloco:hover{ border-color:var(--bd2); }
+  .bloco-h{ display:flex; align-items:center; gap:9px; padding:7px 12px 7px 13px;
+            background:linear-gradient(180deg,rgba(255,255,255,.028),transparent);
+            border-bottom:1px solid var(--bd); position:relative; }
+  .bloco-h::before{
+    content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+    background:var(--pri); opacity:.85;
+  }
+  .bloco-h .t{ font-size:10px; font-weight:800; letter-spacing:.13em;
+               text-transform:uppercase; color:var(--pri); }
+  .bloco-h .d{ margin-left:auto; font-size:9.5px; font-weight:600; color:var(--mut);
+               background:var(--sec); border:1px solid var(--bd2);
+               padding:2px 8px; border-radius:20px; }
+  .bloco-c{ padding:9px 12px 10px; }
+
+  /* bloco verde dos totais automaticos */
+  .auto{ background:linear-gradient(180deg,rgba(34,197,94,.07),transparent); }
+  .auto::before{ background:var(--gre); }
+  .auto .t{ color:var(--gre); }
+  .bloco:has(> .auto){ border-color:rgba(34,197,94,.22); }
+
+  table.tot{ width:100%; border-collapse:collapse; }
+  table.tot td{ padding:3px 0; font-size:12.5px;
+                border-bottom:1px solid rgba(255,255,255,.028); }
+  table.tot tr:last-child td{ border-bottom:none; }
+  table.tot tr:hover td{ background:rgba(255,255,255,.016); }
+  table.tot td.n{ width:74px; text-align:right; padding-right:12px; font-weight:800;
+                  color:var(--gre); font-variant-numeric:tabular-nums; }
+  table.tot td.u{ color:var(--fg2); }
+  .cadeado{ font-size:9.5px; color:var(--mut); margin-top:7px;
+            padding-top:7px; border-top:1px dashed var(--bd); }
+
+  /* ── tabela de canais ────────────────────────────────────────────────────── */
+  .cabc, .canal{ display:grid; grid-template-columns:112px 1fr 1fr 72px;
+                 gap:9px; align-items:center; }
+  .cabc{ font-size:8px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+         color:var(--mut); padding-bottom:5px; border-bottom:1px solid var(--bd);
+         margin-bottom:3px; }
+  .cabc span:nth-child(n+2){ text-align:right; }
+  .cabc span:last-child{ text-align:center; }
+  .canal{ padding:3px 0; border-bottom:1px solid rgba(255,255,255,.028);
+          border-radius:5px; transition:background .12s; }
+  .canal:last-of-type{ border-bottom:none; }
+  .canal:hover{ background:rgba(255,255,255,.02); }
+  .canal .nm{ font-size:11.5px; font-weight:600; color:var(--fg2);
+              letter-spacing:.03em; }
+  .canal input{ width:100%; height:26px; text-align:right; font-size:12.5px;
+                font-variant-numeric:tabular-nums; }
+
+  /* conversao: pilula contornada na propria cor que o script define */
+  .pct{ justify-self:center; min-width:52px; text-align:center;
+        font-weight:800; font-size:11.5px; font-variant-numeric:tabular-nums;
+        padding:3px 0; border-radius:20px;
+        border:1px solid currentColor; background:rgba(255,255,255,.028); }
+
+  /* linha de total da unidade: fixa, alinhada nas colunas */
+  .canal.total{ margin-top:5px; padding-top:7px; border-top:1px solid var(--bd2);
+                border-bottom:none; }
+  .canal.total .nm{ color:var(--fg); font-weight:800; letter-spacing:.09em;
+                    text-transform:uppercase; font-size:10px; }
+  .canal.total .tn{ text-align:right; padding-right:10px; font-size:13.5px;
+                    font-weight:800; color:var(--fg);
+                    font-variant-numeric:tabular-nums; }
+  .canal.total:hover{ background:transparent; }
+
+  .somatot{ display:flex; align-items:center; gap:10px; margin-top:8px;
+            padding-top:7px; border-top:1px dashed var(--bd); font-size:11px;
+            font-weight:650; letter-spacing:.04em; text-transform:uppercase;
+            color:var(--mut); }
+  .somatot .dica{ margin-left:auto; font-size:9.5px; font-weight:600;
+                  letter-spacing:0; text-transform:none; color:var(--mut2); }
+  .somatot .dica.dif{ color:var(--pri); background:rgba(251,191,36,.1);
+                      border:1px solid rgba(251,191,36,.3);
+                      padding:2px 8px; border-radius:20px; }
+  .somatot .dica.dif::before{ content:'≠ '; }
+  .somatot input{ width:92px; height:26px; text-align:right; font-size:13px;
+                  font-weight:800; color:var(--pri);
+                  font-variant-numeric:tabular-nums; }
+  .obs input{ width:100%; }
+
+  /* ── destaques ───────────────────────────────────────────────────────────── */
+  .destaque{ display:grid; grid-template-columns:24px 1fr 76px; gap:8px;
+             align-items:center; margin-bottom:4px; }
+  .destaque .md{ font-size:11px; font-weight:800; text-align:center;
+                 color:#19160d; background:var(--mut); border-radius:50%;
+                 width:20px; height:20px; line-height:20px; }
+  #dest-col .destaque:nth-child(1) .md, #dest-uni .destaque:nth-child(1) .md{
+    background:linear-gradient(145deg,#fde68a,#d9a21a); }
+  #dest-col .destaque:nth-child(2) .md, #dest-uni .destaque:nth-child(2) .md{
+    background:linear-gradient(145deg,#e6e6ea,#a8a8b2); }
+  #dest-col .destaque:nth-child(3) .md, #dest-uni .destaque:nth-child(3) .md{
+    background:linear-gradient(145deg,#e0a271,#9c5f2e); }
+  .destaque input{ width:100%; }
+  .destaque input.q{ text-align:right; font-weight:700;
+                     font-variant-numeric:tabular-nums; }
+
+  /* ── painel da imagem ────────────────────────────────────────────────────── */
+  .saida{ position:sticky; top:72px; background:var(--card); border:1px solid var(--bd);
+          border-radius:10px; overflow:hidden;
+          box-shadow:0 18px 44px -24px #000; }
+  .saida-h{ display:flex; align-items:center; gap:8px; padding:8px 12px 8px 13px;
+            border-bottom:1px solid var(--bd); position:relative;
+            background:linear-gradient(180deg,rgba(255,255,255,.028),transparent); }
+  .saida-h::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+                    background:var(--mut); }
+  .saida-h .t{ font-size:10px; font-weight:800; letter-spacing:.13em;
+               text-transform:uppercase; color:var(--fg2); }
+  .saida-c{ padding:14px; background:
+            repeating-conic-gradient(#0e0e10 0% 25%, #0b0b0d 0% 50%) 0 0/20px 20px; }
+  .folha{ width:100%; display:block; border-radius:3px;
+          box-shadow:0 14px 40px -10px rgba(0,0,0,.85),
+                     0 0 0 1px rgba(255,255,255,.07); }
+  .saida-f{ display:flex; gap:7px; padding:11px 12px; border-top:1px solid var(--bd);
+            background:rgba(255,255,255,.012); }
+  .saida-f .bt-ouro, .saida-f .bt-linha{ flex:1 1 auto; }
+
+  .nota{ font-size:11px; color:var(--mut); line-height:1.7; padding:0 20px 30px;
+         max-width:1000px; }
+  .nota b{ color:var(--fg2); font-weight:650; }
+</style>
+
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Fechamento</h1>
+      <p class="page-subtitle">Monta a imagem do fechamento do dia</p>
+    </div>
+    <div class="filtros">
+      <div class="campo"><label>Fechamento</label>
+        <input type="date" id="dt-fech" onchange="trocaDia()"></div>
+      <div class="campo"><label>Agendado para</label>
+        <input type="date" id="dt-alvo" oninput="monta()"></div>
+      <button class="bt-ouro" onclick="salvar(this)">💾 Salvar</button>
+    </div>
+  </div>
+
+  <div class="corpo">
+    <div>
+
+      <div class="bloco">
+        <div class="bloco-h auto"><span class="t">✓ Totais do dia — vêm do sistema</span>
+          <span class="d" id="origem-tot">Hora a Hora</span></div>
+        <div class="bloco-c">
+          <div class="somatot" style="margin:0 0 10px;padding-top:0;border-top:none">
+            Agendamentos total
+            <span class="dica" id="dica-topo"></span>
+            <input type="number" id="tot-topo" value="0" oninput="monta()">
+          </div>
+          <table class="tot" id="tab-tot"></table>
+          <div class="cadeado">🔒 Estes números vêm do Hora a Hora do dia. Manôa e
+            Manaus Centro entram somadas dentro de Manaus.</div>
+        </div>
+      </div>
+
+      <div id="unidades"></div>
+
+      <div class="bloco">
+        <div class="bloco-h"><span class="t">Indicação e destaques</span></div>
+        <div class="bloco-c">
+          <div class="somatot" style="margin:0 0 12px;padding-top:0;border-top:none">
+            Total de Leads Geral
+            <span class="dica" id="dica-geral"></span>
+            <input type="number" id="tgeral" value="0" oninput="setGeral(this.value)">
+          </div>
+          <div class="campo" style="margin-bottom:12px;max-width:150px">
+            <label>Indicação</label>
+            <input type="number" id="indic" value="0" oninput="monta()">
+          </div>
+          <div style="font-size:9px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;
+                      color:var(--mut);margin:4px 0 8px">Destaques — colaboradores</div>
+          <div id="dest-col"></div>
+          <div style="font-size:9px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;
+                      color:var(--mut);margin:14px 0 8px">Destaques — unidades</div>
+          <div id="dest-uni"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="saida">
+      <div class="saida-h"><span class="t">Imagem do fechamento</span>
+        <span style="margin-left:auto;font-size:10px;color:#52525b">1240 × 1754</span></div>
+      <div class="saida-c"><canvas class="folha" id="folha" width="1240" height="1754"></canvas></div>
+      <div id="aviso-altura" style="display:none;padding:8px 13px;font-size:10.5px;
+           color:var(--pri);background:rgba(251,191,36,.08);
+           border-top:1px solid rgba(251,191,36,.25)">
+        ⚠ O conteúdo encostou no rodapé — a tabela já encolheu o máximo.</div>
+      <div class="saida-f">
+        <button class="bt-ouro" onclick="baixarPNG()">⬇ Baixar PNG</button>
+        <button class="bt-linha" onclick="copiarImagem(this)">📋 Copiar imagem</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Unidades do quadro de cima ───────────────────────────────────────────────
+   Cada grupo vira uma linha. Manaus soma Manôa e Manaus Centro, como combinado.
+   A comparacao ignora acento e caixa: se alguem renomear a unidade em
+   Configuracao, o numero nao some calado. Unidade que nao casar com nenhum
+   grupo ganha linha propria, pelo mesmo motivo. */
+var GRUPOS = [
+  {rotulo:'Lojas Belém e Região', unidades:['PARA']},
+  {rotulo:'Manaus',               unidades:['MANAUS','MANOA','MANAUS CENTRO']},
+  {rotulo:'São Luís',             unidades:['SAO LUIS','SAO LUIZ']},
+  {rotulo:'Fortaleza',            unidades:['FORTALEZA']},
+  {rotulo:'Rondônia',             unidades:['RONDONIA','PORTO VELHO']},
+  {rotulo:'Triagem',              unidades:['TRIAGEM']}
+];
+var CANAIS = ['VBOT', 'LP', 'WBP'];
+var BLOCOS_PADRAO = ['Manaus', 'Pará', 'São Luís', 'Fortaleza', 'Rondônia', 'Triagem'];
+var SEM_LEADS = ['Triagem'];     /* leads da Triagem ficam fora do total */
+
+var TOTAIS = [];
+var UNIS = [];
+var TOTAL_GERAL = 0;
+var DEST_COL = [{nome:'', q:0}, {nome:'', q:0}, {nome:'', q:0}];
+var DEST_UNI = [{nome:'', q:0}, {nome:'', q:0}, {nome:'', q:0}];
+
+function sem(s){
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+         .trim().toUpperCase();
+}
+function n(v){ return (Number(v) || 0).toLocaleString('pt-BR'); }
+/* Trunca, nao arredonda: 151/329 da 45,89% e sai 45%, como no texto de hoje. */
+function pct(a, l){ return (Number(l) || 0) > 0
+  ? Math.floor((Number(a) || 0) / Number(l) * 100) : 0; }
+function corPct(p){ return p >= 45 ? 'var(--gre)' : p >= 30 ? 'var(--pri)' : 'var(--red)'; }
+function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;')
+                 .replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+function hoje(d){
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') +
+         '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function unisVazias(){
+  return BLOCOS_PADRAO.map(function(nome){
+    return {nome:nome, obs:'', canais:CANAIS.map(function(r){
+      return {rot:r, leads:0, ags:0}; })};
+  });
+}
+
+/* ── Totais do dia: vem do Hora a Hora ─────────────────────────────────────── */
+async function carregaTotais(data){
+  var el = document.getElementById('origem-tot');
+  TOTAIS = GRUPOS.map(function(g){ return {nome:g.rotulo, qtd:0}; });
+  try{
+    var r = await fetch('/api/agendamentos_dia?date=' + data);
+    if(!r.ok) throw new Error('http ' + r.status);
+    var d = await r.json();
+    var sobrou = [];
+    (d.unidades || []).forEach(function(u){
+      var chave = sem(u.unidade), achou = false;
+      for(var i = 0; i < GRUPOS.length; i++){
+        if(GRUPOS[i].unidades.indexOf(chave) >= 0){
+          TOTAIS[i].qtd += Number(u.total) || 0;
+          achou = true; break;
+        }
+      }
+      if(!achou && (Number(u.total) || 0) > 0) sobrou.push(u);
+    });
+    /* unidade nova ou renomeada nao pode sumir da conta */
+    sobrou.forEach(function(u){
+      TOTAIS.push({nome:u.unidade, qtd:Number(u.total) || 0});
+    });
+    if(el) el.textContent = 'Hora a Hora';
+  }catch(e){
+    if(el) el.textContent = 'não consegui carregar';
+  }
+  desenhaTotais();
+}
+
+/* ── Carregar e salvar o dia ───────────────────────────────────────────────── */
+async function carregaDia(data){
+  var d = {};
+  try{
+    var r = await fetch('/api/fechamento/' + data);
+    if(r.ok) d = await r.json();
+  }catch(e){}
+
+  UNIS = (d.unidades && d.unidades.length) ? d.unidades : unisVazias();
+  /* garante os tres canais mesmo em registro antigo */
+  UNIS.forEach(function(u){
+    CANAIS.forEach(function(rot){
+      if(!u.canais.some(function(c){ return c.rot === rot; }))
+        u.canais.push({rot:rot, leads:0, ags:0});
+    });
+  });
+  TOTAL_GERAL = Number(d.total_leads) || 0;
+  DEST_COL = (d.dest_col && d.dest_col.length === 3) ? d.dest_col
+           : [{nome:'',q:0},{nome:'',q:0},{nome:'',q:0}];
+  DEST_UNI = (d.dest_uni && d.dest_uni.length === 3) ? d.dest_uni
+           : [{nome:'',q:0},{nome:'',q:0},{nome:'',q:0}];
+  document.getElementById('indic').value = Number(d.indicacao) || 0;
+  document.getElementById('tgeral').value = TOTAL_GERAL;
+
+  var alvo = d.data_alvo;
+  if(!alvo){
+    var p = data.split('-');
+    var dd = new Date(+p[0], +p[1]-1, +p[2]);
+    dd.setDate(dd.getDate() + 1);
+    alvo = hoje(dd);
+  }
+  document.getElementById('dt-alvo').value = alvo;
+
+  await carregaTotais(data);
+  if(d.total_dia !== undefined && d.total_dia !== null){
+    document.getElementById('tot-topo').value = Number(d.total_dia) || 0;
+  } else {
+    document.getElementById('tot-topo').value =
+      TOTAIS.reduce(function(s,t){ return s + (Number(t.qtd)||0); }, 0);
+  }
+
+  desenhaUnidades();
+  desenhaDestaques();
+  monta();
+}
+
+function trocaDia(){ carregaDia(document.getElementById('dt-fech').value); }
+
+function dados(){
+  return {
+    data_fech:   document.getElementById('dt-fech').value,
+    data_alvo:   document.getElementById('dt-alvo').value,
+    total_dia:   Number(document.getElementById('tot-topo').value) || 0,
+    total_leads: TOTAL_GERAL,
+    indicacao:   Number(document.getElementById('indic').value) || 0,
+    unidades:    UNIS,
+    dest_col:    DEST_COL,
+    dest_uni:    DEST_UNI
+  };
+}
+
+async function salvar(b){
+  var data = document.getElementById('dt-fech').value;
+  if(!data){ showToast('Escolha a data do fechamento.', 'error'); return; }
+  var o = b.innerHTML;
+  b.innerHTML = '⏳ Salvando...';
+  try{
+    var r = await fetch('/api/fechamento/' + data, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(dados())
+    });
+    if(!r.ok) throw new Error('http ' + r.status);
+    b.innerHTML = '✓ Salvo';
+    showToast('Fechamento salvo.', 'success');
+  }catch(e){
+    b.innerHTML = o;
+    showToast('Não consegui salvar.', 'error');
+    return;
+  }
+  setTimeout(function(){ b.innerHTML = o; }, 1800);
+}
+
+/* salva sozinho pouco depois de parar de digitar */
+var _tSalva = null;
+function agendaSalvar(){
+  clearTimeout(_tSalva);
+  _tSalva = setTimeout(function(){
+    var data = document.getElementById('dt-fech').value;
+    if(!data) return;
+    fetch('/api/fechamento/' + data, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(dados())
+    }).catch(function(){});
+  }, 1600);
+}
+
+/* ── Quadros do formulario ─────────────────────────────────────────────────── */
+function desenhaTotais(){
+  document.getElementById('tab-tot').innerHTML = TOTAIS.map(function(t){
+    return '<tr><td class="n">' + n(t.qtd) + '</td><td class="u">' +
+           esc(t.nome) + '</td></tr>';
+  }).join('');
+}
+
+function desenhaUnidades(){
+  document.getElementById('unidades').innerHTML = UNIS.map(function(u, iu){
+    var linhas = u.canais.map(function(c, ic){
+      var p = pct(c.ags, c.leads);
+      return '<div class="canal"><span class="nm">' + esc(c.rot) + '</span>' +
+        '<input type="number" value="' + (c.leads || '') + '" placeholder="0"' +
+          ' oninput="setC(' + iu + ',' + ic + ',\'leads\',this.value)">' +
+        '<input type="number" value="' + (c.ags || '') + '" placeholder="0"' +
+          ' oninput="setC(' + iu + ',' + ic + ',\'ags\',this.value)">' +
+        '<span class="pct" style="color:' + (c.leads > 0 ? corPct(p) : '#3f3f46') + '">' +
+          (c.leads > 0 ? p + '%' : '—') + '</span></div>';
+    }).join('');
+    var tl = u.canais.reduce(function(s,c){ return s + (Number(c.leads)||0); }, 0);
+    var ta = u.canais.reduce(function(s,c){ return s + (Number(c.ags)||0); }, 0);
+    return '<div class="bloco">' +
+      '<div class="bloco-h"><span class="t">' + esc(u.nome) + '</span>' +
+        '<span class="d">' +
+        u.canais.filter(function(c){ return c.leads > 0; }).length +
+        ' canal(is)</span></div>' +
+      '<div class="bloco-c">' +
+        '<div class="cabc"><span>Canal</span><span>Leads</span><span>Agend.</span>' +
+          '<span>Conv.</span></div>' + linhas +
+        '<div class="canal total"><span class="nm">Total</span>' +
+          '<span class="tn">' + n(tl) + '</span>' +
+          '<span class="tn">' + n(ta) + '</span>' +
+          '<span class="pct" style="color:' + (tl > 0 ? corPct(pct(ta,tl)) : '#3f3f46') + '">' +
+          (tl > 0 ? pct(ta,tl) + '%' : '—') + '</span></div>' +
+        '<div class="obs" style="margin-top:7px"><div class="campo">' +
+          '<input type="text" value="' + esc(u.obs) + '"' +
+          ' placeholder="observação (opcional) — ex.: retirados 58 leads de fora"' +
+          ' oninput="setObs(' + iu + ',this.value)"></div></div>' +
+      '</div></div>';
+  }).join('');
+}
+
+function desenhaDestaques(){
+  function bloco(lista, alvo, id){
+    document.getElementById(id).innerHTML = lista.map(function(d, i){
+      return '<div class="destaque"><span class="md">' + (i+1) + '</span>' +
+        '<input type="text" value="' + esc(d.nome) + '" placeholder="nome"' +
+          ' oninput="setD(\'' + alvo + '\',' + i + ',\'nome\',this.value)">' +
+        '<input type="number" class="q" value="' + (d.q || '') + '" placeholder="0"' +
+          ' oninput="setD(\'' + alvo + '\',' + i + ',\'q\',this.value)"></div>';
+    }).join('');
+  }
+  bloco(DEST_COL, 'col', 'dest-col');
+  bloco(DEST_UNI, 'uni', 'dest-uni');
+}
+
+function setC(iu, ic, campo, v){
+  UNIS[iu].canais[ic][campo] = Number(v) || 0;
+  desenhaUnidades(); monta(); agendaSalvar();
+}
+function setObs(iu, v){ UNIS[iu].obs = v; monta(); agendaSalvar(); }
+function setGeral(v){ TOTAL_GERAL = Number(v) || 0; monta(); agendaSalvar(); }
+function setD(alvo, i, campo, v){
+  var L = (alvo === 'col') ? DEST_COL : DEST_UNI;
+  L[i][campo] = (campo === 'q') ? (Number(v) || 0) : v;
+  monta(); agendaSalvar();
+}
+
+/* ── Confere as somas e repinta a imagem ───────────────────────────────────── */
+function monta(){
+  var somaLin = TOTAIS.reduce(function(s,t){ return s + (Number(t.qtd)||0); }, 0);
+  var topo = Number(document.getElementById('tot-topo').value) || 0;
+  var dt = document.getElementById('dica-topo');
+  dt.textContent = 'soma das linhas: ' + n(somaLin);
+  dt.className = 'dica' + (somaLin !== topo ? ' dif' : '');
+
+  var geral = UNIS.reduce(function(s,u){
+    if(SEM_LEADS.indexOf(u.nome) >= 0) return s;
+    return s + u.canais.reduce(function(a,c){ return a + (Number(c.leads)||0); }, 0);
+  }, 0);
+  var dg = document.getElementById('dica-geral');
+  dg.textContent = 'soma das unidades: ' + n(geral);
+  dg.className = 'dica' + (geral !== Number(TOTAL_GERAL) ? ' dif' : '');
+
+  /* repinta uma vez por quadro, nao a cada tecla */
+  if(!monta._ag){ monta._ag = true;
+    requestAnimationFrame(function(){ monta._ag = false; pinta(); }); }
+}
+
+document.getElementById('tot-topo').addEventListener('input', agendaSalvar);
+document.getElementById('indic').addEventListener('input', agendaSalvar);
+document.getElementById('dt-alvo').addEventListener('input', agendaSalvar);
+
+/* ── Início ────────────────────────────────────────────────────────────────── */
+(function(){
+  document.getElementById('dt-fech').value = hoje();
+  carregaDia(hoje());
+})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Desenho da imagem de fechamento, no proprio navegador.
+   E a traducao fiel do modelo_e_slide.py — mesmas medidas, mesmas cores —
+   para a imagem se refazer a cada tecla, sem ir ao servidor.
+   ══════════════════════════════════════════════════════════════════════════ */
+var IW = 1240, IH = 1754, IM = 72, IR = IW - 72, IMEIO = IW / 2;
+
+var C = {
+  papel:'#fffffd', faixa:'#15171b', painel:'#f6f5f2', borda:'#e4e2dc',
+  tinta:'#111113', corpo:'#48484e', fraco:'#92929a', claro:'#c4c4cc',
+  ouro:'#bf9620', ouroE:'#967516', verde:'#1c703c', verm:'#aa2e28',
+  fio:'#eae8e2'
+};
+
+function fnt(peso, tam){ return peso + ' ' + tam + 'px Lato, Inter, sans-serif'; }
+
+var _logo = null;
+function carregaLogo(cb){
+  if(_logo){ cb(); return; }
+  var im = new Image();
+  im.onload = function(){ _logo = im; cb(); };
+  im.onerror = function(){ cb(); };          // sem logo, desenha o resto
+  im.src = '/static/logo.png';
+}
+
+/* ── primitivas, espelhando as do script Python ── */
+function T(ct, x, y, s, f, cor, dir){
+  ct.font = f; ct.fillStyle = cor || C.tinta; ct.textBaseline = 'top';
+  var w = ct.measureText(s).width;
+  if(dir === 'r') x -= w; else if(dir === 'c') x -= w / 2;
+  ct.fillText(s, x, y);
+  return w;
+}
+function CAP(ct, x, y, s, f, cor, esp, dir){
+  ct.font = f; ct.fillStyle = cor || C.fraco; ct.textBaseline = 'top';
+  esp = (esp === undefined) ? 2.4 : esp;
+  var larg = 0, i;
+  for(i = 0; i < s.length; i++) larg += ct.measureText(s[i]).width + esp;
+  larg -= esp;
+  if(dir === 'r') x -= larg; else if(dir === 'c') x -= larg / 2;
+  for(i = 0; i < s.length; i++){
+    ct.fillText(s[i], x, y);
+    x += ct.measureText(s[i]).width + esp;
+  }
+  return larg;
+}
+function RET(ct, x, y, w, h, cor){ ct.fillStyle = cor; ct.fillRect(x, y, w, h); }
+function PAINEL(ct, x, y, w, h, fill, borda){
+  ct.fillStyle = fill || C.painel; ct.fillRect(x, y, w, h);
+  ct.strokeStyle = borda || C.borda; ct.lineWidth = 1;
+  ct.strokeRect(x + .5, y + .5, w - 1, h - 1);
+}
+function LIN(ct, x0, y0, x1, cor, larg){
+  ct.strokeStyle = cor; ct.lineWidth = larg || 1;
+  ct.beginPath();
+  ct.moveTo(x0, y0 + (larg === 2 ? 1 : .5));
+  ct.lineTo(x1, y0 + (larg === 2 ? 1 : .5));
+  ct.stroke();
+}
+function SECAO(ct, y, rotulo){
+  RET(ct, IM, y, 7, 26, C.ouro);
+  CAP(ct, IM + 20, y + 4, rotulo, fnt(700, 18), C.tinta, 2.8);
+  return y + 35;
+}
+function corConv(p){ return p >= 45 ? C.verde : (p < 30 ? C.verm : C.corpo); }
+
+/* ── o desenho ── */
+function pinta(){
+  var cv = document.getElementById('folha');
+  if(!cv) return;
+  carregaLogo(function(){ desenhaTudo(cv); });
+}
+
+function desenhaTudo(cv){
+  var ct = cv.getContext('2d');
+  var i, j, y, yy, x, cw, gap;
+
+  RET(ct, 0, 0, IW, IH, C.papel);
+
+  /* faixa de titulo */
+  var ALT = 224;
+  RET(ct, 0, 0, IW, ALT, C.faixa);
+  RET(ct, 0, ALT - 6, IW, 6, C.ouro);
+  var lh = 98;                                   // altura da logo a 228 de largura
+  if(_logo){
+    lh = Math.round(_logo.height * 228 / _logo.width);
+    ct.drawImage(_logo, Math.round(IMEIO - 114), 30, 228, lh);
+  }
+  y = 30 + lh + 14;
+  CAP(ct, IMEIO, y, 'FECHAMENTO DO DIA', fnt(700, 22), '#ffffff', 4.2, 'c');
+  y += 34;
+  T(ct, IMEIO, y, dBR(val('dt-fech'), true) + '   ·   agendado para ' +
+    dBR(val('dt-alvo')), fnt(400, 20), C.claro, 'c');
+
+  /* indicadores */
+  var totalDia = +val('tot-topo') || 0;
+  var leadsGer = TOTAL_GERAL;
+  y = ALT + 26;
+  var kpis = [['Leads recebidos', nBRf(leadsGer), false],
+              ['Agendamentos', nBRf(totalDia), true],
+              ['Conversão', trunc(totalDia, leadsGer) + '%', false],
+              ['Indicação', pad2(+val('indic') || 0), false]];
+  gap = 14; cw = (IR - IM - 3 * gap) / 4;
+  for(i = 0; i < 4; i++){
+    x = IM + i * (cw + gap);
+    PAINEL(ct, x, y, cw, 116);
+    RET(ct, x, y, cw, 4, kpis[i][2] ? C.ouro : C.borda);
+    CAP(ct, x + cw / 2, y + 22, kpis[i][0].toUpperCase(), fnt(600, 14), C.fraco, 1.8, 'c');
+    T(ct, x + cw / 2, y + 42, kpis[i][1], fnt(900, 54),
+      kpis[i][2] ? C.ouro : C.tinta, 'c');
+  }
+  y += 116 + 16;
+
+  /* agendamentos por unidade */
+  y = SECAO(ct, y, 'AGENDAMENTOS POR UNIDADE');
+  gap = 14; cw = (IR - IM - 2 * gap) / 3;
+  for(i = 0; i < TOTAIS.length; i++){
+    x = IM + (i % 3) * (cw + gap);
+    yy = y + Math.floor(i / 3) * (94 + gap);
+    PAINEL(ct, x, yy, cw, 94);
+    T(ct, x + 20, yy + 11, TOTAIS[i].nome, fnt(700, 21), C.tinta);
+    T(ct, x + 20, yy + 38, nBRf(TOTAIS[i].qtd), fnt(900, 46), C.tinta);
+  }
+  y += 2 * 94 + gap + 16;
+
+  /* leads e conversao */
+  y = SECAO(ct, y, 'LEADS E CONVERSÃO POR CANAL');
+  var c1 = IR - 330, c2 = IR - 170, c3 = IR - 24;
+
+  var vis = [];
+  for(i = 0; i < UNIS.length; i++){
+    var us = UNIS[i].canais.filter(function(c){ return (+c.leads || 0) > 0; });
+    if(us.length) vis.push({nome:UNIS[i].nome, canais:us, obs:UNIS[i].obs});
+  }
+
+  function altura(k){
+    var a = Math.round(34 * k) + Math.round(42 * k);
+    for(var q = 0; q < vis.length; q++){
+      a += Math.round(34 * k) + vis[q].canais.length * Math.round(34 * k) +
+           (vis[q].obs && vis[q].obs.trim() ? Math.round(24 * k) : 0) + Math.round(42 * k);
+    }
+    return a;
+  }
+  var RESERVA = 236, disp = (IH - 54 - 16) - y - RESERVA, k = 1;
+  while(k > 0.62 && altura(k) > disp) k -= 0.02;
+  var LN = Math.round(34 * k);
+  function g(t, peso){ return fnt(peso || 400, Math.max(13, Math.round(t * k))); }
+
+  var alt = altura(k);
+  PAINEL(ct, IM, y, IR - IM, alt, '#fcfbf9');
+
+  yy = y + Math.round(12 * k);
+  CAP(ct, IM + 24, yy, 'UNIDADE E CANAL', fnt(600, 13), C.fraco, 1.6);
+  CAP(ct, c1, yy, 'LEADS', fnt(600, 13), C.fraco, 1.6, 'r');
+  CAP(ct, c2, yy, 'AGEND.', fnt(600, 13), C.fraco, 1.6, 'r');
+  CAP(ct, c3, yy, 'CONV.', fnt(600, 13), C.fraco, 1.6, 'r');
+  yy += Math.round(22 * k);
+  LIN(ct, IM + 24, yy, IR - 24, C.borda, 1);
+  yy += Math.round(12 * k);
+
+  var somaL = 0, somaA = 0;
+  for(i = 0; i < vis.length; i++){
+    var u = vis[i];
+    var sl = 0, sa = 0;
+    for(j = 0; j < u.canais.length; j++){ sl += +u.canais[j].leads || 0;
+                                          sa += +u.canais[j].ags || 0; }
+    if(SEM_LEADS.indexOf(u.nome) < 0){ somaL += sl; somaA += sa; }
+
+    var larg = T(ct, IM + 24, yy, u.nome, g(23, 700), C.tinta);
+    if(SEM_LEADS.indexOf(u.nome) >= 0){
+      T(ct, IM + 24 + larg + 12, yy + Math.round(7 * k),
+        'fora do total de leads', g(17, 'italic 400'), C.fraco);
+    }
+    yy += LN;
+    for(j = 0; j < u.canais.length; j++){
+      var c = u.canais[j], p = trunc(c.ags, c.leads);
+      T(ct, IM + 44, yy, c.rot, g(21), C.corpo);
+      T(ct, c1, yy, nBRf(c.leads), g(21), C.corpo, 'r');
+      T(ct, c2, yy, nBRf(c.ags), g(21, 600), C.tinta, 'r');
+      T(ct, c3, yy, p + '%', g(21, 700), corConv(p), 'r');
+      LIN(ct, IM + 44, yy + LN - 6, c3, C.fio, 1);
+      yy += LN;
+    }
+    if(u.obs && u.obs.trim()){
+      T(ct, IM + 44, yy - 4, u.obs.trim(), g(18, 'italic 400'), C.fraco);
+      yy += Math.round(24 * k);
+    }
+    LIN(ct, IM + 44, yy - 2, c3, C.borda, 1);
+    yy += Math.round(6 * k);
+    var ps = trunc(sa, sl);
+    T(ct, IM + 44, yy, 'Total', g(21, 700), C.tinta);
+    T(ct, c1, yy, nBRf(sl), g(21, 700), C.tinta, 'r');
+    T(ct, c2, yy, nBRf(sa), g(21, 700), C.tinta, 'r');
+    T(ct, c3, yy, ps + '%', g(21, 700), corConv(ps), 'r');
+    yy += Math.round(36 * k);
+    if(i < vis.length - 1) LIN(ct, IM + 24, yy - 6, IR - 24, C.borda, 1);
+  }
+
+  LIN(ct, IM + 24, yy - 2, IR - 24, C.ouro, 2);
+  yy += Math.round(10 * k);
+  var rotTot = 'Total nos canais';
+  var fora = vis.filter(function(v){ return SEM_LEADS.indexOf(v.nome) >= 0; })
+                .map(function(v){ return v.nome; });
+  if(fora.length) rotTot += '   (sem ' + fora.join(', ') + ')';
+  var pt = trunc(somaA, somaL);
+  T(ct, IM + 24, yy, rotTot, g(22, 700), C.tinta);
+  T(ct, c1, yy, nBRf(somaL), g(22, 900), C.tinta, 'r');
+  T(ct, c2, yy, nBRf(somaA), g(22, 900), C.tinta, 'r');
+  T(ct, c3, yy, pt + '%', g(22, 900),
+    pt >= 45 ? C.verde : (pt < 30 ? C.verm : C.tinta), 'r');
+  y += alt + 2;
+
+  /* destaques */
+  y = SECAO(ct, y, 'DESTAQUES DO DIA');
+  gap = 16; cw = (IR - IM - gap) / 2;
+  var grupos = [['COLABORADORES', DEST_COL], ['UNIDADES', DEST_UNI]];
+  for(i = 0; i < 2; i++){
+    x = IM + i * (cw + gap);
+    PAINEL(ct, x, y, cw, 188);
+    RET(ct, x, y, cw, 34, C.faixa);
+    CAP(ct, x + 20, y + 10, grupos[i][0], fnt(700, 14), '#ffffff', 2.2);
+    CAP(ct, x + cw - 20, y + 10, 'AGS', fnt(600, 12), C.claro, 1.6, 'r');
+    yy = y + 48;
+    for(j = 0; j < grupos[i][1].length; j++){
+      var dd = grupos[i][1][j];
+      T(ct, x + 20, yy + 4, String(j + 1), fnt(900, 21), C.ouroE);
+      var nm = dd.nome || '';
+      ct.font = fnt(400, 22);
+      while(nm.length > 2 && ct.measureText(nm).width > cw - 135) nm = nm.slice(0, -2);
+      T(ct, x + 50, yy + 3, nm, fnt(400, 22), C.corpo);
+      T(ct, x + cw - 20, yy + 2, String(dd.q || 0), fnt(700, 23), C.tinta, 'r');
+      yy += 44;
+    }
+  }
+  y += 188;
+
+  /* rodape */
+  var yr = IH - 54;
+  RET(ct, 0, yr, IW, 54, C.faixa);
+  RET(ct, 0, yr, IW, 4, C.ouro);
+  T(ct, IM, yr + 18, 'Connecting · Sistema de Agendamentos', fnt(400, 17), C.claro);
+  CAP(ct, IR, yr + 18, 'FECHAMENTO ' + dBR(val('dt-alvo')), fnt(600, 15), C.claro, 2, 'r');
+
+  /* aviso discreto se o conteudo encostar no rodape */
+  var av = document.getElementById('aviso-altura');
+  if(av) av.style.display = (y > yr - 16) ? '' : 'none';
+}
+
+/* ── apoio ── */
+function val(id){ var e = document.getElementById(id); return e ? e.value : ''; }
+function pad2(v){ return String(v).padStart(2, '0'); }
+function nBRf(v){ return (Number(v) || 0).toLocaleString('pt-BR'); }
+function trunc(a, b){ return (Number(b) || 0) > 0
+  ? Math.floor((Number(a) || 0) / Number(b) * 100) : 0; }
+var MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho',
+             'agosto','setembro','outubro','novembro','dezembro'];
+function dBR(iso, porExtenso){
+  var p = String(iso || '').split('-');
+  if(p.length !== 3) return '';
+  return porExtenso ? (+p[2]) + ' de ' + MESES[+p[1] - 1] + ' de ' + p[0]
+                    : p[2] + '/' + p[1] + '/' + p[0];
+}
+
+/* ── exportar ── */
+function baixarPNG(){
+  var cv = document.getElementById('folha');
+  var a = document.createElement('a');
+  a.download = 'fechamento_' + (val('dt-fech') || 'dia') + '.png';
+  a.href = cv.toDataURL('image/png');
+  a.click();
+}
+function copiarImagem(b){
+  var cv = document.getElementById('folha'), o = b.textContent;
+  cv.toBlob(function(blob){
+    if(!navigator.clipboard || !window.ClipboardItem){
+      b.textContent = 'Use Baixar PNG'; setTimeout(function(){ b.textContent = o; }, 2200);
+      return;
+    }
+    navigator.clipboard.write([new ClipboardItem({'image/png': blob})]).then(function(){
+      b.textContent = '✓ Copiada'; setTimeout(function(){ b.textContent = o; }, 1800);
+    }).catch(function(){
+      b.textContent = 'Use Baixar PNG'; setTimeout(function(){ b.textContent = o; }, 2200);
+    });
+  });
+}
+
+desenhaTotais();
+desenhaUnidades();
+desenhaDestaques();
+monta();
+
+</script>
+{% endblock %}
