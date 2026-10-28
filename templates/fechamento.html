@@ -257,7 +257,7 @@
 
     <div class="saida">
       <div class="saida-h"><span class="t">Imagem do fechamento</span>
-        <span style="margin-left:auto;font-size:10px;color:#52525b">1240 × 1754</span></div>
+        <span id="medida" style="margin-left:auto;font-size:10px;color:#52525b">1240 × 1754</span></div>
       <div class="saida-c"><canvas class="folha" id="folha" width="1240" height="1754"></canvas></div>
       <div id="aviso-altura" style="display:none;padding:8px 13px;font-size:10.5px;
            color:var(--pri);background:rgba(251,191,36,.08);
@@ -562,7 +562,9 @@ document.getElementById('dt-alvo').addEventListener('input', agendaSalvar);
    E a traducao fiel do modelo_e_slide.py — mesmas medidas, mesmas cores —
    para a imagem se refazer a cada tecla, sem ir ao servidor.
    ══════════════════════════════════════════════════════════════════════════ */
-var IW = 1240, IH = 1754, IM = 72, IR = IW - 72, IMEIO = IW / 2;
+var IW = 1240, IM = 72, IR = IW - 72, IMEIO = IW / 2;
+var IH_MIN = 1754;          // altura minima; cresce se o dia tiver muita linha
+var IH = IH_MIN;
 
 var C = {
   papel:'#fffffd', faixa:'#15171b', painel:'#f6f5f2', borda:'#e4e2dc',
@@ -656,10 +658,44 @@ function pinta(){
   carregaLogo(function(){ desenhaTudo(cv); });
 }
 
+/* Quanto a tabela de leads vai ocupar, com a letra no tamanho cheio.
+   Tem que bater exatamente com o que o laco de desenho avanca, senao o
+   titulo da secao seguinte cai por cima da ultima linha. */
+function alturaTabela(vis){
+  var a = 12 + 22 + 12;                       // cabecalho da tabela
+  for(var q = 0; q < vis.length; q++){
+    a += 30                                   // nome da unidade
+       + vis[q].canais.length * 30            // canais
+       + ((vis[q].obs && vis[q].obs.trim()) ? 22 : 0)
+       + 6                                    // filete antes do total
+       + 38;                                  // linha de total
+  }
+  return a + 10 + 30;                         // total geral no fim
+}
+
+/* Unidades que entram na tabela: com lead ou com agendamento. */
+function visiveis(){
+  var v = [];
+  for(var i = 0; i < UNIS.length; i++){
+    var us = UNIS[i].canais.filter(function(c){
+      return (+c.leads || 0) > 0 || (+c.ags || 0) > 0; });
+    if(us.length) v.push({nome:UNIS[i].nome, canais:us, obs:UNIS[i].obs});
+  }
+  return v;
+}
+
 function desenhaTudo(cv){
-  var ct = cv.getContext('2d');
   var i, j, y, yy, x, cw, gap;
 
+  /* mede a folha antes de pintar: o canvas se apaga ao mudar de tamanho */
+  var vis = visiveis();
+  var filAnt = Math.max(1, Math.ceil(TOTAIS.length / 3));
+  var antes = 224 + 26 + 104 + 12 + 35 + filAnt * 74 + (filAnt - 1) * 14 + 12 + 35;
+  var depois = 2 + 35 + 164 + 16 + 54;        // destaques + rodape
+  IH = Math.max(IH_MIN, Math.round(antes + alturaTabela(vis) + depois));
+  if(cv.height !== IH){ cv.height = IH; }
+
+  var ct = cv.getContext('2d');
   RET(ct, 0, 0, IW, IH, C.papel);
 
   /* faixa de titulo */
@@ -721,34 +757,10 @@ function desenhaTudo(cv){
   y = SECAO(ct, y, 'LEADS E CONVERSÃO POR CANAL');
   var c1 = IR - 330, c2 = IR - 170, c3 = IR - 24;
 
-  var vis = [];
-  for(i = 0; i < UNIS.length; i++){
-    /* entra se tiver lead OU agendamento: so lead vazio nao pode apagar uma
-       unidade que agendou — era o que fazia o Manaus sumir do fechamento */
-    var us = UNIS[i].canais.filter(function(c){
-      return (+c.leads || 0) > 0 || (+c.ags || 0) > 0; });
-    if(us.length) vis.push({nome:UNIS[i].nome, canais:us, obs:UNIS[i].obs});
-  }
-
-  /* Linha mais justa que antes (30 em vez de 34): aperta o espacamento e
-     deixa a letra grande, em vez do contrario. */
-  function altura(k){
-    var a = Math.round(30 * k) + Math.round(38 * k);
-    for(var q = 0; q < vis.length; q++){
-      a += Math.round(30 * k) + vis[q].canais.length * Math.round(30 * k) +
-           (vis[q].obs && vis[q].obs.trim() ? Math.round(22 * k) : 0) + Math.round(38 * k);
-    }
-    return a;
-  }
-  var RESERVA = 212, disp = (IH - 54 - 16) - y - RESERVA, k = 1;
-  while(k > 0.50 && altura(k) > disp) k -= 0.02;
-  var LN = Math.round(30 * k);
-  /* Piso em dois estagios: no dia normal a letra nao desce de 16px; so num
-     dia com muita unidade e canal ela vai abaixo disso, para caber. */
-  var PISO = (k >= 0.72) ? 16 : 12;
-  function g(t, peso){ return fnt(peso || 400, Math.max(PISO, Math.round(t * k))); }
-
-  var alt = altura(k);
+  /* A folha ja cresceu para caber: a letra fica sempre no tamanho cheio. */
+  var k = 1, LN = 30;
+  function g(t, peso){ return fnt(peso || 400, t); }
+  var alt = alturaTabela(vis);
   PAINEL(ct, IM, y, IR - IM, alt, '#fcfbf9');
 
   yy = y + Math.round(12 * k);
@@ -846,9 +858,11 @@ function desenhaTudo(cv){
   T(ct, IM, yr + 18, 'Connecting · Sistema de Agendamentos', fnt(400, 17), C.claro);
   CAP(ct, IR, yr + 18, 'FECHAMENTO ' + dBR(val('dt-alvo')), fnt(600, 15), C.claro, 2, 'r');
 
-  /* aviso discreto se o conteudo encostar no rodape */
+  /* a folha cresce conforme o conteudo, entao nao ha mais o que avisar */
   var av = document.getElementById('aviso-altura');
-  if(av) av.style.display = (y > yr - 16) ? '' : 'none';
+  if(av) av.style.display = 'none';
+  var md = document.getElementById('medida');
+  if(md) md.textContent = IW + ' × ' + IH;
 }
 
 /* ── apoio ── */
