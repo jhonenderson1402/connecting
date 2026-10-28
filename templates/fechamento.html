@@ -238,8 +238,7 @@
         <div class="bloco-c">
           <div class="somatot" style="margin:0 0 12px;padding-top:0;border-top:none">
             Total de Leads Geral
-            <span class="dica" id="dica-geral"></span>
-            <input type="number" id="tgeral" value="0" oninput="setGeral(this.value)">
+            <span class="tn" id="tgeral" style="margin-left:auto">0</span>
           </div>
           <div class="campo" style="margin-bottom:12px;max-width:150px">
             <label>Indicação</label>
@@ -290,7 +289,6 @@ var SEM_LEADS = ['Triagem'];     /* leads da Triagem ficam fora do total */
 
 var TOTAIS = [];
 var UNIS = [];
-var TOTAL_GERAL = 0;
 var DEST_COL = [{nome:'', q:0}, {nome:'', q:0}, {nome:'', q:0}];
 var DEST_UNI = [{nome:'', q:0}, {nome:'', q:0}, {nome:'', q:0}];
 
@@ -314,6 +312,15 @@ function hoje(d){
 /* O total do dia e a soma das unidades — nao se digita. */
 function totalDia(){
   return TOTAIS.reduce(function(s,t){ return s + (Number(t.qtd) || 0); }, 0);
+}
+
+/* Total de leads: soma os canais de todas as unidades, menos as que ficam
+   fora da conta (Triagem). Tambem nao se digita. */
+function totalLeads(){
+  return UNIS.reduce(function(s, u){
+    if(SEM_LEADS.indexOf(u.nome) >= 0) return s;
+    return s + u.canais.reduce(function(a, c){ return a + (Number(c.leads) || 0); }, 0);
+  }, 0);
 }
 
 function unisVazias(){
@@ -357,13 +364,11 @@ async function carregaDia(data){
         u.canais.push({rot:rot, leads:0, ags:0});
     });
   });
-  TOTAL_GERAL = Number(d.total_leads) || 0;
   DEST_COL = (d.dest_col && d.dest_col.length === 3) ? d.dest_col
            : [{nome:'',q:0},{nome:'',q:0},{nome:'',q:0}];
   DEST_UNI = (d.dest_uni && d.dest_uni.length === 3) ? d.dest_uni
            : [{nome:'',q:0},{nome:'',q:0},{nome:'',q:0}];
   document.getElementById('indic').value = Number(d.indicacao) || 0;
-  document.getElementById('tgeral').value = TOTAL_GERAL;
 
   var alvo = d.data_alvo;
   if(!alvo){
@@ -388,7 +393,7 @@ function dados(){
     data_fech:   document.getElementById('dt-fech').value,
     data_alvo:   document.getElementById('dt-alvo').value,
     total_dia:   totalDia(),
-    total_leads: TOTAL_GERAL,
+    total_leads: totalLeads(),
     indicacao:   Number(document.getElementById('indic').value) || 0,
     unidades:    UNIS,
     dest_col:    DEST_COL,
@@ -526,7 +531,6 @@ function setC(iu, ic, campo, v){
 }
 
 function setObs(iu, v){ UNIS[iu].obs = v; monta(); agendaSalvar(); }
-function setGeral(v){ TOTAL_GERAL = Number(v) || 0; monta(); agendaSalvar(); }
 function setD(alvo, i, campo, v){
   var L = (alvo === 'col') ? DEST_COL : DEST_UNI;
   L[i][campo] = (campo === 'q') ? (Number(v) || 0) : v;
@@ -535,13 +539,8 @@ function setD(alvo, i, campo, v){
 
 /* ── Confere as somas e repinta a imagem ───────────────────────────────────── */
 function monta(){
-  var geral = UNIS.reduce(function(s,u){
-    if(SEM_LEADS.indexOf(u.nome) >= 0) return s;
-    return s + u.canais.reduce(function(a,c){ return a + (Number(c.leads)||0); }, 0);
-  }, 0);
-  var dg = document.getElementById('dica-geral');
-  dg.textContent = 'soma das unidades: ' + n(geral);
-  dg.className = 'dica' + (geral !== Number(TOTAL_GERAL) ? ' dif' : '');
+  var eg = document.getElementById('tgeral');
+  if(eg) eg.textContent = n(totalLeads());
 
   /* repinta uma vez por quadro, nao a cada tecla */
   if(!monta._ag){ monta._ag = true;
@@ -681,7 +680,7 @@ function desenhaTudo(cv){
 
   /* indicadores */
   var totalDiaN = totalDia();
-  var leadsGer = TOTAL_GERAL;
+  var leadsGer = totalLeads();
   y = ALT + 26;
   var kpis = [['Leads recebidos', nBRf(leadsGer), false],
               ['Agendamentos', nBRf(totalDiaN), true],
