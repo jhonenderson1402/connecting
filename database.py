@@ -898,6 +898,44 @@ def get_appointments_by_month(year, month):
             .order_by(Appointment.date)
         ).all()
         return [_appt_to_dict(r) for r in rows]
+def meses_com_dados(ano, unit):
+    """Meses do ano que ja tem algum numero lancado para essa unit.
+    O Resumo Geral usa isso para pintar de amarelo os meses com dados."""
+    campos = ('ag', 'ex', 'pa', 'du', 'ue', 'ca', 'ge', 'na')
+    meses = set()
+    with SessionLocal() as s:
+        achados = s.execute(
+            select(Appointment.date, Appointment.rows).where(and_(
+                Appointment.unit == unit,
+                Appointment.date.like('%d-%%' % ano)
+            ))
+        ).all()
+    for data, bruto in achados:
+        try:
+            mes = int(str(data)[5:7])
+        except (TypeError, ValueError):
+            continue
+        if mes in meses:
+            continue
+        try:
+            linhas = json.loads(bruto or '[]')
+        except (TypeError, ValueError):
+            continue
+        for r in linhas:
+            if not isinstance(r, dict):
+                continue
+            tem = False
+            for k in campos:
+                try:
+                    if float(r.get(k) or 0) > 0:
+                        tem = True
+                        break
+                except (TypeError, ValueError):
+                    pass
+            if tem:
+                meses.add(mes)
+                break
+    return sorted(meses)
 def get_appointments_all():
     """Tudo que existe, do mais antigo ao mais novo.
     Usada pela API externa (Power BI), que puxa a base inteira e deixa o
