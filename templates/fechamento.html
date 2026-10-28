@@ -218,16 +218,16 @@
     <div>
 
       <div class="bloco">
-        <div class="bloco-h auto"><span class="t">✓ Totais do dia — vêm do sistema</span>
-          <span class="d" id="origem-tot">Hora a Hora</span></div>
+        <div class="bloco-h auto"><span class="t">✓ Totais do dia — somados do preenchimento</span>
+          <span class="d" id="origem-tot">calculado</span></div>
         <div class="bloco-c">
           <div class="somatot" style="margin:0 0 10px;padding-top:0;border-top:none">
             Agendamentos total
             <span class="tn" id="tot-topo" style="margin-left:auto">0</span>
           </div>
           <table class="tot" id="tab-tot"></table>
-          <div class="cadeado">🔒 Estes números vêm do Hora a Hora do dia. Manôa e
-            Manaus Centro entram somadas dentro de Manaus.</div>
+          <div class="cadeado">🔒 Não se digitam: cada linha é a soma da coluna
+            AGEND. do bloco daquela unidade, logo abaixo.</div>
         </div>
       </div>
 
@@ -278,16 +278,14 @@
    A comparacao ignora acento e caixa: se alguem renomear a unidade em
    Configuracao, o numero nao some calado. Unidade que nao casar com nenhum
    grupo ganha linha propria, pelo mesmo motivo. */
-var GRUPOS = [
-  {rotulo:'Lojas Belém e Região', unidades:['PARA']},
-  {rotulo:'Manaus',               unidades:['MANAUS','MANOA','MANAUS CENTRO']},
-  {rotulo:'São Luís',             unidades:['SAO LUIS','SAO LUIZ']},
-  {rotulo:'Fortaleza',            unidades:['FORTALEZA']},
-  {rotulo:'Rondônia',             unidades:['RONDONIA','PORTO VELHO']},
-  {rotulo:'Triagem',              unidades:['TRIAGEM']}
-];
 var CANAIS = ['VBOT', 'LP', 'WBP'];
-var BLOCOS_PADRAO = ['Manaus', 'Pará', 'São Luís', 'Fortaleza', 'Rondônia', 'Triagem'];
+/* Ordem dos blocos de preenchimento */
+var BLOCOS_PADRAO = ['Manaus', 'Pará', 'São Luís', 'Fortaleza',
+                     'Rondônia', 'Ação', 'Triagem'];
+/* Ordem das linhas no quadro do topo, e como cada uma se chama la */
+var ORDEM_TOPO = ['Pará', 'Manaus', 'São Luís', 'Fortaleza',
+                  'Rondônia', 'Ação', 'Triagem'];
+var ROTULO_TOPO = {'Pará': 'Lojas Belém e Região'};
 var SEM_LEADS = ['Triagem'];     /* leads da Triagem ficam fora do total */
 
 var TOTAIS = [];
@@ -325,33 +323,21 @@ function unisVazias(){
   });
 }
 
-/* ── Totais do dia: vem do Hora a Hora ─────────────────────────────────────── */
-async function carregaTotais(data){
-  var el = document.getElementById('origem-tot');
-  TOTAIS = GRUPOS.map(function(g){ return {nome:g.rotulo, qtd:0}; });
-  try{
-    var r = await fetch('/api/agendamentos_dia?date=' + data);
-    if(!r.ok) throw new Error('http ' + r.status);
-    var d = await r.json();
-    var sobrou = [];
-    (d.unidades || []).forEach(function(u){
-      var chave = sem(u.unidade), achou = false;
-      for(var i = 0; i < GRUPOS.length; i++){
-        if(GRUPOS[i].unidades.indexOf(chave) >= 0){
-          TOTAIS[i].qtd += Number(u.total) || 0;
-          achou = true; break;
-        }
-      }
-      if(!achou && (Number(u.total) || 0) > 0) sobrou.push(u);
-    });
-    /* unidade nova ou renomeada nao pode sumir da conta */
-    sobrou.forEach(function(u){
-      TOTAIS.push({nome:u.unidade, qtd:Number(u.total) || 0});
-    });
-    if(el) el.textContent = 'Hora a Hora';
-  }catch(e){
-    if(el) el.textContent = 'não consegui carregar';
-  }
+/* ── Totais do topo: somam a coluna AGEND. de cada bloco ───────────────────── */
+function calculaTotais(){
+  TOTAIS = ORDEM_TOPO.map(function(nome){
+    var u = null;
+    for(var i = 0; i < UNIS.length; i++) if(UNIS[i].nome === nome) u = UNIS[i];
+    var q = u ? u.canais.reduce(function(s,c){ return s + (Number(c.ags) || 0); }, 0) : 0;
+    return {nome: ROTULO_TOPO[nome] || nome, qtd: q};
+  });
+  /* bloco fora da ordem conhecida nao pode sumir da conta */
+  UNIS.forEach(function(u){
+    if(ORDEM_TOPO.indexOf(u.nome) < 0){
+      TOTAIS.push({nome:u.nome,
+        qtd:u.canais.reduce(function(s,c){ return s + (Number(c.ags) || 0); }, 0)});
+    }
+  });
   desenhaTotais();
 }
 
@@ -388,7 +374,7 @@ async function carregaDia(data){
   }
   document.getElementById('dt-alvo').value = alvo;
 
-  await carregaTotais(data);
+  calculaTotais();
 
   desenhaUnidades();
   desenhaDestaques();
@@ -534,7 +520,9 @@ function desenhaDestaques(){
 
 function setC(iu, ic, campo, v){
   UNIS[iu].canais[ic][campo] = Number(v) || 0;
-  atualizaUnidade(iu); monta(); agendaSalvar();
+  atualizaUnidade(iu);
+  if(campo === 'ags') calculaTotais();   // o quadro do topo vem daqui
+  monta(); agendaSalvar();
 }
 
 function setObs(iu, v){ UNIS[iu].obs = v; monta(); agendaSalvar(); }
