@@ -174,6 +174,21 @@
   .destaque input.q{ text-align:right; font-weight:700;
                      font-variant-numeric:tabular-nums; }
 
+  /* ── siglas ──────────────────────────────────────────────────────────────── */
+  .siglas{ display:grid; grid-template-columns:repeat(8, 1fr); gap:7px; }
+  @media (max-width:1400px){ .siglas{ grid-template-columns:repeat(5, 1fr); } }
+  .sig-c{ display:flex; flex-direction:column; gap:3px; }
+  .sig-c label{ font-size:8.5px; font-weight:800; letter-spacing:.09em;
+                text-transform:uppercase; color:var(--mut); text-align:center; }
+  .sig-c input{ width:100%; height:28px; text-align:center; font-size:13px;
+                font-weight:700; font-variant-numeric:tabular-nums; }
+  .sig-tot{ display:flex; align-items:center; gap:10px; margin-top:9px;
+            padding-top:8px; border-top:1px dashed var(--bd); font-size:11px;
+            font-weight:650; letter-spacing:.04em; text-transform:uppercase;
+            color:var(--mut); }
+  .sig-tot .tn{ margin-left:auto; font-size:15px; font-weight:800; color:var(--fg);
+                font-variant-numeric:tabular-nums; }
+
   /* ── painel da imagem ────────────────────────────────────────────────────── */
   .saida{ position:sticky; top:72px; background:var(--card); border:1px solid var(--bd);
           border-radius:10px; overflow:hidden;
@@ -253,6 +268,16 @@
         </div>
       </div>
 
+      <div class="bloco">
+        <div class="bloco-h"><span class="t">Agendamentos por sigla</span>
+          <span class="d" id="qt-siglas">0 siglas</span></div>
+        <div class="bloco-c">
+          <div class="siglas" id="siglas"></div>
+          <div class="sig-tot">Total
+            <span class="tn" id="sig-total">0</span></div>
+        </div>
+      </div>
+
     </div>
 
     <div class="saida">
@@ -266,6 +291,15 @@
       <div class="saida-f">
         <button class="bt-ouro" onclick="baixarPNG()">⬇ Baixar PNG</button>
         <button class="bt-linha" onclick="copiarImagem(this)">📋 Copiar imagem</button>
+      </div>
+
+      <div class="saida-h" style="border-top:1px solid var(--bd)">
+        <span class="t">Tira das siglas</span>
+        <span id="medida2" style="margin-left:auto;font-size:10px;color:#52525b">—</span></div>
+      <div class="saida-c"><canvas class="folha" id="tira" width="1240" height="420"></canvas></div>
+      <div class="saida-f">
+        <button class="bt-ouro" onclick="baixarTira()">⬇ Baixar PNG da tira</button>
+        <button class="bt-linha" onclick="copiarTira(this)">📋 Copiar tira</button>
       </div>
     </div>
   </div>
@@ -286,6 +320,11 @@ var ORDEM_TOPO = ['Pará', 'Manaus', 'São Luís', 'Fortaleza',
                   'Rondônia', 'Ação', 'Triagem'];
 var ROTULO_TOPO = {'Pará': 'Lojas Belém e Região'};
 var SEM_LEADS = ['Triagem'];     /* leads da Triagem ficam fora do total */
+
+/* Siglas da tira — a ordem aqui e a ordem das colunas na imagem */
+var SIGLAS = ['JB','TL','CN','AM','ANA','MAR','CAST','JUR','MB','CAP',
+              'MAN 1','MAN 2','MAN 3','MA','FORT'];
+var VALORES = {};                /* sigla -> quantidade */
 
 var TOTAIS = [];
 var UNIS = [];
@@ -322,6 +361,35 @@ function totalLeads(){
     if(SEM_LEADS.indexOf(u.nome) >= 0) return s;
     return s + u.canais.reduce(function(a, c){ return a + (Number(c.leads) || 0); }, 0);
   }, 0);
+}
+
+function totalSiglas(){
+  return SIGLAS.reduce(function(s,k){ return s + (Number(VALORES[k]) || 0); }, 0);
+}
+
+function desenhaSiglas(){
+  document.getElementById('siglas').innerHTML = SIGLAS.map(function(k, i){
+    return '<div class="sig-c"><label>' + esc(k) + '</label>' +
+      '<input type="number" value="' + (VALORES[k] || '') + '" placeholder="0"' +
+      ' oninput="setS(' + i + ',this.value)"></div>';
+  }).join('');
+  atualizaSiglas();
+}
+
+function atualizaSiglas(){
+  var e = document.getElementById('sig-total');
+  if(e) e.textContent = n(totalSiglas());
+  var q = document.getElementById('qt-siglas');
+  if(q) q.textContent = SIGLAS.filter(function(k){
+    return (Number(VALORES[k]) || 0) > 0; }).length + ' com valor';
+}
+
+function setS(i, v){
+  VALORES[SIGLAS[i]] = Number(v) || 0;
+  atualizaSiglas();
+  if(!setS._ag){ setS._ag = true;
+    requestAnimationFrame(function(){ setS._ag = false; pintaTira(); }); }
+  agendaSalvar();
 }
 
 function unisVazias(){
@@ -370,6 +438,7 @@ async function carregaDia(data){
   DEST_UNI = (d.dest_uni && d.dest_uni.length === 3) ? d.dest_uni
            : [{nome:'',q:0},{nome:'',q:0},{nome:'',q:0}];
   document.getElementById('indic').value = Number(d.indicacao) || 0;
+  VALORES = (d.siglas && typeof d.siglas === 'object') ? d.siglas : {};
 
   var alvo = d.data_alvo;
   if(!alvo){
@@ -384,7 +453,9 @@ async function carregaDia(data){
 
   desenhaUnidades();
   desenhaDestaques();
+  desenhaSiglas();
   monta();
+  pintaTira();
 }
 
 function trocaDia(){ carregaDia(document.getElementById('dt-fech').value); }
@@ -398,7 +469,8 @@ function dados(){
     indicacao:   Number(document.getElementById('indic').value) || 0,
     unidades:    UNIS,
     dest_col:    DEST_COL,
-    dest_uni:    DEST_UNI
+    dest_uni:    DEST_UNI,
+    siglas:      VALORES
   };
 }
 
@@ -545,7 +617,7 @@ function monta(){
 
   /* repinta uma vez por quadro, nao a cada tecla */
   if(!monta._ag){ monta._ag = true;
-    requestAnimationFrame(function(){ monta._ag = false; pinta(); }); }
+    requestAnimationFrame(function(){ monta._ag = false; pinta(); pintaTira(); }); }
 }
 
 document.getElementById('indic').addEventListener('input', agendaSalvar);
@@ -880,7 +952,98 @@ function dBR(iso, porExtenso){
                     : p[2] + '/' + p[1] + '/' + p[0];
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   Tira das siglas: mesmo cabecalho da imagem principal e so a tabela embaixo.
+   Nao e folha cheia — a altura e o que o conteudo pedir.
+   ══════════════════════════════════════════════════════════════════════════ */
+var MES_ABREV = ['jan','fev','mar','abr','mai','jun',
+                 'jul','ago','set','out','nov','dez'];
+function dataCurta(iso){
+  var p = String(iso || '').split('-');
+  if(p.length !== 3) return '';
+  return (+p[2]) + '-' + MES_ABREV[+p[1] - 1] + '.';
+}
+
+function pintaTira(){
+  var cv = document.getElementById('tira');
+  if(!cv) return;
+  carregaLogo(function(){ desenhaTira(cv); });
+}
+
+function desenhaTira(cv){
+  var ALT = 224;                      // mesma faixa de titulo da principal
+  var MT = 48;                        // margem lateral da tira
+  var colD = 118;                     // coluna da data
+  var nCol = SIGLAS.length + 1;       // siglas + TOTAL
+  var larg = (IW - 2 * MT - colD) / nCol;
+  var hCab = 44, hVal = 54;
+  var H2 = ALT + 34 + hCab + hVal + 40;
+
+  if(cv.height !== H2){ cv.height = H2; }
+  var ct = cv.getContext('2d');
+
+  RET(ct, 0, 0, IW, H2, C.papel);
+
+  /* faixa de titulo, igual a da imagem principal */
+  RET(ct, 0, 0, IW, ALT, C.faixa);
+  RET(ct, 0, ALT - 6, IW, 6, C.ouro);
+  var lh = 98;
+  if(_logo){
+    var cx0 = _corte ? _corte.x : 0, cy0 = _corte ? _corte.y : 0;
+    var cw0 = _corte ? _corte.w : _logo.width, ch0 = _corte ? _corte.h : _logo.height;
+    lh = Math.round(ch0 * 228 / cw0);
+    ct.drawImage(_logo, cx0, cy0, cw0, ch0, Math.round(IMEIO - 114), 30, 228, lh);
+  }
+  var y = 30 + lh + 14;
+  CAP(ct, IMEIO, y, 'FECHAMENTO DO DIA', fnt(700, 22), '#ffffff', 4.2, 'c');
+  y += 34;
+  T(ct, IMEIO, y, dBR(val('dt-fech'), true) + '   ·   agendado para ' +
+    dBR(val('dt-alvo')), fnt(400, 20), C.claro, 'c');
+
+  /* tabela */
+  y = ALT + 34;
+  var x = MT;
+  var cabs = SIGLAS.concat(['TOTAL']);
+
+  /* cabecalho */
+  PAINEL(ct, x, y, colD, hCab, C.painel);
+  T(ct, x + colD / 2, y + 13, dataCurta(val('dt-alvo')), fnt(900, 19), C.tinta, 'c');
+  for(var i = 0; i < cabs.length; i++){
+    var cx = x + colD + i * larg;
+    var ult = (i === cabs.length - 1);
+    PAINEL(ct, cx, y, larg, hCab, ult ? '#f1ece0' : C.painel);
+    var r = cabs[i];
+    ct.font = fnt(700, 16);
+    while(r.length > 2 && ct.measureText(r).width > larg - 10) r = r.slice(0, -1);
+    T(ct, cx + larg / 2, y + 14, r, fnt(700, 16), ult ? C.ouroE : C.corpo, 'c');
+  }
+
+  /* valores */
+  var yv = y + hCab;
+  PAINEL(ct, x, yv, colD, hVal, '#fcfbf9');
+  for(i = 0; i < cabs.length; i++){
+    var cx2 = x + colD + i * larg;
+    var ult2 = (i === cabs.length - 1);
+    PAINEL(ct, cx2, yv, larg, hVal, ult2 ? '#faf5e8' : '#fcfbf9');
+    var v = ult2 ? totalSiglas() : (Number(VALORES[cabs[i]]) || 0);
+    T(ct, cx2 + larg / 2, yv + 15, nBRf(v), fnt(900, 22),
+      ult2 ? C.ouroE : C.tinta, 'c');
+  }
+
+  var md = document.getElementById('medida2');
+  if(md) md.textContent = IW + ' × ' + H2;
+}
+
 /* ── exportar ── */
+function baixarTira(){
+  var cv = document.getElementById('tira');
+  var a = document.createElement('a');
+  a.download = 'siglas_' + (val('dt-alvo') || 'dia') + '.png';
+  a.href = cv.toDataURL('image/png');
+  a.click();
+}
+function copiarTira(b){ copiaCanvas(document.getElementById('tira'), b); }
+
 function baixarPNG(){
   var cv = document.getElementById('folha');
   var a = document.createElement('a');
@@ -888,8 +1051,10 @@ function baixarPNG(){
   a.href = cv.toDataURL('image/png');
   a.click();
 }
-function copiarImagem(b){
-  var cv = document.getElementById('folha'), o = b.textContent;
+function copiarImagem(b){ copiaCanvas(document.getElementById('folha'), b); }
+
+function copiaCanvas(cv, b){
+  var o = b.textContent;
   cv.toBlob(function(blob){
     if(!navigator.clipboard || !window.ClipboardItem){
       b.textContent = 'Use Baixar PNG'; setTimeout(function(){ b.textContent = o; }, 2200);
@@ -906,6 +1071,7 @@ function copiarImagem(b){
 desenhaTotais();
 desenhaUnidades();
 desenhaDestaques();
+desenhaSiglas();
 monta();
 
 </script>
