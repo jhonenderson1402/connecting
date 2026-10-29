@@ -35,6 +35,11 @@
   .hh-table tfoot td { background:var(--secondary); font-weight:800; padding:9px 4px;
              text-align:center; font-size:12px; border-top:2px solid var(--border); }
   .hh-vazio { text-align:center; padding:40px; color:var(--muted-fg); font-style:italic; }
+  /* visao "MÊS TODO": so leitura */
+  .hh-lido { font-weight:700; color:var(--muted-fg); font-size:11.5px; }
+  .hh-lido.tem { color:#3b82f6; }
+  body.hh-leitura .action-bar .btn-primary,
+  body.hh-leitura .action-bar .btn-danger { opacity:.4; pointer-events:none; }
   .hh-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:14px; }
   @media(max-width:768px){ .hh-kpis { grid-template-columns:repeat(2,1fr); } }
   /* gestao da lista de LOCAL */
@@ -178,15 +183,25 @@ function updateDias(prefer){
   const sd = document.getElementById('sel-day');
   if(isNaN(mi)||isNaN(y)) return;
   const n = new Date(y, mi+1, 0).getDate();
-  const alvo = Math.min(parseInt(prefer)||parseInt(sd.value)||1, n) || 1;
+  const atual = sd.value;
+  /* trocar de mes nao pode tirar voce do "MÊS TODO" sem avisar */
+  const querTodo = (prefer === 'all') || (prefer === undefined && atual === 'all');
+  const alvo = Math.min(parseInt(prefer)||parseInt(atual)||1, n) || 1;
   sd.innerHTML = '';
+  const oTodo = document.createElement('option');
+  oTodo.value = 'all'; oTodo.textContent = 'MÊS TODO';
+  if(querTodo) oTodo.selected = true;
+  sd.appendChild(oTodo);
   for(let d=1; d<=n; d++){
     const o = document.createElement('option');
     o.value = d; o.textContent = String(d).padStart(2,'0');
-    if(d===alvo) o.selected = true;
+    if(!querTodo && d===alvo) o.selected = true;
     sd.appendChild(o);
   }
 }
+/* No "MÊS TODO" a tela vira so leitura: as linhas vem de dias diferentes e
+   nao ha um registro unico para gravar. */
+function mesTodo(){ return document.getElementById('sel-day').value === 'all'; }
 function dateKey(){
   const mi = parseInt(document.getElementById('sel-month').value);
   const y  = parseInt(document.getElementById('sel-year').value);
@@ -277,6 +292,12 @@ async function apagaLocal(id){
 }
 
 async function carregar(){
+  if(mesTodo()){
+    linhas = [];
+    await carregarMes();
+    render();
+    return;
+  }
   const k = dateKey(); if(!k) return;
   const r = await fetch('/api/leads_hxh/'+k);
   if(r.status === 401){ window.location.href='/login'; return; }
@@ -341,6 +362,29 @@ function marcarSeletores(){
   });
 }
 
+/* As linhas que a tela mostra agora. No dia, vem de 'linhas' e trazem o indice
+   para edicao. No mes todo, vem de 'mesDados' e trazem a data de cada uma. */
+function visiveisAtual(){
+  const filtro = document.getElementById('sel-local').value;
+  const dbr = dateBr();
+  if(!mesTodo()){
+    return linhas.map((l,i)=>({l, i, data:dbr}))
+                 .filter(x => !filtro || x.l.local === filtro);
+  }
+  const out = [];
+  mesDados.slice()
+    .sort((a,b)=> a.date < b.date ? -1 : (a.date > b.date ? 1 : 0))
+    .forEach(d => {
+      const p = String(d.date).split('-');
+      const br = p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : d.date;
+      (d.rows||[]).forEach(l => {
+        if(filtro && l.local !== filtro) return;
+        out.push({l, i:-1, data:br});
+      });
+    });
+  return out;
+}
+
 // ── Render ──────────────────────────────────────────────────────────────────
 /* O cabecalho e as larguras dependem de quantas faixas existem, entao sao
    montados uma vez, depois que as constantes chegam. */
@@ -364,13 +408,16 @@ function render(){
   const mi = parseInt(document.getElementById('sel-month').value);
   const mes = isNaN(mi) ? '—' : MONTHS[mi];
   const ano = document.getElementById('sel-year').value;
-  const dbr = dateBr();
   const nCols = 5 + FAIXAS.length + 2;
+  const todo = mesTodo();
 
-  const vis = linhas.map((l,i)=>({l,i})).filter(x => !filtro || x.l.local === filtro);
+  const vis = visiveisAtual();
+  document.body.classList.toggle('hh-leitura', todo);
 
   if(!vis.length){
-    tb.innerHTML = `<tr><td colspan="${nCols}" class="hh-vazio">
+    tb.innerHTML = todo
+      ? `<tr><td colspan="${nCols}" class="hh-vazio">Nenhum lançamento neste mês.</td></tr>`
+      : `<tr><td colspan="${nCols}" class="hh-vazio">
       Nenhuma linha neste dia.
       <div style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">
         <button type="button" onclick="repetirLinhas()"
@@ -383,33 +430,45 @@ function render(){
     document.getElementById('hh-foot').innerHTML = '';
   } else {
     const nomesLocais = LOCAIS.map(l=>l.nome);
-    tb.innerHTML = vis.map(({l,i},pos)=>{
-      /* local salvo que nao esta mais na lista continua aparecendo: o numero
-         nao pode mudar de dono so porque alguem apagou o local */
-      const opts = nomesLocais.concat(
-        (l.local && nomesLocais.indexOf(l.local) < 0) ? [l.local] : []);
-      const locOpts = opts.map(x=>`<option${x===l.local?' selected':''}>${esc(x)}</option>`).join('');
+    tb.innerHTML = vis.map(({l,i,data},pos)=>{
+      const t = somaLinha(l);
       const cels = FAIXAS.map(f=>{
         const v = num((l.slots||{})[f.key]);
+        if(todo) return `<td class="${v>0?'hh-lido tem':'hh-lido'}">${v||''}</td>`;
         return `<td><input class="hh-in ${v>0?'tem':''}" inputmode="numeric" maxlength="6"
           value="${v||''}" oninput="setHora(${i},'${f.key}',this.value)"/></td>`;
       }).join('');
-      const t = somaLinha(l);
+
+      /* No mes todo nao ha o que editar: as celulas viram texto. */
+      let celLocal, celNome, celAcao;
+      if(todo){
+        celLocal = `<td class="hh-lido">${esc(l.local)}</td>`;
+        celNome  = `<td class="hh-lido" style="text-align:left">${esc(l.nome)}</td>`;
+        celAcao  = '<td></td>';
+      } else {
+        /* local salvo que nao esta mais na lista continua aparecendo: o numero
+           nao pode mudar de dono so porque alguem apagou o local */
+        const opts = nomesLocais.concat(
+          (l.local && nomesLocais.indexOf(l.local) < 0) ? [l.local] : []);
+        const locOpts = opts.map(x=>`<option${x===l.local?' selected':''}>${esc(x)}</option>`).join('');
+        celLocal = `<td><select class="hh-dd" onchange="setVal(${i},'local',this.value)">${locOpts}</select></td>`;
+        celNome  = `<td><input class="hh-nm" maxlength="60" value="${esc(l.nome)}"
+             placeholder="origem — ex.: VBOT" oninput="setVal(${i},'nome',this.value)"/></td>`;
+        celAcao  = `<td><button class="hh-del" onclick="rmLinha(${i})" title="Remover linha">🗑</button></td>`;
+      }
       return `<tr class="${pos%2?'alt':''}">
-        <td class="hh-fx">${ano}</td><td class="hh-fx">${mes}</td><td class="hh-fx">${dbr}</td>
-        <td><select class="hh-dd" onchange="setVal(${i},'local',this.value)">${locOpts}</select></td>
-        <td><input class="hh-nm" maxlength="60" value="${esc(l.nome)}"
-             placeholder="origem — ex.: VBOT" oninput="setVal(${i},'nome',this.value)"/></td>
-        ${cels}
-        <td><span class="hh-tot ${t>0?'tem':''}" id="tot-${i}">${t}</span></td>
-        <td><button class="hh-del" onclick="rmLinha(${i})" title="Remover linha">🗑</button></td>
+        <td class="hh-fx">${ano}</td><td class="hh-fx">${mes}</td><td class="hh-fx">${esc(data)}</td>
+        ${celLocal}${celNome}${cels}
+        <td><span class="hh-tot ${t>0?'tem':''}"${todo?'':` id="tot-${i}"`}>${t}</span></td>
+        ${celAcao}
       </tr>`;
     }).join('');
 
     const porHora = FAIXAS.map(f => vis.reduce((s,x)=> s + num((x.l.slots||{})[f.key]), 0));
     const tGeral = porHora.reduce((a,b)=>a+b,0);
+    const rot = todo ? `TOTAL DO MÊS — ${vis.length} linha(s)` : `TOTAL — ${vis.length} linha(s)`;
     document.getElementById('hh-foot').innerHTML = `<tr>
-      <td colspan="5" style="text-align:left;padding-left:12px;color:var(--muted-fg)">TOTAL — ${vis.length} linha(s)</td>
+      <td colspan="5" style="text-align:left;padding-left:12px;color:var(--muted-fg)">${rot}</td>
       ${porHora.map(v=>`<td style="color:${v>0?'#3b82f6':'var(--muted-fg)'}">${v}</td>`).join('')}
       <td style="color:#3b82f6">${tGeral}</td><td></td></tr>`;
   }
@@ -429,8 +488,17 @@ function atualizaKpis(filtro, mes){
       if(v){ TM += v; porHora[f.key] = (porHora[f.key]||0) + v; }
     });
   }));
-  let TD = 0;
-  linhas.forEach(l => { if(!filtro || l.local === filtro) TD += somaLinha(l); });
+  const todo = mesTodo();
+  let TD = 0, nDias = 0;
+  if(todo){
+    mesDados.forEach(d => {
+      const tem = (d.rows||[]).some(l => (!filtro || l.local === filtro) && somaLinha(l) > 0);
+      if(tem) nDias++;
+    });
+    TD = nDias;
+  } else {
+    linhas.forEach(l => { if(!filtro || l.local === filtro) TD += somaLinha(l); });
+  }
 
   let pico = '—', maior = 0;
   Object.keys(porHora).forEach(k => { if(porHora[k] > maior){ maior = porHora[k]; pico = rotHora(k); } });
@@ -441,7 +509,9 @@ function atualizaKpis(filtro, mes){
   document.getElementById('k-linhas').textContent = nLin;
   const sufixo = ' no mês de ' + mes + (filtro ? ' · ' + filtro : '');
   document.getElementById('k-lbl1').textContent = 'Leads' + sufixo;
-  document.getElementById('k-lbl2').textContent = 'Leads no dia ' + dateBr() + (filtro ? ' · ' + filtro : '');
+  document.getElementById('k-lbl2').textContent = todo
+    ? 'Dias com lançamento' + sufixo
+    : 'Leads no dia ' + dateBr() + (filtro ? ' · ' + filtro : '');
   document.getElementById('k-lbl3').textContent = 'Hora de pico' + sufixo + (maior ? ' (' + maior + ')' : '');
   document.getElementById('k-lbl4').textContent = 'Linhas' + sufixo;
 }
@@ -450,6 +520,7 @@ function atualizaKpis(filtro, mes){
 /* Repintar a tabela inteira a cada tecla tirava o cursor da celula. Entao a
    digitacao so mexe no total daquela linha, no rodape e nos indicadores. */
 function setHora(i, key, v){
+  if(mesTodo() || !linhas[i]) return;
   if(!linhas[i].slots) linhas[i].slots = {};
   linhas[i].slots[key] = num(v);
   atualizaLinha(i);
@@ -477,6 +548,7 @@ function atualizaLinha(i){
   atualizaKpis(filtro, isNaN(mi) ? '—' : MONTHS[mi]);
 }
 function setVal(i,k,v){
+  if(mesTodo() || !linhas[i]) return;
   linhas[i][k] = v;
   if(k === 'local') render();      // o filtro pode escondê-la
   else atualizaLinha(i);
@@ -486,6 +558,7 @@ function setVal(i,k,v){
    Copia so o local e o nome; as horas entram zeradas. Mesmo comportamento do
    "Repetir equipe" do Hora a Hora. */
 async function repetirLinhas(){
+  if(mesTodo()){ showToast('Escolha um dia primeiro.','error'); return; }
   const mi = parseInt(document.getElementById('sel-month').value);
   const y  = parseInt(document.getElementById('sel-year').value);
   const d  = parseInt(document.getElementById('sel-day').value);
@@ -520,7 +593,9 @@ async function repetirLinhas(){
   }
   showToast('Nenhum lançamento encontrado nos 14 dias anteriores.','error');
 }
+
 function addLinha(){
+  if(mesTodo()){ showToast('Escolha um dia para lançar.','error'); return; }
   if(!LOCAIS.length){
     showToast('Cadastre um local primeiro, no botão ⚙ Locais.','error'); return;
   }
@@ -528,8 +603,12 @@ function addLinha(){
   linhas.push({local: filtro || LOCAIS[0].nome, nome:'', slots:{}});
   render(); agendarSave();
 }
-function rmLinha(i){ linhas.splice(i,1); render(); agendarSave(); }
+function rmLinha(i){
+  if(mesTodo()) return;
+  linhas.splice(i,1); render(); agendarSave();
+}
 function limparDia(){
+  if(mesTodo()){ showToast('Escolha um dia para limpar.','error'); return; }
   if(!linhas.length){ showToast('Não há nada para limpar.','error'); return; }
   if(!confirm('Apagar todas as linhas deste dia?')) return;
   linhas = []; render(); agendarSave();
@@ -538,6 +617,7 @@ function limparDia(){
 
 // ── Salvamento ──────────────────────────────────────────────────────────────
 function agendarSave(){
+  if(mesTodo()) return;          // visao de leitura: nao ha dia para gravar
   clearTimeout(saveTimer);
   document.getElementById('saving-badge').style.display = '';
   document.getElementById('saved-badge').style.display = 'none';
@@ -563,24 +643,26 @@ async function salvar(){
 
 // ── CSV ─────────────────────────────────────────────────────────────────────
 function exportCsv(){
-  if(!linhas.length){ showToast('Não há linhas para exportar.','error'); return; }
+  const vis = visiveisAtual();
+  if(!vis.length){ showToast('Não há linhas para exportar.','error'); return; }
   const mi = parseInt(document.getElementById('sel-month').value);
   const mes = isNaN(mi) ? '' : MONTHS[mi];
   const ano = document.getElementById('sel-year').value;
-  const dbr = dateBr();
   const head = ['ANO','MÊS','DATA','LOCAL','NOME']
     .concat(FAIXAS.map(f=>rotHora(f.key))).concat(['TOTAL']);
   const q = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
   const L = [head.map(q).join(';')];
-  linhas.forEach(l => {
-    L.push([ano, mes, dbr, l.local, l.nome]
+  vis.forEach(({l,data}) => {
+    L.push([ano, mes, data, l.local, l.nome]
       .concat(FAIXAS.map(f=>num((l.slots||{})[f.key])))
       .concat([somaLinha(l)]).map(q).join(';'));
   });
   const blob = new Blob(['﻿'+L.join('\r\n')], {type:'text/csv;charset=utf-8;'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'leads_hxh_'+dateKey()+'.csv';
+  a.download = mesTodo()
+    ? 'leads_hxh_' + ano + '-' + String(mi+1).padStart(2,'0') + '_mes.csv'
+    : 'leads_hxh_' + dateKey() + '.csv';
   a.click();
   URL.revokeObjectURL(a.href);
 }
