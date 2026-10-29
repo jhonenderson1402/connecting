@@ -392,7 +392,7 @@ def api_appointments():
     appts = [a for a in appts
              if not a['unit'].startswith(LEADS_PREFIX)
              and a['unit'] != ACOMP_UNIT and a['unit'] != LEADSAG_UNIT
-             and a['unit'] != FECH_UNIT]
+             and a['unit'] != FECH_UNIT and a['unit'] != LEADSHH_UNIT]
     if unit:
         appts = [a for a in appts if a['unit'] == unit]
     return jsonify(appts)
@@ -1344,9 +1344,50 @@ def api_leadsag_mes():
     out = [{'date': a['date'], 'rows': a['rows']}
            for a in db.get_appointments_by_month(ano, mes) if a['unit'] == LEADSAG_UNIT]
     return jsonify(out)
+# ── Leads HxH (leads recebidos hora a hora) ──────────────────────────────────
+LEADSHH_UNIT = "LEADSHH::GERAL"
+@app.route('/leads-hxh')
+@login_required
+def leads_hxh_page():
+    return render_template('leads_hxh.html')
+@app.route('/api/leads_hxh/<date>', methods=['GET'])
+@login_required
+def api_get_leadshh(date):
+    if not _valid_date(date):
+        return _err('Data inválida. Use YYYY-MM-DD.')
+    appt = db.get_appointment(LEADSHH_UNIT, date)
+    return jsonify(appt or {})
+@app.route('/api/leads_hxh/<date>', methods=['POST'])
+@login_required
+def api_save_leadshh(date):
+    if not _valid_date(date):
+        return _err('Data inválida. Use YYYY-MM-DD.')
+    data = request.get_json(silent=True) or {}
+    rows = data.get('rows', [])
+    if not isinstance(rows, list):
+        return _err('Campo "rows" deve ser lista.')
+    db.upsert_appointment(LEADSHH_UNIT, date, '', rows)
+    return jsonify({'ok': True})
+@app.route('/api/leads_hxh_mes', methods=['GET'])
+@login_required
+def api_leadshh_mes():
+    """Todos os dias do mês de uma vez — alimenta os indicadores do topo."""
+    try:
+        ano = int(request.args.get('ano'))
+        mes = int(request.args.get('mes'))
+    except (TypeError, ValueError):
+        return _err('Informe ano e mes válidos.')
+    out = [{'date': a['date'], 'rows': a['rows']}
+           for a in db.get_appointments_by_month(ano, mes) if a['unit'] == LEADSHH_UNIT]
+    return jsonify(out)
 @app.route('/api/lead_opcoes', methods=['GET'])
 @login_required
 def api_list_lead_opcoes():
+    # Sem ?tipo=, devolve o mapa de nomes, como a tela de Leads Recebidos espera.
+    # Com ?tipo=, devolve os registros com id — e o que permite remover.
+    tipo = (request.args.get('tipo') or '').strip().lower()
+    if tipo:
+        return jsonify(db.get_lead_opcoes(tipo))
     return jsonify(db.get_lead_opcoes_mapa())
 @app.route('/api/lead_opcoes', methods=['POST'])
 @admin_required
