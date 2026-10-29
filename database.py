@@ -196,6 +196,7 @@ def init_db():
     ensure_default_siglas()
     ensure_default_bairros()
     ensure_default_lead_opcoes()
+    ensure_default_locais_hh()
     ensure_default_flags()
 def _run_migrations():
     """Aplica migrações incrementais no banco existente (idempotente)."""
@@ -1486,8 +1487,8 @@ def get_lead_opcoes_mapa():
 def create_lead_opcao(tipo, nome):
     tipo = (tipo or '').strip().lower()
     nome = (nome or '').strip().upper()
-    if tipo not in ('local', 'agencia'):
-        raise ValueError("Tipo invalido. Use 'local' ou 'agencia'.")
+    if tipo not in ('local', 'agencia', 'localhh'):
+        raise ValueError("Tipo invalido. Use 'local', 'agencia' ou 'localhh'.")
     if not nome:
         raise ValueError("Informe o nome.")
     if len(nome) > 120:
@@ -1505,6 +1506,23 @@ def create_lead_opcao(tipo, nome):
         s.commit()
         s.refresh(o)
         return {'id': o.id, 'tipo': o.tipo, 'nome': o.nome, 'ordem': o.ordem}
+# ---- Leads HxH: lista de LOCAL propria da tela ------------------------------
+LOCAIS_HH_PADRAO = ['BELÉM', 'MANAUS', 'SÃO LUÍS', 'FORTALEZA', 'RONDÔNIA', 'AÇÃO']
+def ensure_default_locais_hh():
+    """Semeia os locais do Leads HxH. Olha so o tipo 'localhh': a tabela
+    lead_opcoes ja vem cheia dos outros tipos, entao checar se ela esta vazia
+    nunca semearia nada em banco que ja existe."""
+    try:
+        with SessionLocal() as s:
+            n = s.scalar(select(func.count(LeadOpcao.id)).where(
+                LeadOpcao.tipo == 'localhh'))
+            if not n:
+                for i, nome in enumerate(LOCAIS_HH_PADRAO, start=1):
+                    s.add(LeadOpcao(tipo='localhh', nome=nome, ordem=i))
+                s.commit()
+                print("[init] Locais do Leads HxH criados.")
+    except Exception as e:
+        print("ERRO AO CRIAR LOCAIS HXH PADRAO:", e)
 def delete_lead_opcao(oid):
     """Remove a opcao da lista. Os numeros ja lancados continuam no banco."""
     with SessionLocal() as s:
