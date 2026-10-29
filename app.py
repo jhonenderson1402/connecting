@@ -1389,6 +1389,27 @@ def api_delete_atendente(aid):
         return _err(f"Não dá para remover: '{alvo['nome']}' tem {n} confirmação(ões) registrada(s).", 409)
     db.delete_atendente(aid)
     return jsonify({'ok': True})
+# ── API: Siglas do Fechamento ────────────────────────────────────────────────
+@app.route('/api/siglas', methods=['GET'])
+@login_required
+def api_list_siglas():
+    return jsonify(db.get_siglas())
+@app.route('/api/siglas', methods=['POST'])
+@login_required
+def api_create_sigla():
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(db.create_sigla(data.get('nome'))), 201
+    except ValueError as e:
+        return _err(str(e))
+@app.route('/api/siglas/<nome>', methods=['DELETE'])
+@admin_required
+def api_delete_sigla(nome):
+    nome = unquote(nome).strip().upper()
+    if not any(g['nome'] == nome for g in db.get_siglas()):
+        return _err('Sigla não encontrada.', 404)
+    db.delete_sigla(nome)
+    return jsonify({'ok': True})
 # -- API Externa (relatorios so-leitura, protegida por X-API-Key) --
 def _ext_auth_ok():
     key = os.environ.get('EXTERNAL_API_KEY', '')
