@@ -184,6 +184,18 @@
                 text-transform:uppercase; color:var(--mut); text-align:center; }
   .sig-c input{ width:100%; height:28px; text-align:center; font-size:13px;
                 font-weight:700; font-variant-numeric:tabular-nums; }
+    .sig-c{ position:relative; }
+  .sig-c .x{ position:absolute; top:-3px; right:-3px; width:15px; height:15px;
+             line-height:13px; text-align:center; border-radius:50%; cursor:pointer;
+             font-size:10px; font-weight:800; color:var(--mut2);
+             background:var(--sec); border:1px solid var(--bd2);
+             opacity:0; transition:opacity .12s, color .12s, border-color .12s; }
+  .sig-c:hover .x{ opacity:1; }
+  .sig-c .x:hover{ color:var(--red); border-color:var(--red); }
+  .sig-nova{ display:flex; gap:7px; align-items:center; margin-top:10px;
+             padding-top:9px; border-top:1px dashed var(--bd); }
+  .sig-nova input{ width:150px; text-transform:uppercase; }
+  .sig-nova .ajuda{ font-size:9.5px; color:var(--mut2); }
   .sig-tot{ display:flex; align-items:center; gap:10px; margin-top:9px;
             padding-top:8px; border-top:1px dashed var(--bd); font-size:11px;
             font-weight:650; letter-spacing:.04em; text-transform:uppercase;
@@ -277,6 +289,12 @@
           <span class="d" id="qt-siglas">0 siglas</span></div>
         <div class="bloco-c">
           <div class="siglas" id="siglas"></div>
+          <div class="sig-nova">
+            <input type="text" id="sig-nome" placeholder="nova sigla" maxlength="12"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();criaSigla();}">
+            <button class="bt-linha" onclick="criaSigla()">+ Adicionar</button>
+            <span class="ajuda">vale para todos os dias · passe o mouse na sigla para remover</span>
+          </div>
           <div class="sig-tot">Total
             <span class="tn" id="sig-total">0</span></div>
         </div>
@@ -325,10 +343,14 @@ var ORDEM_TOPO = ['Pará', 'Manaus', 'São Luís', 'Fortaleza',
 var ROTULO_TOPO = {'Pará': 'Lojas Belém e Região'};
 var SEM_LEADS = ['Triagem'];     /* leads da Triagem ficam fora do total */
 
-/* Siglas da tira — a ordem aqui e a ordem das colunas na imagem */
-var SIGLAS = ['JB','TL','CN','AM','ANA','MAR','CAST','JUR','MB','CAP',
-              'MAN 1','MAN 2','MAN 3','MA','FORT'];
+/* Siglas da tira — vem do banco (/api/siglas) e sao editaveis na tela.
+   A lista abaixo so serve de socorro se a chamada falhar, para a tela nao
+   abrir vazia. A ordem e a ordem das colunas na imagem. */
+var SIGLAS_SOCORRO = ['JB','TL','CN','AM','ANA','MAR','CAST','JUR','MB','CAP',
+                      'MAN 1','MAN 2','MAN 3','MA','FORT'];
+var SIGLAS = SIGLAS_SOCORRO.slice();
 var VALORES = {};                /* sigla -> quantidade */
+var MAX_COL_TIRA = 15;           /* colunas por fileira na imagem da tira */
 
 var TOTAIS = [];
 var UNIS = [];
@@ -384,11 +406,68 @@ function desenhaSiglas(){
   document.getElementById('siglas').innerHTML = SIGLAS.map(function(k, i){
     return '<div class="sig-c"><label>' + esc(k) + '</label>' +
       '<input type="number" value="' + (VALORES[k] || '') + '" placeholder="0"' +
-      ' oninput="setS(' + i + ',this.value)"></div>';
+      ' oninput="setS(' + i + ',this.value)">' +
+      '<span class="x" title="remover a sigla" onclick="apagaSigla(' + i + ')">✕</span>' +
+      '</div>';
   }).join('');
   atualizaSiglas();
 }
 
+/* ── A lista de siglas vive no banco: criar ou remover vale para todo dia ──── */
+async function carregaSiglas(){
+  try{
+    var r = await fetch('/api/siglas');
+    if(r.ok){
+      var lista = await r.json();
+      if(lista && lista.length) SIGLAS = lista.map(function(x){ return x.nome; });
+    }
+  }catch(e){}                       /* sem rede, fica a lista de socorro */
+}
+
+async function criaSigla(){
+  var cx = document.getElementById('sig-nome');
+  var nome = (cx.value || '').trim().toUpperCase();
+  if(!nome) return;
+  if(SIGLAS.indexOf(nome) >= 0){
+    showToast('A sigla "' + nome + '" já existe.', 'error');
+    return;
+  }
+  try{
+    var r = await fetch('/api/siglas', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({nome:nome})
+    });
+    var d = await r.json();
+    if(!r.ok) throw new Error(d.error || 'erro');
+    SIGLAS.push(d.nome);
+    cx.value = '';
+    desenhaSiglas();
+    pintaTira();
+    showToast('Sigla "' + d.nome + '" criada.', 'success');
+  }catch(e){
+    showToast(e.message || 'Não consegui criar a sigla.', 'error');
+  }
+}
+
+async function apagaSigla(i){
+  var nome = SIGLAS[i];
+  if(!nome) return;
+  if(!confirm('Remover a sigla "' + nome + '"?\n\n' +
+              'Ela some de todos os dias, não só deste. ' +
+              'Os números já lançados em outros fechamentos ficam guardados, ' +
+              'mas deixam de aparecer na imagem.')) return;
+  try{
+    var r = await fetch('/api/siglas/' + encodeURIComponent(nome), {method:'DELETE'});
+    if(!r.ok){ var d = await r.json(); throw new Error(d.error || 'erro'); }
+    SIGLAS.splice(i, 1);
+    desenhaSiglas();
+    pintaTira();
+    agendaSalvar();
+    showToast('Sigla "' + nome + '" removida.', 'success');
+  }catch(e){
+    showToast(e.message || 'Não consegui remover a sigla.', 'error');
+  }
+}
 function atualizaSiglas(){
   var e = document.getElementById('sig-total');
   if(e) e.textContent = n(totalSiglas());
@@ -650,7 +729,7 @@ document.getElementById('dt-alvo').addEventListener('input', agendaSalvar);
 /* ── Início ────────────────────────────────────────────────────────────────── */
 (function(){
   document.getElementById('dt-fech').value = hoje();
-  carregaDia(hoje());
+  carregaSiglas().then(function(){ carregaDia(hoje()); });
 })();
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -1022,14 +1101,27 @@ function pintaTira(){
   carregaLogo(function(){ desenhaTira(cv); });
 }
 
+/* Como as colunas se distribuem: ate MAX_COL_TIRA + o TOTAL cabem numa
+   fileira so. Passou disso, quebra em fileiras equilibradas em vez de
+   espremer tudo numa linha e deixar o numero ilegivel. */
+function fileirasTira(){
+  var cels = SIGLAS.concat(['TOTAL']);
+  var nf = Math.max(1, Math.ceil(cels.length / (MAX_COL_TIRA + 1)));
+  var por = Math.ceil(cels.length / nf);
+  var r = [];
+  for(var i = 0; i < cels.length; i += por) r.push(cels.slice(i, i + por));
+  return {fileiras:r, por:por};
+}
+
 function desenhaTira(cv){
   var ALT = 224;                      // mesma faixa de titulo da principal
   var MT = 48;                        // margem lateral da tira
   var colD = 118;                     // coluna da data
-  var nCol = SIGLAS.length + 1;       // siglas + TOTAL
-  var larg = (IW - 2 * MT - colD) / nCol;
-  var hCab = 44, hVal = 54;
-  var H2 = ALT + 34 + hCab + hVal + 40;
+  var ft = fileirasTira();
+  var larg = (IW - 2 * MT - colD) / ft.por;
+  var hCab = 44, hVal = 54, gapF = 14;
+  var nf = ft.fileiras.length;
+  var H2 = ALT + 34 + nf * (hCab + hVal) + (nf - 1) * gapF + 40;
 
   if(cv.height !== H2){ cv.height = H2; }
   var ct = cv.getContext('2d');
@@ -1054,34 +1146,37 @@ function desenhaTira(cv){
 
   /* tabela */
   y = ALT + 34;
-  var x = MT;
-  var cabs = SIGLAS.concat(['TOTAL']);
+  var x = MT, dataTxt = dataCurta(val('dt-alvo'));
 
-  /* cabecalho */
-  PAINEL(ct, x, y, colD, hCab, C.painel);
-  T(ct, x + colD / 2, y + 13, dataCurta(val('dt-alvo')), fnt(900, 19), C.tinta, 'c');
-  for(var i = 0; i < cabs.length; i++){
-    var cx = x + colD + i * larg;
-    var ult = (i === cabs.length - 1);
-    PAINEL(ct, cx, y, larg, hCab, ult ? '#f1ece0' : C.painel);
-    var r = cabs[i];
-    ct.font = fnt(700, 16);
-    while(r.length > 2 && ct.measureText(r).width > larg - 10) r = r.slice(0, -1);
-    T(ct, cx + larg / 2, y + 14, r, fnt(700, 16), ult ? C.ouroE : C.corpo, 'c');
+  for(var f = 0; f < nf; f++){
+    var cabs = ft.fileiras[f];
+    var yf = y + f * (hCab + hVal + gapF);
+
+    /* cabecalho da fileira */
+    PAINEL(ct, x, yf, colD, hCab, C.painel);
+    T(ct, x + colD / 2, yf + 13, f === 0 ? dataTxt : '', fnt(900, 19), C.tinta, 'c');
+    for(var i = 0; i < cabs.length; i++){
+      var cx = x + colD + i * larg;
+      var ult = (cabs[i] === 'TOTAL');
+      PAINEL(ct, cx, yf, larg, hCab, ult ? '#f1ece0' : C.painel);
+      var r = cabs[i];
+      ct.font = fnt(700, 16);
+      while(r.length > 2 && ct.measureText(r).width > larg - 10) r = r.slice(0, -1);
+      T(ct, cx + larg / 2, yf + 14, r, fnt(700, 16), ult ? C.ouroE : C.corpo, 'c');
+    }
+
+    /* valores da fileira */
+    var yv = yf + hCab;
+    PAINEL(ct, x, yv, colD, hVal, '#fcfbf9');
+    for(i = 0; i < cabs.length; i++){
+      var cx2 = x + colD + i * larg;
+      var ult2 = (cabs[i] === 'TOTAL');
+      PAINEL(ct, cx2, yv, larg, hVal, ult2 ? '#faf5e8' : '#fcfbf9');
+      var v = ult2 ? totalSiglas() : (Number(VALORES[cabs[i]]) || 0);
+      T(ct, cx2 + larg / 2, yv + 15, nBRf(v), fnt(900, 22),
+        ult2 ? C.ouroE : C.tinta, 'c');
+    }
   }
-
-  /* valores */
-  var yv = y + hCab;
-  PAINEL(ct, x, yv, colD, hVal, '#fcfbf9');
-  for(i = 0; i < cabs.length; i++){
-    var cx2 = x + colD + i * larg;
-    var ult2 = (i === cabs.length - 1);
-    PAINEL(ct, cx2, yv, larg, hVal, ult2 ? '#faf5e8' : '#fcfbf9');
-    var v = ult2 ? totalSiglas() : (Number(VALORES[cabs[i]]) || 0);
-    T(ct, cx2 + larg / 2, yv + 15, nBRf(v), fnt(900, 22),
-      ult2 ? C.ouroE : C.tinta, 'c');
-  }
-
   var md = document.getElementById('medida2');
   if(md) md.textContent = IW + ' × ' + H2;
 }
