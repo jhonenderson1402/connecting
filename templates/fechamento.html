@@ -157,7 +157,9 @@
                   font-weight:800; color:var(--pri);
                   font-variant-numeric:tabular-nums; }
   .obs input{ width:100%; }
-
+  .dt-un{ margin-top:8px; padding-top:8px; border-top:1px dashed var(--bd); }
+  .dt-un input{ width:170px; }
+  .dt-un .nota-dt{ font-size:9.5px; color:var(--mut2); }
   /* ── destaques ───────────────────────────────────────────────────────────── */
   .destaque{ display:grid; grid-template-columns:24px 1fr 76px; gap:8px;
              align-items:center; margin-bottom:4px; }
@@ -342,7 +344,10 @@ var ORDEM_TOPO = ['Pará', 'Manaus', 'São Luís', 'Fortaleza',
                   'Rondônia', 'Ação', 'Triagem'];
 var ROTULO_TOPO = {'Pará': 'Lojas Belém e Região'};
 var SEM_LEADS = ['Triagem'];     /* leads da Triagem ficam fora do total */
-
+/* A Acao costuma ser agendada para varios dias depois, entao ela tem data
+   propria — separada do "agendado para" do dia inteiro. Em branco, a imagem
+   sai exatamente como antes. */
+var COM_DATA = ['Ação'];
 /* Siglas da tira — vem do banco (/api/siglas) e sao editaveis na tela.
    A lista abaixo so serve de socorro se a chamada falhar, para a tela nao
    abrir vazia. A ordem e a ordem das colunas na imagem. */
@@ -486,7 +491,7 @@ function setS(i, v){
 
 function unisVazias(){
   return BLOCOS_PADRAO.map(function(nome){
-    return {nome:nome, obs:'', canais:CANAIS.map(function(r){
+    return {nome:nome, obs:'', data:'', canais:CANAIS.map(function(r){
       return {rot:r, leads:0, ags:0}; })};
   });
 }
@@ -497,12 +502,12 @@ function calculaTotais(){
     var u = null;
     for(var i = 0; i < UNIS.length; i++) if(UNIS[i].nome === nome) u = UNIS[i];
     var q = u ? u.canais.reduce(function(s,c){ return s + (Number(c.ags) || 0); }, 0) : 0;
-    return {nome: ROTULO_TOPO[nome] || nome, qtd: q};
+    return {nome: ROTULO_TOPO[nome] || nome, qtd: q, data: (u && u.data) || ''};
   });
   /* bloco fora da ordem conhecida nao pode sumir da conta */
   UNIS.forEach(function(u){
     if(ORDEM_TOPO.indexOf(u.nome) < 0){
-      TOTAIS.push({nome:u.nome,
+      TOTAIS.push({nome:u.nome, data:u.data || '',
         qtd:u.canais.reduce(function(s,c){ return s + (Number(c.ags) || 0); }, 0)});
     }
   });
@@ -649,6 +654,12 @@ function desenhaUnidades(){
           '<span class="pct" id="tp-' + iu + '"' +
           ' style="color:' + (tl > 0 ? corPct(pct(ta,tl)) : '#3f3f46') + '">' +
           (tl > 0 ? pct(ta,tl) + '%' : '—') + '</span></div>' +
+            (COM_DATA.indexOf(u.nome) >= 0 ?
+          '<div class="campo dt-un"><label>Data de agendamento</label>' +
+          '<input type="date" value="' + esc(u.data || '') + '"' +
+          ' oninput="setData(' + iu + ',this.value)">' +
+          '<span class="nota-dt">em branco, vale o “agendado para” do dia</span>' +
+          '</div>' : '') +
         '<div class="obs" style="margin-top:7px"><div class="campo">' +
           '<input type="text" value="' + esc(u.obs) + '"' +
           ' placeholder="observação (opcional) — ex.: retirados 58 leads de fora"' +
@@ -707,6 +718,7 @@ function setC(iu, ic, campo, v){
 }
 
 function setObs(iu, v){ UNIS[iu].obs = v; monta(); agendaSalvar(); }
+function setData(iu, v){ UNIS[iu].data = v; monta(); agendaSalvar(); }
 function setD(ir, i, campo, v){
   RANKS[ir].itens[i][campo] = (campo === 'q') ? (Number(v) || 0) : v;
   monta(); agendaSalvar();
@@ -831,6 +843,41 @@ function SECAO(ct, y, rotulo){
 }
 function corConv(p){ return p >= 45 ? C.verde : (p < 30 ? C.verm : C.corpo); }
 
+/* dd/mm — a pilula e a nota da tabela usam a forma curta */
+function dCurta(iso){
+  var p = String(iso || '').split('-');
+  return p.length === 3 ? p[2] + '/' + p[1] : '';
+}
+
+/* Pilula dourada "PARA 05/11". Devolve a largura, para o nome do cartao
+   saber ate onde pode ir sem encostar nela. */
+function PILULA(ct, x, y, txt){
+  var fo = fnt(700, 13), esp = 1.6, i;
+  ct.font = fo;
+  var larg = 0;
+  for(i = 0; i < txt.length; i++) larg += ct.measureText(txt[i]).width + esp;
+  larg -= esp;
+  var w = larg + 18, h = 22, r = 11;
+  ct.beginPath();
+  ct.moveTo(x + r, y);
+  ct.lineTo(x + w - r, y);
+  ct.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2);
+  ct.lineTo(x + r, y + h);
+  ct.arc(x + r, y + r, r, Math.PI / 2, -Math.PI / 2);
+  ct.closePath();
+  ct.fillStyle = '#faf5e8'; ct.fill();
+  ct.strokeStyle = C.ouro; ct.lineWidth = 1; ct.stroke();
+  CAP(ct, x + 9, y + 4, txt, fo, C.ouroE, esp);
+  return w;
+}
+
+/* Largura da pilula sem desenhar — o cartao precisa reservar o espaco. */
+function largPilula(ct, txt){
+  ct.font = fnt(700, 13);
+  var larg = 0;
+  for(var i = 0; i < txt.length; i++) larg += ct.measureText(txt[i]).width + 1.6;
+  return larg - 1.6 + 18;
+}
 /* ── o desenho ── */
 function pinta(){
   var cv = document.getElementById('folha');
@@ -859,7 +906,8 @@ function visiveis(){
   for(var i = 0; i < UNIS.length; i++){
     var us = UNIS[i].canais.filter(function(c){
       return (+c.leads || 0) > 0 || (+c.ags || 0) > 0; });
-    if(us.length) v.push({nome:UNIS[i].nome, canais:us, obs:UNIS[i].obs});
+    if(us.length) v.push({nome:UNIS[i].nome, canais:us, obs:UNIS[i].obs,
+                          data:UNIS[i].data || ''});
   }
   return v;
 }
@@ -943,10 +991,15 @@ function desenhaTudo(cv){
     x = IM + (i % 3) * (cw + gap);    // parte que precisa de letra maior
     yy = y + Math.floor(i / 3) * (ALTC + gap);
     PAINEL(ct, x, yy, cw, ALTC);
+    /* se aquela unidade tem data propria, a pilula entra no alto a direita */
+    var dtU = TOTAIS[i].data ? 'PARA ' + dCurta(TOTAIS[i].data) : '';
+    var resv = dtU ? largPilula(ct, dtU) + 12 : 0;
     var nmU = TOTAIS[i].nome;
     ct.font = fnt(700, 19);
-    while(nmU.length > 3 && ct.measureText(nmU).width > cw - 36) nmU = nmU.slice(0, -2);
+    while(nmU.length > 3 && ct.measureText(nmU).width > cw - 36 - resv)
+      nmU = nmU.slice(0, -2);
     T(ct, x + 18, yy + 9, nmU, fnt(700, 19), C.tinta);
+    if(dtU) PILULA(ct, x + cw - 18 - largPilula(ct, dtU), yy + 8, dtU);
     T(ct, x + 18, yy + 31, nBRf(TOTAIS[i].qtd), fnt(900, 36), C.tinta);
   }
   y += fileiras * ALTC + (fileiras - 1) * gap + 12;
@@ -979,6 +1032,10 @@ function desenhaTudo(cv){
     if(SEM_LEADS.indexOf(u.nome) < 0){ somaL += sl; somaA += sa; }
 
     var larg = T(ct, IM + 24, yy, u.nome, g(23, 700), C.tinta);
+    if(u.data){
+      larg += 12 + T(ct, IM + 24 + larg + 12, yy + Math.round(7 * k),
+        'agendamento para ' + dCurta(u.data), g(17, 'italic 400'), C.ouroE);
+    }
     if(SEM_LEADS.indexOf(u.nome) >= 0){
       T(ct, IM + 24 + larg + 12, yy + Math.round(7 * k),
         'fora do total de leads', g(17, 'italic 400'), C.fraco);
