@@ -141,6 +141,11 @@ class Atendente(Base):
     id    = Column(Integer, primary_key=True, autoincrement=True)
     nome  = Column(String(100), nullable=False, unique=True)
     ordem = Column(Integer, default=0)
+class Sigla(Base):
+    __tablename__ = 'siglas'
+    id    = Column(Integer, primary_key=True, autoincrement=True)
+    nome  = Column(String(20), nullable=False, unique=True)
+    ordem = Column(Integer, default=0)
 class Bairro(Base):
     """Bairros/clinicas de cada unidade. Alimentam o Comparecimento,
     as Metas e o 'Ver bairros' do Resumo Geral."""
@@ -188,6 +193,7 @@ def init_db():
     ensure_default_fontes()
     ensure_default_unidades()
     ensure_default_atendentes()
+    ensure_default_siglas()
     ensure_default_bairros()
     ensure_default_lead_opcoes()
     ensure_default_flags()
@@ -211,7 +217,8 @@ def _run_migrations():
             conn.commit()
             print("[migration] Coluna 'meta_comp_dia' adicionada à tabela metas.")
         except Exception:
-            conn.rollback()  # Coluna já existe, ignora        # Migração 1: adiciona coluna 'role' na tabela users se não existir
+            conn.rollback()  # Coluna já existe, ignora      
+        # Migração 1: adiciona coluna 'role' na tabela users se não existir
         try:
             conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT 'all'"))
             conn.commit()
@@ -323,6 +330,47 @@ def count_confirmacoes_atendente(nome):
 def delete_atendente(aid):
     with SessionLocal() as s:
         s.execute(delete(Atendente).where(Atendente.id == aid))
+        s.commit()
+# ---- Siglas do fechamento ---------------------------------------------------
+SIGLAS_PADRAO = ['JB', 'TL', 'CN', 'AM', 'ANA', 'MAR', 'CAST', 'JUR',
+                 'MB', 'CAP', 'MAN 1', 'MAN 2', 'MAN 3', 'MA', 'FORT']
+def ensure_default_siglas():
+    """Semeia as siglas que ja existiam fixas no Fechamento, se a tabela
+    estiver vazia. Quem apagar todas nao as ve voltar: so semeia no comeco."""
+    try:
+        with SessionLocal() as s:
+            if s.scalar(select(func.count(Sigla.id))) == 0:
+                for i, nome in enumerate(SIGLAS_PADRAO, start=1):
+                    s.add(Sigla(nome=nome, ordem=i))
+                s.commit()
+                print("[init] Siglas padrao do Fechamento criadas.")
+    except Exception as e:
+        print("ERRO AO CRIAR SIGLAS PADRAO:", e)
+def get_siglas():
+    with SessionLocal() as s:
+        rows = s.scalars(select(Sigla).order_by(Sigla.ordem, Sigla.id)).all()
+        return [{'id': r.id, 'nome': r.nome, 'ordem': r.ordem or 0} for r in rows]
+def create_sigla(nome):
+    nome = (nome or '').strip().upper()
+    if not nome:
+        raise ValueError("Informe a sigla.")
+    if len(nome) > 20:
+        raise ValueError("Sigla muito longa (maximo 20).")
+    with SessionLocal() as s:
+        if s.scalar(select(Sigla).where(Sigla.nome == nome)):
+            raise ValueError(f"A sigla '{nome}' ja existe.")
+        prox = (s.scalar(select(func.max(Sigla.ordem))) or 0) + 1
+        g = Sigla(nome=nome, ordem=prox)
+        s.add(g)
+        s.commit()
+        s.refresh(g)
+        return {'id': g.id, 'nome': g.nome, 'ordem': g.ordem}
+def delete_sigla(nome):
+    """Remove pelo nome — e o que a tela tem em maos. Os numeros ja lancados
+    continuam no registro de cada dia; so deixam de ser mostrados."""
+    nome = (nome or '').strip().upper()
+    with SessionLocal() as s:
+        s.execute(delete(Sigla).where(Sigla.nome == nome))
         s.commit()
 # ---- Unidades ---------------------------------------------------------------
 UNIDADES_PADRAO = ["PARÁ", "MANAUS", "MANOA", "SÃO LUIZ", "FORTALEZA", "AÇÃO"]
