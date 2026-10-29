@@ -370,7 +370,16 @@ function render(){
   const vis = linhas.map((l,i)=>({l,i})).filter(x => !filtro || x.l.local === filtro);
 
   if(!vis.length){
-    tb.innerHTML = `<tr><td colspan="${nCols}" class="hh-vazio">Nenhuma linha neste dia. Clique em "+ Adicionar Linha".</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="${nCols}" class="hh-vazio">
+      Nenhuma linha neste dia.
+      <div style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">
+        <button type="button" onclick="repetirLinhas()"
+          style="padding:8px 15px;border-radius:8px;cursor:pointer;border:none;font-family:inherit;
+                 font-size:12px;font-weight:700;background:var(--primary);color:#1a1a1a">
+          ⟳ Repetir locais e nomes do último dia
+        </button>
+        <span style="font-size:11.5px;color:var(--muted-fg)">ou clique em <b>+ Adicionar Linha</b></span>
+      </div></td></tr>`;
     document.getElementById('hh-foot').innerHTML = '';
   } else {
     const nomesLocais = LOCAIS.map(l=>l.nome);
@@ -472,6 +481,44 @@ function setVal(i,k,v){
   if(k === 'local') render();      // o filtro pode escondê-la
   else atualizaLinha(i);
   agendarSave();
+}
+/* Anda para tras dia a dia, ate 14 dias, e para no primeiro que tiver linha.
+   Copia so o local e o nome; as horas entram zeradas. Mesmo comportamento do
+   "Repetir equipe" do Hora a Hora. */
+async function repetirLinhas(){
+  const mi = parseInt(document.getElementById('sel-month').value);
+  const y  = parseInt(document.getElementById('sel-year').value);
+  const d  = parseInt(document.getElementById('sel-day').value);
+  if(isNaN(mi) || isNaN(y) || isNaN(d)){
+    showToast('Selecione uma data válida primeiro.','error'); return;
+  }
+  const base = new Date(y, mi, d);
+  showToast('Procurando o último dia com lançamento...');
+
+  for(let k = 1; k <= 14; k++){
+    const dt = new Date(base.getTime());
+    dt.setDate(dt.getDate() - k);
+    const chave = dt.getFullYear() + '-' +
+                  String(dt.getMonth()+1).padStart(2,'0') + '-' +
+                  String(dt.getDate()).padStart(2,'0');
+    let dados = null;
+    try{
+      const r = await fetch('/api/leads_hxh/' + chave);
+      if(r.ok) dados = await r.json().catch(()=>null);
+    }catch(e){}
+    const antigas = (dados && Array.isArray(dados.rows)) ? dados.rows : [];
+    /* linha so conta se tiver local ou nome — linha em branco nao vale viagem */
+    const uteis = antigas.filter(l => l && ((l.local||'').trim() || (l.nome||'').trim()));
+    if(!uteis.length) continue;
+
+    linhas = uteis.map(l => ({local: l.local || '', nome: l.nome || '', slots: {}}));
+    render(); agendarSave();
+    const br = String(dt.getDate()).padStart(2,'0') + '/' +
+               String(dt.getMonth()+1).padStart(2,'0');
+    showToast(uteis.length + ' linha(s) copiada(s) de ' + br, 'success');
+    return;
+  }
+  showToast('Nenhum lançamento encontrado nos 14 dias anteriores.','error');
 }
 function addLinha(){
   if(!LOCAIS.length){
