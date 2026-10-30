@@ -107,6 +107,9 @@
   table.tot td.n{ width:74px; text-align:right; padding-right:12px; font-weight:800;
                   color:var(--gre); font-variant-numeric:tabular-nums; }
   table.tot td.u{ color:var(--fg2); }
+  .fora-tot{ margin-left:8px; font-size:8.5px; font-weight:700; letter-spacing:.06em;
+             text-transform:uppercase; color:var(--mut2);
+             border:1px solid var(--bd2); border-radius:20px; padding:1px 7px; }
   .cadeado{ font-size:9.5px; color:var(--mut); margin-top:7px;
             padding-top:7px; border-top:1px dashed var(--bd); }
 
@@ -344,6 +347,10 @@ var ORDEM_TOPO = ['Pará', 'Manaus', 'São Luís', 'Fortaleza',
                   'Rondônia', 'Ação', 'Triagem'];
 var ROTULO_TOPO = {'Pará': 'Lojas Belém e Região'};
 var SEM_LEADS = ['Triagem'];     /* leads da Triagem ficam fora do total */
+/* A Acao e agendada para outro dia (tem data propria logo abaixo), entao os
+   numeros dela nao entram no total DESTE dia — nem leads, nem agendamentos.
+   Ela continua aparecendo no cartao e na tabela, com a data dela. */
+var FORA_TOTAL = ['Ação'];
 /* A Acao costuma ser agendada para varios dias depois, entao ela tem data
    propria — separada do "agendado para" do dia inteiro. Em branco, a imagem
    sai exatamente como antes. */
@@ -391,14 +398,17 @@ function hoje(d){
 
 /* O total do dia e a soma das unidades — nao se digita. */
 function totalDia(){
-  return TOTAIS.reduce(function(s,t){ return s + (Number(t.qtd) || 0); }, 0);
+  return TOTAIS.reduce(function(s,t){
+    if(FORA_TOTAL.indexOf(t.base || t.nome) >= 0) return s;
+    return s + (Number(t.qtd) || 0);
+  }, 0);
 }
 
 /* Total de leads: soma os canais de todas as unidades, menos as que ficam
    fora da conta (Triagem). Tambem nao se digita. */
 function totalLeads(){
   return UNIS.reduce(function(s, u){
-    if(SEM_LEADS.indexOf(u.nome) >= 0) return s;
+    if(SEM_LEADS.indexOf(u.nome) >= 0 || FORA_TOTAL.indexOf(u.nome) >= 0) return s;
     return s + u.canais.reduce(function(a, c){ return a + (Number(c.leads) || 0); }, 0);
   }, 0);
 }
@@ -502,12 +512,13 @@ function calculaTotais(){
     var u = null;
     for(var i = 0; i < UNIS.length; i++) if(UNIS[i].nome === nome) u = UNIS[i];
     var q = u ? u.canais.reduce(function(s,c){ return s + (Number(c.ags) || 0); }, 0) : 0;
-    return {nome: ROTULO_TOPO[nome] || nome, qtd: q, data: (u && u.data) || ''};
+    return {nome: ROTULO_TOPO[nome] || nome, base: nome,
+            qtd: q, data: (u && u.data) || ''};
   });
   /* bloco fora da ordem conhecida nao pode sumir da conta */
   UNIS.forEach(function(u){
     if(ORDEM_TOPO.indexOf(u.nome) < 0){
-      TOTAIS.push({nome:u.nome, data:u.data || '',
+      TOTAIS.push({nome:u.nome, base:u.nome, data:u.data || '',
         qtd:u.canais.reduce(function(s,c){ return s + (Number(c.ags) || 0); }, 0)});
     }
   });
@@ -618,8 +629,13 @@ function agendaSalvar(){
 /* ── Quadros do formulario ─────────────────────────────────────────────────── */
 function desenhaTotais(){
   document.getElementById('tab-tot').innerHTML = TOTAIS.map(function(t){
-    return '<tr><td class="n">' + n(t.qtd) + '</td><td class="u">' +
-           esc(t.nome) + '</td></tr>';
+    /* quem esta fora do total precisa dizer isso aqui: senao a soma das
+       linhas nao bate com o "Agendamentos total" logo acima e parece erro */
+    var fora = FORA_TOTAL.indexOf(t.base || t.nome) >= 0;
+    return '<tr><td class="n"' + (fora ? ' style="color:var(--mut)"' : '') + '>' +
+           n(t.qtd) + '</td><td class="u">' + esc(t.nome) +
+           (fora ? '<span class="fora-tot">fora do total</span>' : '') +
+           '</td></tr>';
   }).join('');
   var e = document.getElementById('tot-topo');
   if(e) e.textContent = n(totalDia());
@@ -1029,8 +1045,9 @@ function desenhaTudo(cv){
     var sl = 0, sa = 0;
     for(j = 0; j < u.canais.length; j++){ sl += +u.canais[j].leads || 0;
                                           sa += +u.canais[j].ags || 0; }
-    if(SEM_LEADS.indexOf(u.nome) < 0){ somaL += sl; somaA += sa; }
-
+    if(SEM_LEADS.indexOf(u.nome) < 0 && FORA_TOTAL.indexOf(u.nome) < 0){
+      somaL += sl; somaA += sa;
+    }
     var larg = T(ct, IM + 24, yy, u.nome, g(23, 700), C.tinta);
     if(u.data){
       larg += 12 + T(ct, IM + 24 + larg + 12, yy + Math.round(7 * k),
@@ -1071,7 +1088,9 @@ function desenhaTudo(cv){
   LIN(ct, IM + 24, yy - 2, IR - 24, C.ouro, 2);
   yy += Math.round(10 * k);
   var rotTot = 'Total nos canais';
-  var fora = vis.filter(function(v){ return SEM_LEADS.indexOf(v.nome) >= 0; })
+  var fora = vis.filter(function(v){
+                  return SEM_LEADS.indexOf(v.nome) >= 0 ||
+                         FORA_TOTAL.indexOf(v.nome) >= 0; })
                 .map(function(v){ return v.nome; });
   if(fora.length) rotTot += '   (sem ' + fora.join(', ') + ')';
   var pt = trunc(somaA, somaL);
