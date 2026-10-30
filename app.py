@@ -1693,5 +1693,3 @@ if __name__ == '__main__':
     print(f"\nSistema de Agendamentos rodando em http://localhost:{port}")
     print(f"  debug={debug}\n")
     app.run(debug=debug, port=port)
-
-valide para mim
