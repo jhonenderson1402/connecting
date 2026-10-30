@@ -1297,7 +1297,46 @@ def api_get_fechamento(date):
     appt = db.get_appointment(FECH_UNIT, date)
     linhas = (appt or {}).get('rows') or []
     return jsonify(linhas[0] if isinstance(linhas, list) and linhas else {})
+def _espelha_leads_recebidos(date, dados):
+    """O Fechamento vira o historico do Leads Recebidos.
 
+    O dia passa a ser exatamente o que foi preenchido la: uma linha por
+    unidade x canal, so os canais com numero. Canal zerado nao vira linha,
+    e o que estava no dia antes e substituido — o Fechamento manda.
+    """
+    linhas, nomes = [], []
+    for u in (dados.get('unidades') or []):
+        if not isinstance(u, dict):
+            continue
+        local = (u.get('nome') or '').strip().upper()
+        if not local:
+            continue
+        for c in (u.get('canais') or []):
+            if not isinstance(c, dict):
+                continue
+            try:
+                leads = int(float(c.get('leads') or 0))
+                ags   = int(float(c.get('ags') or 0))
+            except (TypeError, ValueError):
+                continue
+            if leads <= 0 and ags <= 0:
+                continue
+            linhas.append({'local':   local,
+                           'agencia': (c.get('rot') or '').strip().upper(),
+                           'leads':   leads,
+                           'ag':      ags})
+            if local not in nomes:
+                nomes.append(local)
+
+    db.upsert_appointment(LEADSAG_UNIT, date, '', linhas)
+
+    # O LOCAL precisa existir na lista, senao o seletor da tela nao casa com
+    # o valor gravado. Criar e idempotente: se ja existe, da ValueError e segue.
+    for nome in nomes:
+        try:
+            db.create_lead_opcao('local', nome)
+        except Exception:
+            pass
 @app.route('/api/fechamento/<date>', methods=['POST'])
 @login_required
 def api_save_fechamento(date):
@@ -1307,6 +1346,7 @@ def api_save_fechamento(date):
     if not isinstance(dados, dict):
         return _err('Envie um objeto com os dados do fechamento.')
     db.upsert_appointment(FECH_UNIT, date, '', [dados])
+    _espelha_leads_recebidos(date, dados)
     return jsonify({'ok': True})
 # ── Leads Recebidos (por local e agência) ────────────────────────────────────
 LEADSAG_UNIT = "LEADSAG::GERAL"
@@ -1653,3 +1693,5 @@ if __name__ == '__main__':
     print(f"\nSistema de Agendamentos rodando em http://localhost:{port}")
     print(f"  debug={debug}\n")
     app.run(debug=debug, port=port)
+
+valide para mim
