@@ -261,8 +261,12 @@ function render(){
     tb.innerHTML = vis.map(({l,i},pos)=>{
       const lv = Number(l.leads)||0, av = Number(l.ag)||0;
       const p  = lv>0 ? Math.round(av/lv*100) : 0;
-      const locOpts = LOCAIS.map(x=>`<option${x===l.local?' selected':''}>${esc(x)}</option>`).join('');
-      const agOpts  = AGENCIAS.map(x=>`<option${x===l.agencia?' selected':''}>${esc(x)}</option>`).join('');
+      /* valor gravado que nao esta mais na lista continua aparecendo: senao o
+         seletor mostra outro nome e o numero troca de dono sem ninguem pedir */
+      const locL = LOCAIS.concat((l.local && LOCAIS.indexOf(l.local) < 0) ? [l.local] : []);
+      const agL  = AGENCIAS.concat((l.agencia && AGENCIAS.indexOf(l.agencia) < 0) ? [l.agencia] : []);
+      const locOpts = locL.map(x=>`<option${x===l.local?' selected':''}>${esc(x)}</option>`).join('');
+      const agOpts  = agL.map(x=>`<option${x===l.agencia?' selected':''}>${esc(x)}</option>`).join('');
       return `<tr class="${pos%2?'alt':''}">
         <td class="lr-fx">${ano}</td><td class="lr-fx">${mes}</td><td class="lr-fx">${dbr}</td>
         <td><select class="lr-dd" onchange="setVal(${i},'local',this.value)">${locOpts}</select></td>
