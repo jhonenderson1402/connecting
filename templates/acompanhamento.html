@@ -118,6 +118,9 @@
 {% block scripts %}
 <script>
 const CAMPOS = ['ag','ex','pa','du','ue','ca','ge','na'];
+/* Classe de cor de cada campo. Fica num lugar so para o desenho da tabela e a
+   atualizacao durante a digitacao nunca discordarem. */
+const CLS_CAMPO = {ag:'on', ex:'ex', pa:'pa', du:'on', ue:'on', ca:'on', ge:'on', na:'on'};
 let linhas = [];        // [{unidade, bairro, ag, ex, ...}]
 let unidades = [];      // [{nome, regiao, ordem}] — vem de Configuração > Unidades
 let mapaBairros = {};   // {'PARÁ': ['Augusto', ...]}
@@ -272,6 +275,23 @@ function optionsHtml(l){
   if(unidAtual !== null) html += '</optgroup>';
   return html;
 }
+function visiveis(){
+  const filtro = document.getElementById('sel-regiao').value;
+  return linhas.map((l,i)=>({l,i})).filter(x => !filtro || regiaoDe(x.l) === filtro);
+}
+
+function desenhaRodape(vis){
+  vis = vis || visiveis();
+  const t = {}; CAMPOS.forEach(k => t[k] = vis.reduce((s,x)=>s+(Number(x.l[k])||0),0));
+  const p = t.ag>0 ? Math.round(t.ex/t.ag*100) : 0;
+  document.getElementById('ac-foot').innerHTML = `<tr>
+    <td colspan="5" style="text-align:left;padding-left:10px;color:var(--muted-fg)">TOTAL — ${vis.length} unidade(s)</td>
+    <td style="color:var(--primary)">${t.ag}</td>
+    <td style="color:var(--green)">${t.ex}</td>
+    <td style="color:var(--destructive)">${t.pa}</td>
+    <td><span class="${convCls(p)}">${p}%</span></td>
+    <td>${t.du}</td><td>${t.ue}</td><td>${t.ca}</td><td>${t.ge}</td><td>${t.na}</td><td></td></tr>`;
+}
 function render(){
   const filtro = document.getElementById('sel-regiao').value;
   const tb = document.getElementById('ac-body');
@@ -280,7 +300,7 @@ function render(){
   const ano = document.getElementById('sel-year').value;
   const dbr = dateBr();
 
-  const vis = linhas.map((l,i)=>({l,i})).filter(x => !filtro || regiaoDe(x.l) === filtro);
+  const vis = visiveis();
   if(!vis.length){
     tb.innerHTML = `<tr><td colspan="15" class="ac-vazio">Nenhuma linha neste dia. Clique em "+ Adicionar Linha" ou em "⚡ Gerar todas as unidades".</td></tr>`;
     document.getElementById('ac-foot').innerHTML = '';
@@ -292,34 +312,43 @@ function render(){
     const regCell = reg
       ? `<span class="ac-reg" title="${esc(reg)}">${esc(reg)}</span>`
       : `<span class="ac-reg vazia">sem região</span>`;
-    const campo = (k,cls)=>`<td><input class="ac-in ${(Number(l[k])||0)>0?cls:''}" inputmode="numeric" maxlength="6"
+    const campo = (k)=>`<td><input id="in-${i}-${k}" class="ac-in ${(Number(l[k])||0)>0?CLS_CAMPO[k]:''}" inputmode="numeric" maxlength="6"
         value="${l[k]||''}" oninput="setVal(${i},'${k}',this.value)"/></td>`;
     return `<tr class="${pos%2?'alt':''}">
       <td class="ac-fx">${ano}</td><td class="ac-fx">${mes}</td><td class="ac-fx">${dbr}</td>
       <td>${regCell}</td>
       <td><select class="ac-dd" onchange="setUnidade(${i},this.value)">${optionsHtml(l)}</select></td>
-      ${campo('ag','on')}${campo('ex','ex')}${campo('pa','pa')}
-      <td><span class="${convCls(p)}">${p}%</span></td>
-      ${campo('du','on')}${campo('ue','on')}${campo('ca','on')}${campo('ge','on')}${campo('na','on')}
+      ${campo('ag')}${campo('ex')}${campo('pa')}
+      <td><span class="${convCls(p)}" id="cv-${i}">${p}%</span></td>
+      ${campo('du')}${campo('ue')}${campo('ca')}${campo('ge')}${campo('na')}
       <td><button class="ac-del" onclick="rmLinha(${i})" title="Remover linha">🗑</button></td>
     </tr>`;
   }).join('');
 
-  const t = {}; CAMPOS.forEach(k => t[k] = vis.reduce((s,x)=>s+(Number(x.l[k])||0),0));
-  const p = t.ag>0 ? Math.round(t.ex/t.ag*100) : 0;
-  document.getElementById('ac-foot').innerHTML = `<tr>
-    <td colspan="5" style="text-align:left;padding-left:10px;color:var(--muted-fg)">TOTAL — ${vis.length} unidade(s)</td>
-    <td style="color:var(--primary)">${t.ag}</td>
-    <td style="color:var(--green)">${t.ex}</td>
-    <td style="color:var(--destructive)">${t.pa}</td>
-    <td><span class="${convCls(p)}">${p}%</span></td>
-    <td>${t.du}</td><td>${t.ue}</td><td>${t.ca}</td><td>${t.ge}</td><td>${t.na}</td><td></td></tr>`;
+  desenhaRodape(vis);
+}
+// ── Edição ──────────────────────────────────────────────────────────────────
+/* Repintar a tabela inteira a cada tecla tirava o cursor da celula. Entao a
+   digitacao so mexe na cor do campo, na conversao daquela linha e no rodape. */
+function atualizaLinha(i){
+  const l = linhas[i];
+  if(!l) return;
+  CAMPOS.forEach(k => {
+    const el = document.getElementById('in-' + i + '-' + k);
+    if(el) el.className = 'ac-in' + ((Number(l[k])||0) > 0 ? ' ' + CLS_CAMPO[k] : '');
+  });
+  const cv = document.getElementById('cv-' + i);
+  if(cv){
+    const p = (Number(l.ag)||0) > 0 ? Math.round((Number(l.ex)||0)/(Number(l.ag)||1)*100) : 0;
+    cv.className = convCls(p);
+    cv.textContent = p + '%';
+  }
+  desenhaRodape();
 }
 
-// ── Edição ──────────────────────────────────────────────────────────────────
 function setVal(i,k,v){
   linhas[i][k] = Number(v)||0;
-  render(); agendarSave();
+  atualizaLinha(i); agendarSave();
 }
 function setUnidade(i, valor){
   const p = String(valor||'').split('|');
