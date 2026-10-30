@@ -1640,31 +1640,8 @@ let __bairrosSalvos = null;   // preserva o histórico de bairros gravado antes
     closeModal('modal-comp');
     showToast('Comparecimento salvo!');
   }
-  
-  // ── Enter desce uma linha, como no Excel ───────────────────────────────────
-  // O ouvinte fica na <table>, que nunca e recriada — so o <tbody> troca.
-  // Assim continua valendo depois de adicionar linha, remover ou trocar de dia.
-  (function(){
-    const tabela = document.getElementById('schedule-table');
-    if(!tabela) return;
-    tabela.addEventListener('keydown', function(e){
-      if(e.key !== 'Enter') return;
-      const campo = e.target;
-      if(!campo || !campo.matches || !campo.matches('input')) return;
-      const td = campo.closest('td');
-      const tr = campo.closest('tr');
-      if(!td || !tr || !tr.parentElement || tr.parentElement.tagName !== 'TBODY') return;
-
-      e.preventDefault();
-      const col = td.cellIndex;
-      // Shift+Enter sobe, Enter desce — igual planilha
-      const destinoTr = e.shiftKey ? tr.previousElementSibling : tr.nextElementSibling;
-      if(!destinoTr){ campo.blur(); return; }
-
-      const alvo = destinoTr.cells[col] && destinoTr.cells[col].querySelector('input');
-      if(alvo){ alvo.focus(); alvo.select(); }
-    });
-  })();
+  // Andar pelas caixas como no Excel — a função mora no base.html
+  ligaNavegacaoExcel('schedule-table');
   function openModal(id){ document.getElementById(id).classList.add('show'); }
   function closeModal(id){ document.getElementById(id).classList.remove('show'); }
   </script>
