@@ -433,69 +433,8 @@ function exportCsv(){
   a.click();
   URL.revokeObjectURL(a.href);
 }
-// ── Andar pelas caixas como no Excel ───────────────────────────────────────
-// O ouvinte fica na <table>, que nunca e recriada — so o <tbody> troca.
-// Assim continua valendo depois de adicionar linha, remover ou trocar de dia.
-// Enter/seta para baixo desce, Shift+Enter/seta para cima sobe. As setas de
-// lado so pulam de campo quando o cursor ja esta na ponta do texto: dentro
-// do numero elas continuam andando entre os digitos, como se espera.
-(function(){
-  const tabela = document.getElementById('ac-table');
-  if(!tabela) return;
-
-  function naPonta(campo, dir){
-    const ini = campo.selectionStart, fim = campo.selectionEnd;
-    if(ini === null) return true;                            // campo sem cursor
-    if(ini === 0 && fim === campo.value.length) return true; // tudo marcado
-    return dir < 0 ? (ini === 0 && fim === 0)
-                   : (ini === campo.value.length && fim === ini);
-  }
-  function foca(alvo){
-    if(!alvo) return false;
-    alvo.focus();
-    if(alvo.select) alvo.select();
-    return true;
-  }
-  function vertical(campo, passo){
-    const td = campo.closest('td'), tr = campo.closest('tr');
-    if(!td || !tr) return false;
-    const col = td.cellIndex;
-    let destino = passo < 0 ? tr.previousElementSibling : tr.nextElementSibling;
-    while(destino){
-      const alvo = destino.cells[col] && destino.cells[col].querySelector('input');
-      if(alvo) return foca(alvo);
-      destino = passo < 0 ? destino.previousElementSibling : destino.nextElementSibling;
-    }
-    return false;
-  }
-  function horizontal(campo, passo){
-    const tr = campo.closest('tr');
-    if(!tr) return false;
-    const campos = [].slice.call(tr.querySelectorAll('input'));
-    const pos = campos.indexOf(campo);
-    return foca(campos[pos + passo]);
-  }
-
-  tabela.addEventListener('keydown', function(e){
-    const campo = e.target;
-    if(!campo || !campo.matches || !campo.matches('input')) return;
-    const tr = campo.closest('tr');
-    if(!tr || !tr.parentElement || tr.parentElement.tagName !== 'TBODY') return;
-
-    if(e.key === 'Enter'){
-      e.preventDefault();
-      if(!vertical(campo, e.shiftKey ? -1 : 1)) campo.blur();
-    } else if(e.key === 'ArrowDown'){
-      e.preventDefault(); vertical(campo, 1);
-    } else if(e.key === 'ArrowUp'){
-      e.preventDefault(); vertical(campo, -1);
-    } else if(e.key === 'ArrowRight' && naPonta(campo, 1)){
-      if(horizontal(campo, 1)) e.preventDefault();
-    } else if(e.key === 'ArrowLeft' && naPonta(campo, -1)){
-      if(horizontal(campo, -1)) e.preventDefault();
-    }
-  });
-})();
+// Andar pelas caixas como no Excel — a função mora no base.html
+ligaNavegacaoExcel('ac-table');
 // Se o base.html não disparar, inicializa mesmo assim
 if(typeof formatDateKey === 'function'){
   setTimeout(() => { if(!document.getElementById('ac-body').innerHTML) onConstantsLoaded(); }, 900);
