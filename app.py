@@ -511,15 +511,37 @@ VERSAO_APP = _versao_app()
 @app.route('/api/agendamentos_dia', methods=['GET'])
 @login_required
 def api_agendamentos_dia():
+    """Resumo do Hora a Hora por unidade e pessoa.
+
+    Com "date" devolve o dia; com "ano"+"mes" devolve o mes inteiro somado
+    por pessoa. O Resumo Geral chama um ou outro conforme o filtro do topo.
+    A meta do dia e a do mes vao nas duas respostas — quem escolhe qual usar
+    e a tela, porque e ela que sabe o que esta mostrando.
+    """
     date = request.args.get('date')
-    if not _valid_date(date):
-        return _err('Data invalida. Use YYYY-MM-DD.')
+    if date:
+        if not _valid_date(date):
+            return _err('Data invalida. Use YYYY-MM-DD.')
+        registros = db.get_appointments_by_date(date)
+        ano, mes  = int(date[0:4]), int(date[5:7])
+        periodo   = 'dia'
+    else:
+        try:
+            ano = int(request.args.get('ano'))
+            mes = int(request.args.get('mes'))
+        except (TypeError, ValueError):
+            return _err('Informe "date" (YYYY-MM-DD) ou "ano"+"mes".')
+        if not (1 <= mes <= 12) or not (1900 <= ano <= 2999):
+            return _err('Ano ou mes fora do intervalo.')
+        registros = db.get_appointments_by_month(ano, mes)
+        date      = ''
+        periodo   = 'mes'
 
     validas = _units()
     conj = set(validas)
     por_unidade = {u: {} for u in validas}
 
-    for a in (db.get_appointments_by_date(date) or []):
+    for a in (registros or []):
         unit = a.get('unit') or ''
         if unit not in conj:
             continue
@@ -548,7 +570,6 @@ def api_agendamentos_dia():
     meta_de = {}
     meta_mes_de = {}
     try:
-        ano = int(date[0:4]); mes = int(date[5:7])
         for m in (db.get_metas(ano, mes) or []):
             if not (m.get('bairro') or ''):
                 u = m.get('unidade') or ''
@@ -575,7 +596,8 @@ def api_agendamentos_dia():
             'pessoas': pessoas,
         })
 
-    return jsonify({'date': date, 'v': VERSAO_APP, 'unidades': out})
+    return jsonify({'date': date, 'periodo': periodo, 'ano': ano, 'mes': mes,
+                    'v': VERSAO_APP, 'unidades': out})
 @app.route('/api/constants')
 @login_required
 def api_constants():
