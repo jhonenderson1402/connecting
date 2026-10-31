@@ -266,11 +266,11 @@ function metaRowHtml(label, key, cMes, cDiaAtual, aMes, aDiaAtual, aHora, isUnit
          ';gap:4px;align-items:center;padding:4px 8px;border-bottom:1px solid #1a1a1a;' + bg + '">' +
          '<span style="font-size:11.5px;color:' + lc +
          ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + label + '</span>' +
-         inp("comp", cMes) +
-         bloco(cMes, cReal, "comp", "comp_dia", cDiaAtual) +
          inp("agend", aMes) +
          bloco(aMes, aReal, "agend", "dia", aDiaAtual) +
          inp("hora", aHora) +
+         inp("comp", cMes) +
+         bloco(cMes, cReal, "comp", "comp_dia", cDiaAtual) +
          '<span style="text-align:right;font-size:11.5px;font-weight:700;color:' + col + '">' + pct + '%</span></div>';
 }
 
@@ -348,13 +348,14 @@ window.openMetas = async function(){
 
   var GTC = "1fr 48px 48px 48px 48px 48px 48px 48px 48px 48px 42px";
 
-  // Faixa de grupo: COMPARECIMENTO cobre 4 colunas, AGENDAMENTO cobre as 4 seguintes.
+  // Faixa de grupo: AGENDAMENTO cobre 5 colunas (as 4 + AGEND HORA, que e dele),
+  // COMPARECIMENTO cobre as 4 seguintes.
   var html = '<div style="display:grid;grid-template-columns:' + GTC +
     ';gap:4px;padding:6px 8px 2px;font-size:8px;font-weight:800;letter-spacing:.1em">' +
     '<span></span>' +
+    '<span style="grid-column:span 5;text-align:center;color:#fbbf24;border-bottom:1px solid rgba(251,191,36,.3);padding-bottom:3px">AGENDAMENTO</span>' +
     '<span style="grid-column:span 4;text-align:center;color:#22c55e;border-bottom:1px solid rgba(34,197,94,.3);padding-bottom:3px">COMPARECIMENTO</span>' +
-    '<span style="grid-column:span 4;text-align:center;color:#fbbf24;border-bottom:1px solid rgba(251,191,36,.3);padding-bottom:3px">AGENDAMENTO</span>' +
-    '<span></span><span></span></div>';
+    '<span></span></div>';
 
   html += '<div style="display:grid;grid-template-columns:' + GTC +
     ';gap:4px;padding:4px 8px;font-size:8px;font-weight:700;color:#71717a;letter-spacing:.04em;border-bottom:1px solid #262626">' +
@@ -363,13 +364,13 @@ window.openMetas = async function(){
     '<span style="text-align:center;line-height:1.3">REALI<br>ZADO</span>' +
     '<span style="text-align:center;line-height:1.3">FALTA<br>P/ MÊS</span>' +
     '<span style="text-align:center;line-height:1.3">FALTA<br>P/ DIA</span>' +
+    '<span style="text-align:center;line-height:1.3">AGEND<br>HORA</span>' +
     '<span style="text-align:center;line-height:1.3">META<br>MÊS</span>' +
     '<span style="text-align:center;line-height:1.3">REALI<br>ZADO</span>' +
     '<span style="text-align:center;line-height:1.3">FALTA<br>P/ MÊS</span>' +
     '<span style="text-align:center;line-height:1.3">FALTA<br>P/ DIA</span>' +
-    '<span style="text-align:center;line-height:1.3">AGEND<br>HORA</span>' +
     '<span style="text-align:right">%</span></div>';
-
+  
   var U = (typeof UNITS !== "undefined" ? UNITS : []);
   var tCM=0, tCR=0, tCFM=0, tCFD=0, tAM=0, tAR=0, tAFM=0, tAFD=0, tAH=0;
 
@@ -406,15 +407,15 @@ window.openMetas = async function(){
   html += '<div style="display:grid;grid-template-columns:' + GTC +
     ';gap:4px;padding:8px;font-weight:800;font-size:11px;border-top:2px solid #3a3a3a">' +
     '<span style="color:#e5e5e5">TOTAL</span>' +
-    '<span style="text-align:center;color:#fbbf24">'+nBR(tCM)+'</span>' +
-    '<span style="text-align:center;color:#22c55e">'+nBR(tCR)+'</span>' +
-    '<span style="text-align:center;color:#a1a1aa">'+nBR(tCFM)+'</span>' +
-    '<span style="text-align:center;color:#f59e0b" title="'+_dica+'">'+(diasRest>0?nBR(tCFD):'—')+'</span>' +
     '<span style="text-align:center;color:#fbbf24">'+nBR(tAM)+'</span>' +
     '<span style="text-align:center;color:#22c55e">'+nBR(tAR)+'</span>' +
     '<span style="text-align:center;color:#a1a1aa">'+nBR(tAFM)+'</span>' +
     '<span style="text-align:center;color:#f59e0b" title="'+_dica+'">'+(diasRest>0?nBR(tAFD):'—')+'</span>' +
     '<span style="text-align:center;color:#fbbf24">'+nBR(tAH)+'</span>' +
+    '<span style="text-align:center;color:#fbbf24">'+nBR(tCM)+'</span>' +
+    '<span style="text-align:center;color:#22c55e">'+nBR(tCR)+'</span>' +
+    '<span style="text-align:center;color:#a1a1aa">'+nBR(tCFM)+'</span>' +
+    '<span style="text-align:center;color:#f59e0b" title="'+_dica+'">'+(diasRest>0?nBR(tCFD):'—')+'</span>' +
         '<span style="text-align:right;color:#f59e0b">'+(tCM>0?Math.round(tCR/tCM*100):0)+'%</span></div>';
 
   html += '<div style="margin-top:10px;padding:6px 8px 4px;font-size:10px;font-weight:800;color:#fbbf24;letter-spacing:.05em;border-top:1px solid #333">FUNCIONARIOS (META x REALIZADO)</div>';
@@ -3158,14 +3159,14 @@ function recomputeTotal(){
     if(uT){
       var s=uT.querySelectorAll('span');
       if(s.length>=11){
-        s[1].textContent = nBR(tCM);    // COMP META MES
-        s[3].textContent = nBR(tCFM);   // COMP FALTA MES
-        s[4].textContent = nBR(tCFD);   // COMP FALTA DIA
-        s[5].textContent = nBR(tAM);    // AGEND META MES
-        s[7].textContent = nBR(tAFM);   // AGEND FALTA MES
-        s[8].textContent = nBR(tAFD);   // AGEND FALTA DIA
-        s[9].textContent = nBR(tAH);    // AGEND HORA
-        var tCR = parseFloat((s[2].textContent||'0').replace(/\./g,'').replace(/[^0-9-]/g,''))||0;
+        s[1].textContent = nBR(tAM);    // AGEND META MES
+        s[3].textContent = nBR(tAFM);   // AGEND FALTA MES
+        s[4].textContent = nBR(tAFD);   // AGEND FALTA DIA
+        s[5].textContent = nBR(tAH);    // AGEND HORA
+        s[6].textContent = nBR(tCM);    // COMP META MES
+        s[8].textContent = nBR(tCFM);   // COMP FALTA MES
+        s[9].textContent = nBR(tCFD);   // COMP FALTA DIA
+        var tCR = parseFloat((s[7].textContent||'0').replace(/\./g,'').replace(/[^0-9-]/g,''))||0;
         s[10].textContent = (tCM>0?Math.round(tCR/tCM*100):0)+'%';
       }
     }
