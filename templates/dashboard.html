@@ -974,6 +974,35 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
              String(d.getMonth()+1).padStart(2,'0') + '-' +
              String(d.getDate()).padStart(2,'0');
     }
+        // O cartao segue o filtro do topo do Resumo Geral.
+    // FILTRO=Mes -> soma o mes inteiro e compara com a META AGEND MES.
+    // FILTRO=Dia -> aquele dia e a meta do dia, como era antes.
+    // "vivo" diz se o periodo mostrado inclui hoje: so entao a comemoracao
+    // pode acontecer.
+    function alvo(){
+      var hj  = new Date();
+      var em  = document.getElementById('filter-month');
+      var et  = document.getElementById('filter-type');
+      var ed  = document.getElementById('filter-day');
+      var mi  = em ? parseInt(em.value) : hj.getMonth();
+      if(isNaN(mi)) mi = hj.getMonth();
+      var ano = hj.getFullYear();
+      var MS  = (typeof MONTHS !== 'undefined' ? MONTHS : []);
+
+      if(et && et.value === 'day'){
+        var dia = ed ? (parseInt(ed.value) || hj.getDate()) : hj.getDate();
+        var k = ano + '-' + String(mi+1).padStart(2,'0') + '-' + String(dia).padStart(2,'0');
+        return { modo:'dia', url:'/api/agendamentos_dia?date=' + k,
+                 titulo:'Agendamentos do dia',
+                 rotulo:'Hora a Hora de ' + String(dia).padStart(2,'0') + '/' +
+                        String(mi+1).padStart(2,'0'),
+                 vivo: (k === hojeISO()) };
+      }
+      return { modo:'mes', url:'/api/agendamentos_dia?ano=' + ano + '&mes=' + (mi+1),
+               titulo:'Agendamentos do mês',
+               rotulo:'Hora a Hora de ' + ((MS[mi] || '').toLowerCase() || 'mês'),
+               vivo: (mi === hj.getMonth()) };
+    }
     function emTV(){
       return !!(document.fullscreenElement || document.webkitFullscreenElement);
     }
@@ -994,7 +1023,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       var b = document.getElementById('ag-tot2'); if(b) b.textContent = v;
     }
 
-    function desenha(dados){
+    function desenha(dados, modo){
       var unidades = (dados && dados.unidades) || [];
       var comGente = unidades.filter(function(u){ return (u.pessoas || []).length > 0; });
 
@@ -1005,7 +1034,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         if(!emTV()) palco.style.height = '90px';
         total(0);
         primeira = false;
-        return;
+        return [];
       }
 
       var maior = 0;
@@ -1031,8 +1060,9 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         var lider = ((u.total||0) === maior && maior > 0) ? ' lider' : '';
 
         // ── bloco da meta do dia ──
-        var meta  = Number(u.meta_dia) || 0;
-        var feito = u.total || 0;
+        var mensal = (modo === 'mes');
+        var meta   = Number(mensal ? u.meta_mes : u.meta_dia) || 0;
+        var feito  = u.total || 0;
         var bloco;
         if(meta > 0){
           var falta = Math.max(0, meta - feito);
@@ -1044,13 +1074,14 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
                       ? '<span class="ok">✓ Meta batida</span>'
                       : '<span class="falta" style="color:' + cor + '"><small>Faltam</small>' + falta + '</span>') +
                   '</div><div class="ag-barra"><i style="width:' + pct + '%;background:' + cor + '"></i></div></div>';
-        } else if((Number(u.meta_mes) || 0) > 0){
+        } else if(!mensal && (Number(u.meta_mes) || 0) > 0){
           // meta do dia veio zero mas o mes tem meta: o mes ja fechou
           bloco = '<div class="ag-meta mesok"><div class="l">' +
                     '<span class="okmes">✓ Meta do mês alcançada</span></div>' +
                   '<div class="ag-barra"><i style="width:100%;background:#22c55e"></i></div></div>';
         } else {
-          bloco = '<div class="ag-semmeta">Meta do dia não cadastrada</div>';
+          bloco = '<div class="ag-semmeta">Meta ' + (mensal ? 'do mês' : 'do dia') +
+                  ' não cadastrada</div>';
         }
 
         return '<div class="ag-uni' + lider + '" data-uni="' + esc(u.unidade) + '">' +
@@ -1064,9 +1095,9 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       }).join('');
 
       total(soma);
-      tgConfere(comGente);
       primeira = false;
       ajusta();
+      return comGente;
     }
     /* ══════════════ Comemoração de meta batida ══════════════ */
     /* Cada unidade aponta para o video da equipe dela.
@@ -1095,7 +1126,11 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
     var tgCanvas = document.getElementById('tg-fogos');
     var tgCtx    = tgCanvas ? tgCanvas.getContext('2d') : null;
     var tgOcupado = false, tgAnimando = false, tgParts = [], tgFila = [];
-
+    /* A comemoracao tem a sua propria marca de "primeira vez". Nao da para
+       usar a do desenho: desde que o cartao segue o filtro do topo, o desenho
+       acontece antes da conferencia, e quando ela chega o "primeira" ja virou
+       false — os fogos apareciam so por abrir a pagina. */
+    var tgPrimeira = true;
     function tgJaFez(unidade){
       try{ return localStorage.getItem('festa::' + hojeISO() + '::' + unidade) !== null; }
       catch(e){ return false; }
@@ -1368,9 +1403,10 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         if(!tipo) return;
         if(tgJaFez(nome)) return;
         tgMarca(nome, tipo);
-        if(primeira) return;      // ao abrir a tela nao dispara o que ja estava batido
+        if(tgPrimeira) return;    // ao abrir a tela nao dispara o que ja estava batido
         tgEnfileira(u, tipo);
       });
+      tgPrimeira = false;
     }
 
     /* Atalho de teste. No console do navegador (F12):
@@ -1438,7 +1474,25 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       if(dt) dt.textContent = d.toLocaleDateString('pt-BR',
         {weekday:'long', day:'2-digit', month:'long'});
     }
+    /* Quando a tela esta mostrando o mes, a comemoracao ainda e sobre o dia
+       de hoje — entao busca o dia a parte, so para isso. E uma chamada curta
+       e so acontece quando o mes mostrado e o mes corrente. */
+    async function confereFesta(){
+      try{
+        var r = await fetch('/api/agendamentos_dia?date=' + hojeISO());
+        if(!r.ok) return;
+        var d = await r.json();
+        tgConfere((d.unidades || []).filter(function(u){
+          return (u.pessoas || []).length > 0;
+        }));
+      }catch(e){}
+    }
 
+    /* trocar MES, FILTRO ou DIA no topo refaz o cartao na hora */
+    ['filter-month','filter-type','filter-day'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.addEventListener('change', function(){ setTimeout(tick, 40); });
+    });
     var ocupado = false;
     var tentadoEm = 0;
     async function tick(){
@@ -1457,16 +1511,27 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       var corta = ctl ? setTimeout(function(){ try{ ctl.abort(); }catch(e){} }, 12000) : null;
       var s = document.getElementById('ag-sub');
       try{
-        var r = await fetch('/api/agendamentos_dia?date=' + hojeISO(),
-                            ctl ? { signal: ctl.signal } : undefined);
+        var al = alvo();
+        var r = await fetch(al.url, ctl ? { signal: ctl.signal } : undefined);
         if(r.ok){
           var dados = await r.json();
-          desenha(dados);
+          var vistas = desenha(dados, al.modo);
           confereVersao(dados && dados.v);
+
+          var tt = card.querySelector('.card-title');
+          if(tt) tt.textContent = al.titulo;
+
+          // A comemoracao e sempre sobre HOJE. Em mes ou dia passado, nada
+          // dispara — senao os fogos apareciam so por abrir um mes antigo.
+          if(al.vivo){
+            if(al.modo === 'dia') tgConfere(vistas);
+            else confereFesta();
+          }
+
           var ag = new Date();
           if(s){
             s.style.color = '';
-            s.textContent = 'Hora a Hora de hoje · atualizado ' +
+            s.textContent = al.rotulo + ' · atualizado ' +
               String(ag.getHours()).padStart(2,'0') + ':' +
               String(ag.getMinutes()).padStart(2,'0') + ':' +
               String(ag.getSeconds()).padStart(2,'0');
