@@ -126,7 +126,71 @@
       padding:12px 16px 16px; border-top:none;
       font-size:9.5px; color:#3f3f46; text-align:center;
     }
-    body.tema-claro .sidebar-footer{ color:#c4c4bd; }
+        body.tema-claro .sidebar-footer{ color:#c4c4bd; }
+
+    /* ══════════ Dropdown bonito (ligaDropdown) ══════════ */
+    .cdd{ position:relative; display:inline-block; }
+    .cdd-bt{
+      background:var(--secondary); border:1px solid var(--border); color:var(--fg);
+      height:31px; min-width:100%; padding:0 28px 0 10px; border-radius:8px;
+      font-size:11.5px; font-family:inherit; cursor:pointer; text-align:left;
+      position:relative; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      transition:border-color .15s;
+    }
+    .cdd-bt::after{
+      content:''; position:absolute; right:10px; top:50%; margin-top:-2px;
+      border-left:4px solid transparent; border-right:4px solid transparent;
+      border-top:5px solid var(--muted-fg); transition:transform .15s;
+    }
+    .cdd-bt:hover, .cdd-bt.open{ border-color:var(--primary); }
+    .cdd-bt.open::after{ transform:rotate(180deg); }
+    .cdd-bt.vazia{ color:var(--muted-fg); }
+    .cdd-bt.tem{ color:var(--primary); border-color:rgba(251,191,36,.45);
+                 background:rgba(251,191,36,.12); }
+
+    .cdd-menu{
+      position:fixed; display:none; z-index:2147483000; padding:4px;
+      background:#1a1a1a; border:1px solid #2a2a2a; border-radius:8px;
+      box-shadow:0 8px 24px rgba(0,0,0,.6); max-height:300px; overflow-y:auto;
+    }
+    .cdd-menu.open{ display:block; }
+    .cdd-menu::-webkit-scrollbar{ width:8px; }
+    .cdd-menu::-webkit-scrollbar-track{ background:transparent; }
+    .cdd-menu::-webkit-scrollbar-thumb{ background:#3a3a3a; border-radius:4px; }
+    .cdd-menu::-webkit-scrollbar-thumb:hover{ background:#52525b; }
+    .cdd-busca{
+      position:sticky; top:-4px; z-index:1; margin:-4px -4px 4px;
+      padding:4px 4px 6px; background:#1a1a1a; border-bottom:1px solid #2a2a2a;
+    }
+    .cdd-busca input{
+      width:100%; background:#101010; border:1px solid #2a2a2a; border-radius:6px;
+      color:#e4e4e7; font-family:inherit; font-size:12px; padding:6px 9px; outline:none;
+    }
+    .cdd-busca input::placeholder{ color:#52525b; }
+    .cdd-busca input:focus{ border-color:#fbbf24; }
+    .cdd-op{
+      padding:8px 12px; font-size:13px; color:#d4d4d8; cursor:pointer;
+      border-radius:6px; display:flex; align-items:center;
+      justify-content:space-between; gap:8px; transition:background .1s;
+    }
+    .cdd-op:hover, .cdd-op.foco{ background:#2a2a2a; }
+    .cdd-op.vazia{ color:#52525b; font-style:italic; }
+    /* dia com registro: a linha inteira fica dourada */
+    .cdd-op.tem{ background:rgba(251,191,36,.12); color:#fbbf24; }
+    .cdd-op.tem:hover, .cdd-op.tem.foco{ background:rgba(251,191,36,.2); }
+    /* o dia escolhido fica mais forte, para nao se confundir com os de cima */
+    .cdd-op.sel{ background:rgba(251,191,36,.3); color:#fbbf24; font-weight:700; }
+    .cdd-op.sel::after{ content:'✓'; color:#22c55e; font-weight:700; }
+
+    body.tema-claro .cdd-menu{ background:#fff; border-color:#e8e8e4;
+      box-shadow:0 8px 24px rgba(0,0,0,.12); }
+    body.tema-claro .cdd-menu::-webkit-scrollbar-thumb{ background:#d4d4cd; }
+    body.tema-claro .cdd-busca{ background:#fff; border-bottom-color:#e8e8e4; }
+    body.tema-claro .cdd-busca input{ background:#f7f7f5; border-color:#e2e2dd; color:#3f3f46; }
+    body.tema-claro .cdd-op{ color:#3f3f46; }
+    body.tema-claro .cdd-op:hover, body.tema-claro .cdd-op.foco{ background:#f1f1ee; }
+    body.tema-claro .cdd-op.tem{ background:#fdf6e3; color:#a16207; }
+    body.tema-claro .cdd-op.sel{ background:#fbeec4; color:#a16207; }
   </style>
   <script>
     /* Numero no formato brasileiro: 17116 vira 17.116.
@@ -481,6 +545,153 @@
         }
       });
     }
+
+    // ── Dropdown bonito por cima de um <select> comum ────────────────────────
+    // Uso: ligaDropdown('f-dia', 'DIGITE O DIA')
+    // O <select> continua sendo o dono do valor: ao escolher, eu escrevo nele
+    // e disparo o "change". Entao tudo que a tela ja fazia continua valendo —
+    // os addEventListener('change') e as leituras de .value nao mudam nada.
+    // Para destacar opcoes em dourado (ex.: dias com dados), marque
+    // option.dataset.tem = '1' e chame atualizaDropdown('f-dia').
+    var __cddAberto = null;
+
+    function fechaDropdowns(){
+      const m = __cddAberto;
+      __cddAberto = null;
+      if(!m) return;
+      m.classList.remove('open');
+      if(m.__casa && m.__casa.isConnected) m.__casa.appendChild(m);
+      else m.remove();
+      if(m.__bt) m.__bt.classList.remove('open');
+    }
+
+    function atualizaDropdown(idSelect){
+      const sel = document.getElementById(idSelect);
+      if(!sel || !sel.__cdd) return;
+      const d = sel.__cdd;
+      const ops = [].slice.call(sel.options);
+      d.ops.innerHTML = ops.map(function(o, i){
+        const cls = 'cdd-op' + (o.value === sel.value ? ' sel' : '') +
+                    (o.dataset.tem === '1' ? ' tem' : '') +
+                    (o.value === '' ? ' vazia' : '');
+        return '<div class="' + cls + '" data-i="' + i + '">' +
+               String(o.textContent).replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</div>';
+      }).join('');
+      const esc = sel.options[sel.selectedIndex];
+      d.bt.textContent = esc ? esc.textContent : '';
+      d.bt.classList.toggle('tem', !!(esc && esc.dataset.tem === '1'));
+      d.bt.classList.toggle('vazia', !!(esc && esc.value === ''));
+    }
+
+    function ligaDropdown(idSelect, textoBusca){
+      const sel = document.getElementById(idSelect);
+      if(!sel || sel.dataset.cdd) return;      // nao liga duas vezes
+      sel.dataset.cdd = '1';
+
+      const cx = document.createElement('div');
+      cx.className = 'cdd';
+      sel.parentNode.insertBefore(cx, sel);
+      cx.appendChild(sel);
+      sel.style.display = 'none';
+
+      const bt = document.createElement('button');
+      bt.type = 'button';
+      bt.className = 'cdd-bt';
+      cx.appendChild(bt);
+
+      const menu = document.createElement('div');
+      menu.className = 'cdd-menu';
+      menu.innerHTML = '<div class="cdd-busca"><input type="text" /></div>' +
+                       '<div class="cdd-ops"></div>';
+      cx.appendChild(menu);
+      const campo = menu.querySelector('input');
+      campo.placeholder = textoBusca || 'DIGITE PARA BUSCAR';
+      menu.__bt = bt;
+
+      sel.__cdd = {cx: cx, bt: bt, menu: menu, ops: menu.querySelector('.cdd-ops'), campo: campo};
+      atualizaDropdown(idSelect);
+
+      function visiveis(){
+        return [].slice.call(menu.querySelectorAll('.cdd-op'))
+                 .filter(function(o){ return o.style.display !== 'none'; });
+      }
+      function marca(el){
+        [].forEach.call(menu.querySelectorAll('.cdd-op'), function(o){ o.classList.remove('foco'); });
+        if(!el) return;
+        el.classList.add('foco');
+        if(el.scrollIntoView) el.scrollIntoView({block:'nearest'});
+      }
+      function escolhe(el){
+        if(!el) return;
+        sel.selectedIndex = Number(el.dataset.i);
+        fechaDropdowns();
+        atualizaDropdown(idSelect);
+        sel.dispatchEvent(new Event('change', {bubbles:true}));
+      }
+      function abre(){
+        const r = bt.getBoundingClientRect();
+        menu.__casa = cx;
+        document.body.appendChild(menu);
+        menu.style.left = r.left + 'px';
+        menu.style.minWidth = Math.max(r.width, 140) + 'px';
+        // se nao couber embaixo, abre para cima
+        const sobra = (window.innerHeight || 800) - r.bottom;
+        if(sobra < 300 && r.top > sobra){
+          menu.style.top = '';
+          menu.style.bottom = ((window.innerHeight || 800) - r.top + 4) + 'px';
+        } else {
+          menu.style.bottom = '';
+          menu.style.top = (r.bottom + 4) + 'px';
+        }
+        menu.classList.add('open');
+        bt.classList.add('open');
+        __cddAberto = menu;
+        campo.value = '';
+        [].forEach.call(menu.querySelectorAll('.cdd-op'), function(o){ o.style.display = ''; });
+        marca(menu.querySelector('.cdd-op.sel'));
+        setTimeout(function(){ campo.focus({preventScroll:true}); }, 0);
+      }
+
+      bt.addEventListener('click', function(e){
+        e.stopPropagation();
+        const estava = menu.classList.contains('open');
+        fechaDropdowns();
+        if(!estava){ atualizaDropdown(idSelect); abre(); }
+      });
+      menu.addEventListener('click', function(e){
+        e.stopPropagation();
+        const op = e.target.closest('.cdd-op');
+        if(op) escolhe(op);
+      });
+      campo.addEventListener('keydown', function(e){
+        e.stopPropagation();
+        const vis = visiveis();
+        const at  = menu.querySelector('.cdd-op.foco');
+        const pos = vis.indexOf(at);
+        if(e.key === 'Escape'){ e.preventDefault(); fechaDropdowns(); bt.focus(); }
+        else if(e.key === 'Enter'){ e.preventDefault(); escolhe(at || vis[0]); }
+        else if(e.key === 'ArrowDown'){ e.preventDefault(); marca(vis[Math.min(pos + 1, vis.length - 1)] || vis[0]); }
+        else if(e.key === 'ArrowUp'){ e.preventDefault(); marca(vis[Math.max(pos - 1, 0)] || vis[0]); }
+      });
+      campo.addEventListener('input', function(){
+        const q = String(campo.value || '').normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g,'').trim().toUpperCase();
+        [].forEach.call(menu.querySelectorAll('.cdd-op'), function(o){
+          const t = String(o.textContent).normalize('NFD')
+                      .replace(/[\u0300-\u036f]/g,'').toUpperCase();
+          o.style.display = t.indexOf(q) >= 0 ? '' : 'none';
+        });
+        marca(visiveis()[0]);
+      });
+    }
+
+    document.addEventListener('click', fechaDropdowns);
+    window.addEventListener('resize', fechaDropdowns);
+    window.addEventListener('scroll', function(e){
+      const t = e.target;
+      if(t && t.closest && t.closest('.cdd-menu')) return;
+      fechaDropdowns();
+    }, true);
   </script>
   {% block scripts %}{% endblock %}
   <script>
