@@ -1046,6 +1046,19 @@ def api_ocorrencias():
     return jsonify(db.get_ocorrencias(ano, mes, d))
 
 
+@app.route('/api/ocorrencias_meses', methods=['GET'])
+@login_required
+def api_ocorrencias_meses():
+    """Quais meses do ano tem registro. So leitura, para pintar o seletor."""
+    try:
+        ano = int(request.args.get('ano'))
+    except (TypeError, ValueError):
+        return _err('Informe "ano".')
+    if not (1900 <= ano <= 2999):
+        return _err('Ano invalido.')
+    return jsonify(db.meses_com_ocorrencias(ano))
+
+
 @app.route('/api/ocorrencias', methods=['POST'])
 @login_required
 def api_salva_ocorrencia():
