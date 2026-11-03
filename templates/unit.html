@@ -1596,6 +1596,7 @@ let __bairrosSalvos = null;   // preserva o histórico de bairros gravado antes
       .map(([name,d])=>({name,ag:d.ag,comp:d.comp}));
 
     __bairrosSalvos = null;
+    ordemComp = null;          // ao abrir, volta ao padrao: por agendamento
     fetch(`/api/appointments/${encodeURIComponent(UNIT)}/${getDateKey()}`)
       .then(r=>r.json()).then(appt=>{
         if(appt.comparecimento_data){
@@ -1613,9 +1614,44 @@ let __bairrosSalvos = null;   // preserva o histórico de bairros gravado antes
     openModal('modal-comp');
   }
 
+  // ── Ordenar clicando no cabecalho ─────────────────────────────────────────
+  // 1o clique: crescente (A-Z / menor-maior). 2o na mesma coluna: inverte.
+  // Reordena a lista de verdade, entao os campos andam junto com a pessoa.
+  // Vale enquanto o modal esta aberto; ao reabrir volta ao padrao.
+  let ordemComp = null;   // {col, dir}
+
+  function _compValor(p, col){
+    if(col === 0) return (p.name || '').toString();
+    if(col === 1) return Number(p.ag)   || 0;
+    if(col === 2) return Number(p.comp) || 0;
+    if(col === 3) return Number(p.pun)  || 0;
+    return Number(p.vendas) || 0;
+  }
+  function ordenarComp(col){
+    const dir = (ordemComp && ordemComp.col === col && ordemComp.dir === 'asc') ? 'desc' : 'asc';
+    ordemComp = {col: col, dir: dir};
+    compPeople.sort(function(a, b){
+      const va = _compValor(a, col), vb = _compValor(b, col);
+      let cmp;
+      if(typeof va === 'number' && typeof vb === 'number') cmp = va - vb;
+      else cmp = String(va).localeCompare(String(vb), 'pt-BR', {sensitivity:'base'});
+      // empate em numero: desempata pelo nome, para a lista nao ficar baguncada
+      if(cmp === 0) cmp = String(a.name).localeCompare(String(b.name), 'pt-BR', {sensitivity:'base'});
+      return dir === 'asc' ? cmp : -cmp;
+    });
+    renderCompList();
+  }
+
   function renderCompList() {
-    document.getElementById('comp-header').innerHTML =
-      '<span>NOME</span><span>AGENDAMENTO</span><span>COMPARECIMENTO</span><span>PUNIÇÕES</span><span>VENDAS</span>';
+    const TIT = ['NOME','AGENDAMENTO','COMPARECIMENTO','PUNIÇÕES','VENDAS'];
+    document.getElementById('comp-header').innerHTML = TIT.map(function(t, i){
+      const ativa = ordemComp && ordemComp.col === i;
+      const seta  = ativa ? (ordemComp.dir === 'asc' ? '▲' : '▼') : '⇅';
+      return '<span onclick="ordenarComp(' + i + ')" style="cursor:pointer" ' +
+             'title="Clique para ordenar">' + t +
+             '<span style="font-size:8px;margin-left:3px;opacity:' +
+             (ativa ? '1' : '.3') + '">' + seta + '</span></span>';
+    }).join('');
     document.getElementById('comp-header').style.gridTemplateColumns='1fr 120px 120px 120px 120px';
     document.getElementById('comp-totals').style.gridTemplateColumns='1fr 120px 120px 120px 120px';
     document.getElementById('comp-list').innerHTML=compPeople.map((p,i)=>
