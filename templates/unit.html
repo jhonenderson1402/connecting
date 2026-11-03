@@ -1655,8 +1655,11 @@ let __bairrosSalvos = null;   // preserva o histórico de bairros gravado antes
     closeModal('modal-comp');
     showToast('Comparecimento salvo!');
   }
-  // Andar pelas caixas como no Excel — a função mora no base.html
+  // Andar pelas caixas como no Excel — as funções moram no base.html
   ligaNavegacaoExcel('schedule-table');
+  // O mesmo no Comparecimento, que e montado com div em vez de tabela.
+  // O "if" faz a ordem de publicar os dois arquivos nao importar.
+  if(typeof ligaNavegacaoGrade === 'function') ligaNavegacaoGrade('comp-list', '.comp-row');
   function openModal(id){ document.getElementById(id).classList.add('show'); }
   function closeModal(id){ document.getElementById(id).classList.remove('show'); }
   </script>
