@@ -560,7 +560,8 @@
     markDayOptions();
   }
   
-  // Pinta de amarelo suave os dias que já têm agendamento/comparecimento
+  // Marca os dias que já têm agendamento/comparecimento. Quem pinta agora é o
+  // dropdown do base.html: a linha inteira fica dourada, nao so o numero.
   function markDayOptions() {
     const dm = window.__dayMap || {};
     const selDay = document.getElementById('sel-day');
@@ -569,14 +570,21 @@
       const d = parseInt(opt.value);
       const data = dm[d];
       const has = data && (data.filled || (data.ag||0) > 0 || (data.comp||0) > 0);
-      opt.style.backgroundColor = has ? 'rgba(251,191,36,0.28)' : '';
-      opt.style.color = has ? '#fde68a' : '';
-      opt.style.fontWeight = has ? '700' : '';
+      if(has) opt.dataset.tem = '1';
+      else delete opt.dataset.tem;
     });
+    atualizaDropdown('sel-day');
   }
   
   // Dispara inicialização AGORA (script roda depois do DOM parseado neste ponto)
   initDateSelectors();
+
+  // Dropdown bonito nos tres filtros (as funcoes moram no base.html).
+  // O <select> continua sendo o dono do valor, entao o onchange="onDateChange()"
+  // que esta no HTML continua disparando igual — nada da tela precisa mudar.
+  ligaDropdown('sel-month', 'DIGITE O MÊS');
+  ligaDropdown('sel-year',  'DIGITE O ANO');
+  ligaDropdown('sel-day',   'DIGITE O DIA');
   
   async function onConstantsLoaded() {
     // Como já inicializamos no carregamento, aqui só carrega a tabela.
@@ -1039,12 +1047,14 @@ function toggleNameDropdown(i, event) {
   // — mas NÃO fecha quando a rolagem acontece dentro do próprio menu
   window.addEventListener('scroll', function(e){
     var t = e.target;
-    if(t && t.closest && t.closest('.name-dd-menu')) return;
+    if(t && t.closest && (t.closest('.name-dd-menu') || t.closest('.cdd-menu'))) return;
     closeAllNameDropdowns();
   }, true);
   window.addEventListener('resize', closeAllNameDropdowns);
   
   function closeAllNameDropdowns() {
+    // fecha tambem os dropdowns dos filtros do topo (base.html)
+    if(typeof fechaDropdowns === 'function') fechaDropdowns();
     _ddFechar();
     document.querySelectorAll('.name-dd-menu.open').forEach(m => m.classList.remove('open'));
     document.querySelectorAll('.name-dd-trigger.open').forEach(t => t.classList.remove('open'));
