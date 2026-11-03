@@ -179,7 +179,9 @@
     .cdd-op.tem{ background:rgba(251,191,36,.12); color:#fbbf24; }
     .cdd-op.tem:hover, .cdd-op.tem.foco{ background:rgba(251,191,36,.2); }
     /* o dia escolhido fica mais forte, para nao se confundir com os de cima */
-    .cdd-op.sel{ background:rgba(251,191,36,.3); color:#fbbf24; font-weight:700; }
+    /* o escolhido nao ganha fundo: dourado quer dizer "tem dados".
+       Quem marca a escolha e o ✓ verde, so ele. */
+    .cdd-op.sel{ font-weight:700; }
     .cdd-op.sel::after{ content:'✓'; color:#22c55e; font-weight:700; }
 
     body.tema-claro .cdd-menu{ background:#fff; border-color:#e8e8e4;
@@ -190,7 +192,7 @@
     body.tema-claro .cdd-op{ color:#3f3f46; }
     body.tema-claro .cdd-op:hover, body.tema-claro .cdd-op.foco{ background:#f1f1ee; }
     body.tema-claro .cdd-op.tem{ background:#fdf6e3; color:#a16207; }
-    body.tema-claro .cdd-op.sel{ background:#fbeec4; color:#a16207; }
+    body.tema-claro .cdd-op.sel{ font-weight:700; }
   </style>
   <script>
     /* Numero no formato brasileiro: 17116 vira 17.116.
