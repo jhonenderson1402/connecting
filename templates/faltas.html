@@ -863,14 +863,50 @@ function montaDias(){
     o.value = d; o.textContent = String(d).padStart(2,'0');
     sel.appendChild(o);
   }
-  if(atual && Number(atual) <= ult){ sel.value = atual; return; }
+  if(atual && Number(atual) <= ult){ sel.value = atual; atualizaDropdown('f-dia'); return; }
   // na primeira montagem a tela ja abre no dia de hoje
   if(!diaJaEscolhido){
     diaJaEscolhido = true;
     var h = new Date();
     if(h.getFullYear() === ano && h.getMonth() === mi) sel.value = h.getDate();
   }
+  atualizaDropdown('f-dia');
 }
+
+/* ── dias com registro ficam dourados no seletor ──
+   A API devolve todo registro que ENCOSTA no mes, nao so os que comecam nele
+   (um atestado de 28/10 a 03/11 aparece nos dois meses). Por isso marco a
+   faixa inteira, nao so o dia de inicio. E uma chamada a mais, so quando
+   troca de mes ou de ano. */
+async function marcaDiasComDados(){
+  var ano = Number(valSel('f-ano'));
+  var mi  = parseInt(valSel('f-mes'), 10);
+  var sel = document.getElementById('f-dia');
+  if(!sel || isNaN(ano) || isNaN(mi)) return;
+  var ult = new Date(ano, mi + 1, 0).getDate();
+  var pre = ano + '-' + String(mi + 1).padStart(2,'0') + '-';
+  var tem = {};
+  try{
+    var r = await fetch('/api/ocorrencias?ano=' + ano + '&mes=' + (mi + 1));
+    var todos = r.ok ? (await r.json()) : [];
+    (todos || []).forEach(function(x){
+      var ini = String(x.data || '');
+      var fim = String(x.fim || x.data || '');
+      if(!ini) return;
+      if(fim < ini) fim = ini;
+      for(var d = 1; d <= ult; d++){
+        var k = pre + String(d).padStart(2,'0');
+        if(ini <= k && k <= fim) tem[d] = true;
+      }
+    });
+  }catch(e){ return; }
+  [].forEach.call(sel.options, function(o){
+    if(o.value && tem[Number(o.value)]) o.dataset.tem = '1';
+    else delete o.dataset.tem;
+  });
+  atualizaDropdown('f-dia');
+}
+
 function ehHoje(){
   var h = new Date();
   return Number(valSel('f-ano')) === h.getFullYear()
@@ -896,9 +932,17 @@ async function onConstantsLoaded(){
   });
   montaDias();
 
+  // dropdown bonito nos tres filtros (as funcoes moram no base.html).
+  // O <select> continua sendo o dono do valor, entao os "change" logo
+  // abaixo continuam valendo exatamente como antes.
+  ligaDropdown('f-ano', 'DIGITE O ANO');
+  ligaDropdown('f-mes', 'DIGITE O MÊS');
+  ligaDropdown('f-dia', 'DIGITE O DIA');
+  marcaDiasComDados();
+
   ['f-ano','f-mes'].forEach(function(id){
     document.getElementById(id).addEventListener('change', function(){
-      montaDias(); carrega();
+      montaDias(); marcaDiasComDados(); carrega();
     });
   });
   document.getElementById('f-dia').addEventListener('change', carrega);
