@@ -985,6 +985,61 @@ def meses_com_dados(ano, unit):
                 meses.add(mes)
                 break
     return sorted(meses)
+def meses_com_agendamentos(ano, unit):
+    """Meses do ano em que essa unidade tem lancamento no Hora a Hora.
+    Conta o mesmo que a tela conta: horario preenchido, inclusao ou
+    comparecimento. Dia aberto e deixado em branco nao marca."""
+    meses = set()
+    with SessionLocal() as s:
+        achados = s.execute(
+            select(Appointment.date, Appointment.rows,
+                   Appointment.comparecimento_data).where(and_(
+                Appointment.unit == unit,
+                Appointment.date.like('%d-%%' % ano)))
+        ).all()
+    for data, linhas_bruto, comp_bruto in achados:
+        try:
+            mes = int(str(data)[5:7])
+        except (TypeError, ValueError):
+            continue
+        if mes in meses:
+            continue
+        tem = False
+        for r in _safe_json_loads(linhas_bruto, []):
+            if not isinstance(r, dict):
+                continue
+            for v in (r.get('slots') or {}).values():
+                try:
+                    if float(v or 0) > 0:
+                        tem = True
+                        break
+                except (TypeError, ValueError):
+                    pass
+            if tem:
+                break
+            try:
+                if float(r.get('inclusao') or 0) > 0:
+                    tem = True
+                    break
+            except (TypeError, ValueError):
+                pass
+        if not tem:
+            cd = _safe_json_loads(comp_bruto, {})
+            if isinstance(cd, dict):
+                for k, v in cd.items():
+                    if isinstance(k, str) and k.startswith('__') and k.endswith('__'):
+                        continue
+                    try:
+                        if float(v or 0) > 0:
+                            tem = True
+                            break
+                    except (TypeError, ValueError):
+                        pass
+        if tem:
+            meses.add(mes)
+    return sorted(meses)
+
+
 def get_appointments_all():
     """Tudo que existe, do mais antigo ao mais novo.
     Usada pela API externa (Power BI), que puxa a base inteira e deixa o
