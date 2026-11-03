@@ -1314,6 +1314,24 @@ def api_meses_com_dados():
     if not (1900 <= ano <= 2999):
         return _err('Ano fora do intervalo.')
     return jsonify(db.meses_com_dados(ano, ACOMP_UNIT))
+
+
+@app.route('/api/meses_com_agendamentos', methods=['GET'])
+@login_required
+def api_meses_com_agendamentos():
+    """Meses do ano em que a unidade tem lancamento no Hora a Hora."""
+    unit = request.args.get('unit')
+    if unit:
+        unit = unquote(unit)
+    if not _valid_unit(unit):
+        return _err(f'Unidade inválida: {unit}')
+    try:
+        ano = int(request.args.get('ano'))
+    except (TypeError, ValueError):
+        return _err('Informe um ano válido.')
+    if not (1900 <= ano <= 2999):
+        return _err('Ano fora do intervalo.')
+    return jsonify(db.meses_com_agendamentos(ano, unit))
 # ── Fechamento do dia ────────────────────────────────────────────────────────
 # Guarda o preenchimento na mesma tabela de appointments, com um "unit"
 # reservado — mesmo padrao do Acompanhamento e dos Leads Recebidos, entao
