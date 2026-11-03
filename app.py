@@ -1390,6 +1390,119 @@ def _espelha_leads_recebidos(date, dados):
             db.create_lead_opcao('local', nome)
         except Exception:
             pass
+# ── Fechamento -> Acompanhamento Unidades ───────────────────────────────────
+# As siglas do Fechamento sao o mesmo numero que a coluna AGENDAM. do
+# Acompanhamento espera. O mapa diz para qual linha cada sigla vai; os nomes
+# sao resolvidos contra o cadastro na hora de gravar, sem acento e sem
+# maiuscula. Assim, renomear uma unidade nao quebra o espelhamento calado.
+SIGLA_DESTINO = {
+    'JB':    ('PARÁ', 'José Bonifácio'),
+    'TL':    ('PARÁ', 'Telegrafo'),
+    'CN':    ('PARÁ', 'Cidade Nova'),
+    'AM':    ('PARÁ', 'Augusto'),
+    'ANA':   ('PARÁ', 'Ananindeua'),
+    'MAR':   ('PARÁ', 'Marambaia'),
+    'CAST':  ('PARÁ', 'Castanhal'),
+    'JUR':   ('PARÁ', 'Jurunas'),
+    'MB':    ('PARÁ', 'Marabá'),
+    'CAP':   ('PARÁ', 'Capanema'),
+    'MAN 1': ('MANAUS', ''),
+    'MAN 2': ('MANOA', ''),
+    'MAN 3': ('MANAUS CENTRO', ''),
+    'MA':    ('SÃO LUIS', ''),
+    'FORT':  ('FORTALEZA', ''),
+    'RON':   ('RONDONIA', ''),
+}
+
+
+def _sem_acento(txt):
+    import unicodedata
+    t = unicodedata.normalize('NFKD', str(txt or '')).encode('ascii', 'ignore').decode()
+    return ' '.join(t.split()).strip().upper()
+
+
+def _espelha_acompanhamento(date, dados):
+    """Joga as siglas do Fechamento na coluna AGENDAM. do Acompanhamento.
+
+    So toca no campo 'ag' da linha correspondente: EXAMES, PATOL., DUPLIC. e
+    o resto ficam como estao. Linha que ainda nao existe no dia e criada
+    zerada. Sigla em branco ou zerada NAO escreve nada — o Fechamento salva
+    sozinho enquanto a pessoa digita, e sem essa trava abrir a tela num dia
+    ja preenchido zeraria a coluna inteira.
+    """
+    siglas = dados.get('siglas')
+    if not isinstance(siglas, dict):
+        return
+
+    try:
+        unidades = db.get_unidades() or []
+    except Exception:
+        return
+    uni_por_chave = {}
+    for u in unidades:
+        nome = u.get('nome') or ''
+        if nome:
+            uni_por_chave[_sem_acento(nome)] = nome
+
+    bai_por_unidade = {}
+    try:
+        for b in (db.get_bairros() or []):
+            un = b.get('unidade') or ''
+            nm = b.get('nome') or ''
+            if un and nm:
+                bai_por_unidade.setdefault(_sem_acento(un), {})[_sem_acento(nm)] = nm
+    except Exception:
+        pass
+
+    alvo = {}
+    for sigla, valor in siglas.items():
+        destino = SIGLA_DESTINO.get(str(sigla).strip().upper())
+        if not destino:
+            continue
+        try:
+            n = int(float(valor or 0))
+        except (TypeError, ValueError):
+            continue
+        if n <= 0:
+            continue
+        rot_uni, rot_bai = destino
+        uni = uni_por_chave.get(_sem_acento(rot_uni))
+        if not uni:
+            continue
+        if rot_bai:
+            bai = (bai_por_unidade.get(_sem_acento(rot_uni)) or {}).get(_sem_acento(rot_bai))
+            if not bai:
+                continue
+        else:
+            bai = uni
+        alvo[(uni, bai)] = alvo.get((uni, bai), 0) + n
+
+    if not alvo:
+        return
+
+    atual = db.get_appointment(ACOMP_UNIT, date) or {}
+    linhas = atual.get('rows') or []
+    if not isinstance(linhas, list):
+        linhas = []
+
+    vistos = set()
+    for l in linhas:
+        if not isinstance(l, dict):
+            continue
+        chave = (l.get('unidade') or '', l.get('bairro') or '')
+        if chave in alvo:
+            l['ag'] = alvo[chave]          # o Fechamento manda
+            vistos.add(chave)
+
+    for chave, n in alvo.items():
+        if chave in vistos:
+            continue
+        linhas.append({'unidade': chave[0], 'bairro': chave[1], 'ag': n,
+                       'ex': 0, 'pa': 0, 'du': 0, 'ue': 0, 'ca': 0,
+                       'ge': 0, 'na': 0})
+
+    db.upsert_appointment(ACOMP_UNIT, date, '', linhas)
+
 @app.route('/api/fechamento/<date>', methods=['POST'])
 @login_required
 def api_save_fechamento(date):
@@ -1400,6 +1513,7 @@ def api_save_fechamento(date):
         return _err('Envie um objeto com os dados do fechamento.')
     db.upsert_appointment(FECH_UNIT, date, '', [dados])
     _espelha_leads_recebidos(date, dados)
+    _espelha_acompanhamento(date, dados)
     return jsonify({'ok': True})
 # ── Leads Recebidos (por local e agência) ────────────────────────────────────
 LEADSAG_UNIT = "LEADSAG::GERAL"
