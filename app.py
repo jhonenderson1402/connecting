@@ -363,6 +363,114 @@ def api_rename_employee():
         return jsonify(db.renomear_funcionario(data.get('de'), data.get('para')))
     except ValueError as e:
         return _err(str(e))
+# ── Webhook: avisa um sistema externo a cada salvamento do Hora a Hora ────────
+# Ligado so por ambiente (Easypanel > connecting2 > Environment):
+#   WEBHOOK_URL       para onde mandar. Sem ela, nada e enviado.
+#   WEBHOOK_SECRET    assina cada envio no cabecalho X-Connecting-Signature.
+#   WEBHOOK_DEBOUNCE  segundos entre dois envios da mesma unidade/dia (30).
+# O envio roda em segundo plano: quem esta digitando nunca espera o destino.
+import hashlib
+import hmac
+import json as _json
+import threading
+import time
+import urllib.request
+_WH_ULTIMO = {}
+_WH_TRAVA = threading.Lock()
+def _wh_config():
+    url = os.environ.get('WEBHOOK_URL', '').strip()
+    if not url:
+        return None
+    try:
+        espera = int(os.environ.get('WEBHOOK_DEBOUNCE', '30'))
+    except (TypeError, ValueError):
+        espera = 30
+    return {'url': url,
+            'segredo': os.environ.get('WEBHOOK_SECRET', '').strip(),
+            'espera': max(0, espera)}
+def _wh_retrato(unit, date, leader, rows):
+    """O dia inteiro daquela unidade, ja somado — o destino nao precisa
+    entender o formato interno do Hora a Hora."""
+    por_hora = {}
+    por_pessoa = []
+    total = 0
+    for r in (rows or []):
+        if not isinstance(r, dict):
+            continue
+        nome = str(r.get('name') or '').strip()
+        if not nome:
+            continue                      # linha em branco nao vira pessoa
+        slots = r.get('slots') or {}
+        soma = 0
+        for s in TIME_SLOTS:
+            try:
+                v = int(float(slots.get(s['key']) or 0))
+            except (TypeError, ValueError):
+                continue                  # texto no campo nao quebra o envio
+            if v:
+                por_hora[s['key']] = por_hora.get(s['key'], 0) + v
+                soma += v
+        try:
+            soma += int(float(r.get('inclusao') or 0))
+        except (TypeError, ValueError):
+            pass
+        por_pessoa.append({'nome': nome,
+                           'lider': str(r.get('leader') or leader or ''),
+                           'total': soma})
+        total += soma
+    por_pessoa.sort(key=lambda p: (-p['total'], p['nome']))
+    meta_dia = 0
+    try:
+        for m in (db.get_metas(int(date[0:4]), int(date[5:7])) or []):
+            if (m.get('unidade') or '') == unit and not (m.get('bairro') or ''):
+                meta_dia = int(float(m.get('meta_dia') or 0))
+                break
+    except (TypeError, ValueError, KeyError):
+        pass
+    return {'evento': 'agendamento.salvo',
+            'unidade': unit,
+            'data': date,
+            'lider': leader or '',
+            'total_agendamentos': total,
+            'por_hora': por_hora,
+            'por_pessoa': por_pessoa,
+            'meta_dia': meta_dia,
+            'falta_para_meta': max(0, meta_dia - total),
+            'enviado_em': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')}
+def _wh_envia(cfg, corpo):
+    dados = _json.dumps(corpo, ensure_ascii=False).encode('utf-8')
+    cab = {'Content-Type': 'application/json; charset=utf-8',
+           'User-Agent': 'connecting-webhook/1'}
+    if cfg['segredo']:
+        cab['X-Connecting-Signature'] = hmac.new(
+            cfg['segredo'].encode('utf-8'), dados, hashlib.sha256).hexdigest()
+    pedido = urllib.request.Request(cfg['url'], data=dados, headers=cab,
+                                    method='POST')
+    try:
+        with urllib.request.urlopen(pedido, timeout=8):
+            pass
+    except Exception as e:
+        print('[webhook] falhou:', e, flush=True)
+def disparar_webhook(unit, date, leader, rows):
+    """Nunca levanta erro: se o webhook falhar, o salvamento ja esta feito."""
+    try:
+        cfg = _wh_config()
+        if not cfg:
+            return
+        if unit.startswith(LEADS_PREFIX) or unit in (
+                ACOMP_UNIT, LEADSAG_UNIT, FECH_UNIT, LEADSHH_UNIT):
+            return                        # unidade reservada nao e agendamento
+        chave = unit + '|' + date
+        agora = time.time()
+        with _WH_TRAVA:
+            if agora - _WH_ULTIMO.get(chave, 0) < cfg['espera']:
+                return                    # a tela salva a cada 1,2s digitando
+            _WH_ULTIMO[chave] = agora
+        corpo = _wh_retrato(unit, date, leader, rows)
+        threading.Thread(target=_wh_envia, args=(cfg, corpo),
+                         daemon=True).start()
+    except Exception as e:
+        print('[webhook] erro ao preparar:', e, flush=True)
 # ── API: Agendamentos ─────────────────────────────────────────────────────────
 @app.route('/api/appointments', methods=['GET'])
 @login_required
@@ -422,6 +530,7 @@ def api_save_appointment(unit, date):
     if not isinstance(rows, list):
         return _err('Campo "rows" deve ser lista.')
     db.upsert_appointment(unit, date, leader, rows)
+    disparar_webhook(unit, date, leader, rows)
     return jsonify({'ok': True})
 @app.route('/api/appointments/<unit>/<date>/comparecimento', methods=['POST'])
 @login_required
