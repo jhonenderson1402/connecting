@@ -907,6 +907,25 @@ async function marcaDiasComDados(){
   atualizaDropdown('f-dia');
 }
 
+/* ── meses com registro tambem ficam dourados ──
+   O servidor responde com os meses de 1 a 12; o <option> guarda de 0 a 11. */
+async function marcaMesesComDados(){
+  var ano = Number(valSel('f-ano'));
+  var sel = document.getElementById('f-mes');
+  if(!sel || isNaN(ano)) return;
+  var tem = {};
+  try{
+    var r = await fetch('/api/ocorrencias_meses?ano=' + ano);
+    var meses = r.ok ? (await r.json()) : [];
+    (meses || []).forEach(function(m){ tem[Number(m)] = true; });
+  }catch(e){ return; }
+  [].forEach.call(sel.options, function(o){
+    if(tem[Number(o.value) + 1]) o.dataset.tem = '1';
+    else delete o.dataset.tem;
+  });
+  atualizaDropdown('f-mes');
+}
+
 function ehHoje(){
   var h = new Date();
   return Number(valSel('f-ano')) === h.getFullYear()
@@ -938,10 +957,13 @@ async function onConstantsLoaded(){
   ligaDropdown('f-ano', 'DIGITE O ANO');
   ligaDropdown('f-mes', 'DIGITE O MÊS');
   ligaDropdown('f-dia', 'DIGITE O DIA');
+  marcaMesesComDados();
   marcaDiasComDados();
 
   ['f-ano','f-mes'].forEach(function(id){
     document.getElementById(id).addEventListener('change', function(){
+      // a lista de meses so muda quando troca o ano
+      if(id === 'f-ano') marcaMesesComDados();
       montaDias(); marcaDiasComDados(); carrega();
     });
   });
