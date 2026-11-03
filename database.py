@@ -1319,6 +1319,33 @@ def get_ocorrencias(ano, mes, dia=None):
         return [_ocor_to_dict(r) for r in rows]
 
 
+def meses_com_ocorrencias(ano):
+    """Meses do ano que tem alguma ocorrencia. Conta o periodo inteiro, nao so
+    o dia de inicio: um atestado de 28/12 a 03/01 marca dezembro e janeiro."""
+    ini = '%04d-01-01' % ano
+    fim = '%04d-12-31' % ano
+    with SessionLocal() as s:
+        linhas = s.execute(
+            select(Ocorrencia.data, Ocorrencia.data_fim).where(and_(
+                Ocorrencia.data <= fim,
+                func.coalesce(func.nullif(Ocorrencia.data_fim, ''),
+                              Ocorrencia.data) >= ini))
+        ).all()
+    meses = set()
+    for d, df in linhas:
+        a = (d or '')[:7]
+        b = (df or d or '')[:7]
+        if not a:
+            continue
+        if b < a:
+            b = a
+        for m in range(1, 13):
+            k = '%04d-%02d' % (ano, m)
+            if a <= k <= b:
+                meses.add(m)
+    return sorted(meses)
+
+
 def upsert_ocorrencia(dados):
     """Cria (sem id) ou atualiza (com id) um registro. Devolve o registro."""
     now = datetime.utcnow().isoformat()
