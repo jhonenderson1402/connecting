@@ -576,6 +576,28 @@
     atualizaDropdown('sel-day');
   }
   
+  // ── meses com lancamento ficam dourados ──
+  // Uma chamada por ano, so quando o ano muda. O <option> do mes guarda de
+  // 0 a 11 e o servidor responde de 1 a 12 — por isso o "+ 1".
+  async function marcaMesesComDados(){
+    const selMonth = document.getElementById('sel-month');
+    const y = parseInt(document.getElementById('sel-year').value);
+    if(!selMonth || isNaN(y)) return;
+    let meses = [];
+    try{
+      const r = await fetch('/api/meses_com_agendamentos?ano=' + y +
+                            '&unit=' + encodeURIComponent(UNIT));
+      meses = r.ok ? (await r.json()) : [];
+    }catch(e){ return; }
+    const tem = {};
+    (meses || []).forEach(m => { tem[Number(m)] = true; });
+    [...selMonth.options].forEach(opt => {
+      if(tem[parseInt(opt.value) + 1]) opt.dataset.tem = '1';
+      else delete opt.dataset.tem;
+    });
+    atualizaDropdown('sel-month');
+  }
+
   // Dispara inicialização AGORA (script roda depois do DOM parseado neste ponto)
   initDateSelectors();
 
@@ -585,6 +607,9 @@
   ligaDropdown('sel-month', 'DIGITE O MÊS');
   ligaDropdown('sel-year',  'DIGITE O ANO');
   ligaDropdown('sel-day',   'DIGITE O DIA');
+  marcaMesesComDados();
+  // a lista de meses so muda quando troca o ano
+  document.getElementById('sel-year').addEventListener('change', marcaMesesComDados);
   
   async function onConstantsLoaded() {
     // Como já inicializamos no carregamento, aqui só carrega a tabela.
