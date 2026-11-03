@@ -680,9 +680,22 @@
     });
     marcarSeta();
   }
+  // A lista de nomes e a mesma em todas as unidades: quem esta cadastrado em
+  // qualquer uma pode ser lancado aqui. Como cada unidade da pessoa e uma
+  // linha separada no banco, quem esta em varias vinha repetido — por isso
+  // junta por nome. Quem for LIDER em alguma unidade conta como lider.
   async function loadEmployees() {
-    const res = await fetch(`/api/employees?unit=${encodeURIComponent(UNIT)}&active=true`);
-    employees = await res.json();
+    const res = await fetch('/api/employees?active=true');
+    const todos = await res.json();
+    const porNome = {};
+    (todos || []).forEach(e => {
+      const nome = String(e.name || '').trim();
+      if(!nome) return;
+      if(!porNome[nome]) porNome[nome] = {name: nome, funcao: 'ATENDENTE'};
+      if(e.funcao === 'LIDER') porNome[nome].funcao = 'LIDER';
+    });
+    employees = Object.values(porNome)
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   }
   
   // ── Guards contra data inválida (bug do NaN) ──────────────────────────────────
@@ -785,8 +798,10 @@
       return;
     }
   
-    const attendants = employees.filter(e => (e.funcao||'ATENDENTE')==='ATENDENTE');
-    const leaders = employees.filter(e => e.funcao==='LIDER');
+    // NOME: todo mundo, inclusive quem e lider em alguma unidade — ela tambem
+    // agenda. LIDER: so quem esta marcado como lider em alguma unidade.
+    const attendants = employees;
+    const leaders = employees.filter(e => e.funcao === 'LIDER');
     tbody.innerHTML = rows.map((row,i)=>{
       const total = rowTotal(row);
       let nameCell;
@@ -972,7 +987,7 @@ function toggleNameDropdown(i, event) {
     if(!cx){
       cx = document.createElement('div');
       cx.className = 'dd-busca';
-      cx.innerHTML = '<input type="text" placeholder="Buscar pessoa..." />';
+      cx.innerHTML = '<input type="text" placeholder="DIGITE O NOME" />';
       menu.insertBefore(cx, menu.firstChild);
       const campo = cx.querySelector('input');
       campo.addEventListener('click', function(e){ e.stopPropagation(); });
