@@ -154,12 +154,11 @@
           <th class="ord" data-col="nome"   style="width:28%" onclick="ordenarFn('nome')">Nome</th>
           <th class="ord" data-col="funcao" style="width:12%" onclick="ordenarFn('funcao')">Função</th>
           <th class="ord" data-col="unidade" style="width:17%" onclick="ordenarFn('unidade')">Unidade principal</th>
-          <th>Também atua em</th>
           <th style="width:95px"></th>
         </tr>
       </thead>
       <tbody id="fn-corpo">
-        <tr><td colspan="5" class="fn-nada">Carregando...</td></tr>
+        <tr><td colspan="4" class="fn-nada">Carregando...</td></tr>
       </tbody>
     </table>
     <div class="fn-foot">
@@ -284,7 +283,7 @@ function renderFuncionarios() {
   let pessoas = agruparPorPessoa();
   const totalGeral = pessoas.length;
 
-  if(fUnit   !== 'ALL') pessoas = pessoas.filter(p => p.unidades.indexOf(fUnit) >= 0);
+  if(fUnit   !== 'ALL') pessoas = pessoas.filter(p => p.principal === fUnit);
   if(fFuncao !== 'ALL') pessoas = pessoas.filter(p => p.funcao === fFuncao);
   if(termo)             pessoas = pessoas.filter(p => p.nome.toLowerCase().indexOf(termo) >= 0);
 
@@ -313,20 +312,13 @@ function renderFuncionarios() {
     'Mostrando ' + pessoas.length + ' de ' + totalGeral;
 
   if(!pessoas.length){
-    corpo.innerHTML = '<tr><td colspan="5" class="fn-nada">Nenhum funcionário encontrado.</td></tr>';
+    corpo.innerHTML = '<tr><td colspan="4" class="fn-nada">Nenhum funcionário encontrado.</td></tr>';
     return;
   }
 
   corpo.innerHTML = pessoas.map(p => {
     const inicial = (p.nome[0] || '?').toUpperCase();
     const ehLider = p.funcao === 'LIDER';
-    const chips = p.outras.length
-      ? '<div class="fn-chips">' + p.outras.map(o =>
-          '<span class="fn-chip">' + fnEsc(o.unit) +
-          '<button class="fn-chip-x" title="Tirar de ' + fnEsc(o.unit) + '" ' +
-          'onclick="removerDaUnidade(' + o.id + ')">&#10005;</button></span>'
-        ).join('') + '</div>'
-      : '<span class="fn-vazio">—</span>';
 
     return '<tr>' +
       '<td><div class="fn-nome-cel">' +
@@ -336,14 +328,11 @@ function renderFuncionarios() {
       '<td><span class="fn-func' + (ehLider ? ' lider' : '') + '">' +
         (ehLider ? 'Líder' : 'Atendente') + '</span></td>' +
       '<td><span class="fn-princ"><i></i>' + fnEsc(p.principal) + '</span></td>' +
-      '<td>' + chips + '</td>' +
       '<td><div class="fn-acoes">' +
         '<button class="fn-ib" title="Renomear" ' +
           'data-name="' + fnEsc(p.nome) + '" onclick="openRename(this)">' + ICO_LAPIS + '</button>' +
-        '<button class="fn-ib" title="Adicionar unidade" ' +
-          'data-name="' + fnEsc(p.nome) + '" onclick="openAddUnit(this)">' + ICO_MAIS + '</button>' +
-        '<button class="fn-ib danger" title="Remover de ' + fnEsc(p.principal) + '" ' +
-          'onclick="removerDaUnidade(' + p.principalId + ')">' + ICO_LIXO + '</button>' +
+        '<button class="fn-ib danger" title="Remover do sistema" ' +
+          'data-name="' + fnEsc(p.nome) + '" onclick="removerPessoa(this)">' + ICO_LIXO + '</button>' +
       '</div></td>' +
     '</tr>';
   }).join('');
@@ -373,18 +362,22 @@ function fnConfirm(msg, onOk) {
   document.body.appendChild(ov);
 }
 
-function removerDaUnidade(id) {
-  const reg = allEmployees.find(x => x.id === id);
-  if(!reg) return;
-  const quantas = allEmployees.filter(x => x.name === reg.name).length;
-  const msg = quantas <= 1
-    ? 'Remover <b>' + fnEsc(reg.name) + '</b> do sistema? É a última unidade dessa pessoa.'
-    : 'Tirar <b>' + fnEsc(reg.name) + '</b> da unidade <b>' + fnEsc(reg.unit) + '</b>?' +
-      '<br><span style="color:var(--muted-fg);font-size:12px">Ela continua nas outras ' +
-      (quantas - 1) + ' unidade' + (quantas - 1 === 1 ? '' : 's') + '.</span>';
+// Tira a pessoa do sistema inteiro. Cada unidade dela e uma linha separada no
+// banco; apagar so a principal deixava as outras para tras e ela continuava
+// aparecendo no Hora a Hora, que agora lista todo mundo. Entao apaga todas.
+function removerPessoa(btn) {
+  const nome = btn.getAttribute('data-name') || '';
+  const meus = allEmployees.filter(x => String(x.name || '').trim() === nome);
+  if(!meus.length) return;
+  const msg = 'Remover <b>' + fnEsc(nome) + '</b> do sistema?' +
+    '<br><span style="color:var(--muted-fg);font-size:12px">' +
+    'Ela deixa de aparecer no Hora a Hora de todas as unidades. ' +
+    'Os números já lançados continuam onde estão.</span>';
   fnConfirm(msg, async () => {
     try {
-      await fetch('/api/employees/' + id + '?hard=true', {method:'DELETE'});
+      for(const e of meus){
+        await fetch('/api/employees/' + e.id + '?hard=true', {method:'DELETE'});
+      }
       await loadEmployees();
       showToast('Removido.');
     } catch(e) { showToast('Erro ao remover.', 'error'); }
