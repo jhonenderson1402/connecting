@@ -1543,6 +1543,12 @@ def _espelha_acompanhamento(date, dados):
     if not isinstance(siglas, dict):
         return
 
+    # O destino e o dia AGENDADO PARA, nao o dia do fechamento. Sem data
+    # valida nao espelha nada: gravar no dia errado e pior do que nao
+    # gravar, porque ninguem percebe o erro.
+    data_alvo = str(dados.get('data_alvo') or '').strip()
+    if not _valid_date(data_alvo):
+        return
     try:
         unidades = db.get_unidades() or []
     except Exception:
@@ -1589,7 +1595,7 @@ def _espelha_acompanhamento(date, dados):
     if not alvo:
         return
 
-    atual = db.get_appointment(ACOMP_UNIT, date) or {}
+    atual = db.get_appointment(ACOMP_UNIT, data_alvo) or {}
     linhas = atual.get('rows') or []
     if not isinstance(linhas, list):
         linhas = []
@@ -1610,7 +1616,7 @@ def _espelha_acompanhamento(date, dados):
                        'ex': 0, 'pa': 0, 'du': 0, 'ue': 0, 'ca': 0,
                        'ge': 0, 'na': 0})
 
-    db.upsert_appointment(ACOMP_UNIT, date, '', linhas)
+    db.upsert_appointment(ACOMP_UNIT, data_alvo, '', linhas)
 
 @app.route('/api/fechamento/<date>', methods=['POST'])
 @login_required
