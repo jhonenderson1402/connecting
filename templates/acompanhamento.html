@@ -39,6 +39,10 @@
   .ac-table tfoot td { background:var(--secondary); font-weight:800; padding:8px 3px;
              text-align:center; font-size:11px; border-top:2px solid var(--border); }
   .ac-vazio { text-align:center; padding:40px; color:var(--muted-fg); font-style:italic; }
+  .ac-table thead th.ord { cursor:pointer; user-select:none; }
+  .ac-table thead th.ord:hover { filter:brightness(1.1); }
+  .ac-st { opacity:.4; font-size:8px; margin-left:2px; }
+  .ac-st.on { opacity:1; }
 </style>
 
 <div class="page-content">
@@ -102,9 +106,21 @@
         </colgroup>
         <thead>
           <tr>
-            <th>ANO</th><th>MÊS</th><th>DATA</th><th>REGIÃO</th><th>UNIDADE</th>
-            <th>AGENDAM.</th><th>EXAMES</th><th>PATOL.</th><th>CONV.</th>
-            <th>DUPLIC.</th><th>UNID. ERR.</th><th>CANC. DIA ANT.</th><th>GEST./LACT.</th><th>NÃO AGEND.</th><th></th>
+            <th class="ord" onclick="ordenar('ano')">ANO <span class="ac-st" id="st-ano">⇅</span></th>
+            <th class="ord" onclick="ordenar('mes')">MÊS <span class="ac-st" id="st-mes">⇅</span></th>
+            <th class="ord" onclick="ordenar('data')">DATA <span class="ac-st" id="st-data">⇅</span></th>
+            <th class="ord" onclick="ordenar('regiao')">REGIÃO <span class="ac-st" id="st-regiao">⇅</span></th>
+            <th class="ord" onclick="ordenar('unidade')">UNIDADE <span class="ac-st" id="st-unidade">⇅</span></th>
+            <th class="ord" onclick="ordenar('ag')">AGENDAM. <span class="ac-st" id="st-ag">⇅</span></th>
+            <th class="ord" onclick="ordenar('ex')">EXAMES <span class="ac-st" id="st-ex">⇅</span></th>
+            <th class="ord" onclick="ordenar('pa')">PATOL. <span class="ac-st" id="st-pa">⇅</span></th>
+            <th class="ord" onclick="ordenar('conv')">CONV. <span class="ac-st" id="st-conv">⇅</span></th>
+            <th class="ord" onclick="ordenar('du')">DUPLIC. <span class="ac-st" id="st-du">⇅</span></th>
+            <th class="ord" onclick="ordenar('ue')">UNID. ERR. <span class="ac-st" id="st-ue">⇅</span></th>
+            <th class="ord" onclick="ordenar('ca')">CANC. DIA ANT. <span class="ac-st" id="st-ca">⇅</span></th>
+            <th class="ord" onclick="ordenar('ge')">GEST./LACT. <span class="ac-st" id="st-ge">⇅</span></th>
+            <th class="ord" onclick="ordenar('na')">NÃO AGEND. <span class="ac-st" id="st-na">⇅</span></th>
+            <th></th>
           </tr>
         </thead>
         <tbody id="ac-body"></tbody>
@@ -254,6 +270,7 @@ async function carregar(){
   if(!r.ok){ showToast('Erro ao carregar o dia.','error'); return; }
   const d = await r.json().catch(()=>null);
   linhas = (d && Array.isArray(d.rows)) ? d.rows : [];
+  ordem = null;              // cada dia comeca na ordem em que foi lancado
   render();
 }
 function onDateChange(){ updateDias(); carregar(); carregarMarcacaoMes(); }
@@ -275,9 +292,57 @@ function optionsHtml(l){
   if(unidAtual !== null) html += '</optgroup>';
   return html;
 }
+/* ── Ordenar pelo cabecalho ──────────────────────────────────────────────────
+   Ordena so a EXIBICAO. Cada item carrega o indice original da linha, entao
+   os campos continuam editando a linha certa e a ordem nunca vai para o banco.
+   1o clique: numero = maior->menor, texto = A->Z. 2o clique inverte.
+   3o clique volta a ordem original. Trocar de dia tambem zera. */
+const COLS_TEXTO = {ano:1, mes:1, data:1, regiao:1, unidade:1};
+const COLS_ORD = ['ano','mes','data','regiao','unidade','ag','ex','pa','conv',
+                  'du','ue','ca','ge','na'];
+let ordem = null;        // {col, dir} — dir 1 sobe, -1 desce
+
+function valorCol(l, col){
+  if(col === 'regiao')  return (regiaoDe(l) || '').toUpperCase();
+  if(col === 'unidade') return String(l.bairro || l.unidade || '').toUpperCase();
+  if(col === 'ano' || col === 'mes' || col === 'data') return '';  // iguais no dia
+  if(col === 'conv'){
+    const a = Number(l.ag) || 0;
+    return a > 0 ? Math.round((Number(l.ex)||0) / a * 100) : 0;
+  }
+  return Number(l[col]) || 0;
+}
+
+function ordenar(col){
+  const texto = !!COLS_TEXTO[col];
+  if(!ordem || ordem.col !== col)           ordem = {col: col, dir: texto ? 1 : -1};
+  else if(ordem.dir === (texto ? 1 : -1))   ordem = {col: col, dir: texto ? -1 : 1};
+  else                                      ordem = null;
+  render();
+}
+
+function pintaSetas(){
+  COLS_ORD.forEach(function(c){
+    const el = document.getElementById('st-' + c);
+    if(!el) return;
+    const on = !!(ordem && ordem.col === c);
+    el.textContent = on ? (ordem.dir > 0 ? '▲' : '▼') : '⇅';
+    el.className = 'ac-st' + (on ? ' on' : '');
+  });
+}
+
 function visiveis(){
   const filtro = document.getElementById('sel-regiao').value;
-  return linhas.map((l,i)=>({l,i})).filter(x => !filtro || regiaoDe(x.l) === filtro);
+  const vis = linhas.map((l,i)=>({l,i})).filter(x => !filtro || regiaoDe(x.l) === filtro);
+  if(ordem){
+    const c = ordem.col, d = ordem.dir;
+    vis.sort(function(a,b){
+      const va = valorCol(a.l, c), vb = valorCol(b.l, c);
+      const r = (typeof va === 'string') ? va.localeCompare(vb, 'pt-BR') : va - vb;
+      return r ? r * d : a.i - b.i;   // empate mantem a ordem original
+    });
+  }
+  return vis;
 }
 
 function desenhaRodape(vis){
@@ -300,6 +365,7 @@ function render(){
   const ano = document.getElementById('sel-year').value;
   const dbr = dateBr();
 
+  pintaSetas();
   const vis = visiveis();
   if(!vis.length){
     tb.innerHTML = `<tr><td colspan="15" class="ac-vazio">Nenhuma linha neste dia. Clique em "+ Adicionar Linha" ou em "⚡ Gerar todas as unidades".</td></tr>`;
