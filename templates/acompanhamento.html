@@ -43,6 +43,16 @@
   .ac-table thead th.ord:hover { filter:brightness(1.1); }
   .ac-st { opacity:.4; font-size:8px; margin-left:2px; }
   .ac-st.on { opacity:1; }
+    /* ── Seletor de unidade: usa o dropdown padrao (ligaDropdown) ─────────────
+     O <select> fica escondido e quem aparece e o .cdd-bt. Estas regras so
+     encolhem o padrao para caber na linha apertada da tabela. */
+  .ac-table .cdd { width:100%; display:block; }
+  .ac-table .cdd-bt { height:25px; font-size:10.5px; padding:0 20px 0 7px;
+                      border-radius:6px; background:transparent; }
+  .ac-table .cdd-bt::after { right:7px; }
+  /* linha ainda sem unidade: borda tracejada, visivel de longe */
+  .ac-table .cdd-bt.vazia { font-style:italic; border-style:dashed;
+                      border-color:rgba(251,191,36,.35); }
 </style>
 
 <div class="page-content">
@@ -278,22 +288,15 @@ function onDateChange(){ updateDias(); carregar(); carregarMarcacaoMes(); }
 // ── Render ──────────────────────────────────────────────────────────────────
 function convCls(p){ return p>=50?'ac-conv hi':p>=35?'ac-conv md':p>0?'ac-conv lo':'ac-conv'; }
 function optionsHtml(l){
-  // agrupa por unidade; marca a opção escolhida
-  let html = '', unidAtual = null;
-  // Linha recem-criada nao tem unidade. Sem esta opcao em branco o <select>
-  // mostraria a primeira da lista como se estivesse escolhida — mentindo.
+  // Lista unica, sem agrupar por unidade. Quem organiza agora e a busca.
+  // Linha recem-criada nao tem unidade: a opcao em branco impede o seletor
+  // de mostrar a primeira da lista como se estivesse escolhida.
   const semUnidade = !String(l.unidade || '').trim();
-  html += `<option value=""${semUnidade ? ' selected' : ''}>— escolha a unidade —</option>`;
+  let html = `<option value=""${semUnidade ? ' selected' : ''}>— escolha a unidade —</option>`;
   opcoes.forEach(o => {
-    if(o.unidade !== unidAtual){
-      if(unidAtual !== null) html += '</optgroup>';
-      html += `<optgroup label="${esc(o.unidade)}">`;
-      unidAtual = o.unidade;
-    }
     const sel = (o.unidade === l.unidade && o.bairro === l.bairro) ? ' selected' : '';
     html += `<option value="${esc(o.unidade)}|${esc(o.bairro)}"${sel}>${esc(o.rotulo)}</option>`;
   });
-  if(unidAtual !== null) html += '</optgroup>';
   return html;
 }
 /* ── Ordenar pelo cabecalho ──────────────────────────────────────────────────
@@ -375,6 +378,9 @@ function render(){
   const ano = document.getElementById('sel-year').value;
   const dbr = dateBr();
 
+  // fecha menu aberto antes de trocar o corpo da tabela, senao ele fica
+  // orfao no <body> (o menu sai do lugar quando abre)
+  if(typeof fechaDropdowns === 'function') fechaDropdowns();
   pintaSetas();
   const vis = visiveis();
   if(!vis.length){
@@ -393,7 +399,7 @@ function render(){
     return `<tr class="${pos%2?'alt':''}">
       <td class="ac-fx">${ano}</td><td class="ac-fx">${mes}</td><td class="ac-fx">${dbr}</td>
       <td>${regCell}</td>
-      <td><select class="ac-dd" onchange="setUnidade(${i},this.value)">${optionsHtml(l)}</select></td>
+      <td><select id="un-${i}" class="ac-dd" onchange="setUnidade(${i},this.value)">${optionsHtml(l)}</select></td>
       ${campo('ag')}${campo('ex')}${campo('pa')}
       <td><span class="${convCls(p)}" id="cv-${i}">${p}%</span></td>
       ${campo('du')}${campo('ue')}${campo('ca')}${campo('ge')}${campo('na')}
@@ -401,7 +407,13 @@ function render(){
     </tr>`;
   }).join('');
 
+  // O render recria os <select>, entao religa o dropdown de cada linha.
+  // ligaDropdown nao liga duas vezes no mesmo elemento, e aqui eles sao
+  // sempre novos — nao ha risco de duplicar.
+  vis.forEach(function(x){ ligaDropdown('un-' + x.i, 'DIGITE A UNIDADE'); });
+
   desenhaRodape(vis);
+
 }
 // ── Edição ──────────────────────────────────────────────────────────────────
 /* Repintar a tabela inteira a cada tecla tirava o cursor da celula. Entao a
