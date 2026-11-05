@@ -232,7 +232,7 @@ function metaRowHtml(label, key, cMes, cDiaAtual, aMes, aDiaAtual, aHora, isUnit
   // falta por dia = falta no mes / dias uteis que restam, arredondado.
   // O valor por dia vai num campo escondido para continuar sendo salvo no banco
   // (o Hora a Hora e o painel de TV leem o campo "dia").
-  function bloco(meta, real, campoMeta, campoDia, valorDiaAtual){
+  function bloco(meta, real, campoMeta, campoDia, valorDiaAtual, editavel){
     var temR  = (real !== null && real !== undefined);
     var mNum  = Number(meta) || 0;
     var fMes  = temR ? Math.max(0, mNum - real) : null;
@@ -241,18 +241,28 @@ function metaRowHtml(label, key, cMes, cDiaAtual, aMes, aDiaAtual, aHora, isUnit
     var sReal = '<span style="text-align:center;font-size:11.5px;font-weight:700;color:' +
                 (temR ? '#22c55e' : '#3f3f46') + '">' + (temR ? nBR(real) : '—') + '</span>';
 
-    var sMes  = '<span class="falta-mes" style="text-align:center;font-size:11.5px;font-weight:700;color:' +
+    var sMes  = '<span class="falta-mes" data-par="' + campoDia + '"' +
+                ' style="text-align:center;font-size:11.5px;font-weight:700;color:' +
                 (fMes === null ? '#3f3f46' : (fMes === 0 ? '#22c55e' : '#a1a1aa')) + '">' +
                 (fMes === null ? '—' : nBR(fMes)) + '</span>';
 
     var attr  = (fDia === null) ? ''
               : ' data-real="' + real + '" data-dias="' + dias + '" data-meta="' + campoMeta + '"';
-    var sDia  = '<span class="falta-dia" data-campo="' + campoDia + '"' + attr +
-                ' title="(meta do mês − realizado) ÷ dias úteis que faltam"' +
-                ' style="text-align:center;font-size:13px;font-weight:800;color:' +
-                (fDia === null ? '#3f3f46' : (fDia === 0 ? '#22c55e' : '#f59e0b')) + '">' +
-                (fDia === null ? '—' : nBR(fDia)) + '</span>' +
-                inp(campoDia, (fDia === null ? valorDiaAtual : fDia), 'display:none');
+
+    // Quando editavel, a celula empilha duas coisas: em cima a META DIA que a
+    // pessoa digita — e o que o Hora a Hora e a TV leem — e embaixo, pequeno,
+    // o ritmo necessario para fechar o mes. O ritmo e informacao, nao meta.
+    var corDia = (fDia === null ? '#3f3f46' : (fDia === 0 ? '#22c55e' : '#f59e0b'));
+    var spDia  = '<span class="falta-dia" data-campo="' + campoDia + '"' + attr +
+                 ' title="(meta do mês − realizado) ÷ dias úteis que faltam"' +
+                 ' style="text-align:center;font-weight:800;color:' + corDia +
+                 ';font-size:' + (editavel ? '9px' : '13px') + '">' +
+                 (fDia === null ? '—' : nBR(fDia)) + '</span>';
+
+    var sDia = editavel
+             ? '<div style="display:flex;flex-direction:column;gap:1px;min-width:0">' +
+               inp(campoDia, valorDiaAtual) + spDia + '</div>'
+             : spDia + inp(campoDia, (fDia === null ? valorDiaAtual : fDia), 'display:none');
 
     return sReal + sMes + sDia;
   }
@@ -262,12 +272,12 @@ function metaRowHtml(label, key, cMes, cDiaAtual, aMes, aDiaAtual, aHora, isUnit
           ? Math.round((cReal / Number(cMes)) * 100) : 0;
   var col = pct >= 100 ? "#22c55e" : (pct >= 60 ? "#fbbf24" : "#ef4444");
 
-  return '<div style="display:grid;grid-template-columns:' + GTC +
+  return '<div data-metarow="1" style="display:grid;grid-template-columns:' + GTC +
          ';gap:4px;align-items:center;padding:4px 8px;border-bottom:1px solid #1a1a1a;' + bg + '">' +
          '<span style="font-size:11.5px;color:' + lc +
          ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + label + '</span>' +
          inp("agend", aMes) +
-         bloco(aMes, aReal, "agend", "dia", aDiaAtual) +
+         bloco(aMes, aReal, "agend", "dia", aDiaAtual, true) +
          inp("hora", aHora) +
          inp("comp", cMes) +
          bloco(cMes, cReal, "comp", "comp_dia", cDiaAtual) +
@@ -363,7 +373,7 @@ window.openMetas = async function(){
     '<span style="text-align:center;line-height:1.3">META<br>MÊS</span>' +
     '<span style="text-align:center;line-height:1.3">REALI<br>ZADO</span>' +
     '<span style="text-align:center;line-height:1.3">FALTA<br>P/ MÊS</span>' +
-    '<span style="text-align:center;line-height:1.3">FALTA<br>P/ DIA</span>' +
+     '<span style="text-align:center;line-height:1.3">META<br>DIA</span>' +
     '<span style="text-align:center;line-height:1.3">AGEND<br>HORA</span>' +
     '<span style="text-align:center;line-height:1.3">META<br>MÊS</span>' +
     '<span style="text-align:center;line-height:1.3">REALI<br>ZADO</span>' +
@@ -3199,7 +3209,7 @@ function recomputeTotal(){
       var real  = Number(sp.getAttribute('data-real')) || 0;
       var campo = sp.getAttribute('data-campo');          // "comp_dia" ou "dia"
       var alvo  = sp.getAttribute('data-meta');           // "comp"     ou "agend"
-      var row   = sp.parentElement;
+      var row   = sp.closest('[data-metarow]') || sp.parentElement;
       if(!dias || !row) return;
       var ipM = row.querySelector('input.meta-input[data-field="' + alvo  + '"]');
       var ipD = row.querySelector('input.meta-input[data-field="' + campo + '"]');
@@ -3209,9 +3219,12 @@ function recomputeTotal(){
 
       sp.textContent = nBR(fDia);
       sp.style.color = (fDia === 0) ? '#22c55e' : '#f59e0b';
-      if(ipD) ipD.value = fDia;
+      if(ipD && campo !== 'dia') ipD.value = fDia;   // "dia" agora e digitado
 
-      var sm = sp.previousElementSibling;   // a celula de FALTA P/ MES
+      // A celula de FALTA P/ MES. Com a META DIA editavel o span fica dentro
+      // de um <div>, entao o vizinho anterior deixou de ser ela.
+      var sm = row.querySelector('.falta-mes[data-par="' + campo + '"]')
+            || sp.previousElementSibling;
       if(sm && sm.classList && sm.classList.contains('falta-mes')){
         sm.textContent = nBR(fMes);
         sm.style.color = (fMes === 0) ? '#22c55e' : '#a1a1aa';
