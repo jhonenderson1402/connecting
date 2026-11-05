@@ -280,6 +280,10 @@ function convCls(p){ return p>=50?'ac-conv hi':p>=35?'ac-conv md':p>0?'ac-conv l
 function optionsHtml(l){
   // agrupa por unidade; marca a opção escolhida
   let html = '', unidAtual = null;
+  // Linha recem-criada nao tem unidade. Sem esta opcao em branco o <select>
+  // mostraria a primeira da lista como se estivesse escolhida — mentindo.
+  const semUnidade = !String(l.unidade || '').trim();
+  html += `<option value=""${semUnidade ? ' selected' : ''}>— escolha a unidade —</option>`;
   opcoes.forEach(o => {
     if(o.unidade !== unidAtual){
       if(unidAtual !== null) html += '</optgroup>';
@@ -333,7 +337,13 @@ function pintaSetas(){
 
 function visiveis(){
   const filtro = document.getElementById('sel-regiao').value;
-  const vis = linhas.map((l,i)=>({l,i})).filter(x => !filtro || regiaoDe(x.l) === filtro);
+  const vis = linhas.map((l,i)=>({l,i})).filter(function(x){
+    if(!filtro) return true;
+    // linha ainda sem unidade nao tem regiao: some do filtro e o usuario
+    // clicaria em "Adicionar Linha" sem ver nada acontecer
+    if(!String(x.l.unidade || '').trim()) return true;
+    return regiaoDe(x.l) === filtro;
+  });
   if(ordem){
     const c = ordem.col, d = ordem.dir;
     vis.sort(function(a,b){
@@ -429,9 +439,8 @@ function linhaNova(unidade, bairro){
 }
 function addLinha(){
   if(!opcoes.length){ showToast('Nenhuma unidade cadastrada.','error'); return; }
-  const filtro = document.getElementById('sel-regiao').value;
-  const base = opcoes.find(o => !filtro || o.regiao === filtro) || opcoes[0];
-  linhas.push(linhaNova(base.unidade, base.bairro));
+  // Nasce vazia: so ano, mes e data. Quem lanca escolhe a unidade.
+  linhas.push(linhaNova('', ''));
   render(); agendarSave();
 }
 function gerarTodas(){
