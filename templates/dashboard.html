@@ -249,19 +249,19 @@ function metaRowHtml(label, key, cMes, cDiaAtual, aMes, aDiaAtual, aHora, isUnit
     var attr  = (fDia === null) ? ''
               : ' data-real="' + real + '" data-dias="' + dias + '" data-meta="' + campoMeta + '"';
 
-    // Quando editavel, a celula empilha duas coisas: em cima a META DIA que a
-    // pessoa digita — e o que o Hora a Hora e a TV leem — e embaixo, pequeno,
-    // o ritmo necessario para fechar o mes. O ritmo e informacao, nao meta.
+    // A coluna tem 48px: empilhar campo e numero fazia a linha crescer so em
+    // algumas linhas e desalinhava a tabela inteira. Quando a META DIA e
+    // editavel, aparece so o campo; o ritmo continua sendo calculado, segue
+    // alimentando a linha TOTAL, mas fica escondido.
     var corDia = (fDia === null ? '#3f3f46' : (fDia === 0 ? '#22c55e' : '#f59e0b'));
     var spDia  = '<span class="falta-dia" data-campo="' + campoDia + '"' + attr +
                  ' title="(meta do mês − realizado) ÷ dias úteis que faltam"' +
-                 ' style="text-align:center;font-weight:800;color:' + corDia +
-                 ';font-size:' + (editavel ? '9px' : '13px') + '">' +
+                 ' style="' + (editavel ? 'display:none;' : '') +
+                 'text-align:center;font-size:13px;font-weight:800;color:' + corDia + '">' +
                  (fDia === null ? '—' : nBR(fDia)) + '</span>';
 
     var sDia = editavel
-             ? '<div style="display:flex;flex-direction:column;gap:1px;min-width:0">' +
-               inp(campoDia, valorDiaAtual) + spDia + '</div>'
+             ? inp(campoDia, valorDiaAtual) + spDia
              : spDia + inp(campoDia, (fDia === null ? valorDiaAtual : fDia), 'display:none');
 
     return sReal + sMes + sDia;
@@ -277,7 +277,7 @@ function metaRowHtml(label, key, cMes, cDiaAtual, aMes, aDiaAtual, aHora, isUnit
          '<span style="font-size:11.5px;color:' + lc +
          ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + label + '</span>' +
          inp("agend", aMes) +
-         bloco(aMes, aReal, "agend", "dia", aDiaAtual, true) +
+         bloco(aMes, aReal, "agend", "dia", aDiaAtual, isUnit) +
          inp("hora", aHora) +
          inp("comp", cMes) +
          bloco(cMes, cReal, "comp", "comp_dia", cDiaAtual) +
@@ -3219,7 +3219,8 @@ function recomputeTotal(){
 
       sp.textContent = nBR(fDia);
       sp.style.color = (fDia === 0) ? '#22c55e' : '#f59e0b';
-      if(ipD && campo !== 'dia') ipD.value = fDia;   // "dia" agora e digitado
+      // so sobrescreve o que esta escondido: o campo visivel e digitado
+      if(ipD && ipD.style.display === 'none') ipD.value = fDia;
 
       // A celula de FALTA P/ MES. Com a META DIA editavel o span fica dentro
       // de um <div>, entao o vizinho anterior deixou de ser ela.
