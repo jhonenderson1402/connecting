@@ -755,7 +755,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
   .ag-meta{ padding:7px 10px 8px; border-top:1px solid var(--border);
             background:rgba(255,255,255,.018); }
   body.tema-claro .ag-meta{ background:rgba(0,0,0,.018); }
-  .ag-meta .l{ display:flex; align-items:baseline; gap:6px; margin-bottom:5px; }
+  .ag-meta .l{ display:flex; align-items:center; gap:6px; margin-bottom:5px; }
   .ag-meta .k{ font-size:7.5px; font-weight:750; letter-spacing:.13em;
                text-transform:uppercase; color:var(--muted-fg); }
   .ag-meta .v{ font-size:11px; font-weight:800; color:var(--fg);
@@ -769,6 +769,23 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
   .ag-barra{ height:5px; border-radius:3px; background:rgba(255,255,255,.07); overflow:hidden; }
   body.tema-claro .ag-barra{ background:rgba(0,0,0,.07); }
   .ag-barra i{ display:block; height:100%; border-radius:3px; transition:width .5s ease; }
+    /* META editavel direto no cartao */
+  .ag-meta-in{ width:52px; height:19px; padding:0 4px; border-radius:5px;
+               background:transparent; border:1px dashed rgba(251,191,36,.35);
+               color:var(--fg); font-family:inherit; font-size:11px; font-weight:800;
+               text-align:center; font-variant-numeric:tabular-nums;
+               transition:border-color .14s, background .14s; }
+  .ag-meta-in:hover{ border-color:var(--primary); background:rgba(251,191,36,.07); }
+  .ag-meta-in:focus{ outline:none; border-style:solid; border-color:var(--primary);
+                     background:rgba(251,191,36,.12); }
+  .ag-meta .semmeta{ margin-left:auto; font-size:8px; font-weight:650; opacity:.6;
+                     letter-spacing:.06em; text-transform:uppercase; color:var(--muted-fg); }
+  .ag-meta-sv{ font-size:7.5px; font-weight:750; letter-spacing:.1em;
+               text-transform:uppercase; margin-left:5px; opacity:0; transition:opacity .2s; }
+  .ag-meta-sv.on{ opacity:1; }
+  .ag-meta-sv.salvando{ color:var(--muted-fg); }
+  .ag-meta-sv.salvo{ color:var(--green); }
+  .ag-meta-sv.erro{ color:#f87171; }
   .ag-semmeta{ padding:6px 10px 7px; border-top:1px solid var(--border);
                background:rgba(255,255,255,.018); font-size:8px; color:var(--muted-fg);
                letter-spacing:.06em; text-transform:uppercase; font-weight:650; opacity:.6; }
@@ -790,6 +807,8 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
   #ag-card:-webkit-full-screen .ag-barra{ height:6px; }
   #ag-card:fullscreen .ag-semmeta,
   #ag-card:-webkit-full-screen .ag-semmeta{ padding:7px 13px 9px; font-size:9.5px; }
+  #ag-card:fullscreen .ag-meta-in,
+  #ag-card:-webkit-full-screen .ag-meta-in{ height:24px; width:64px; font-size:13px; }
   .ag-tvhead{ display:none; }
 
   @keyframes agBrilha{ 0%{ background:rgba(34,197,94,.3) } 100%{ background:transparent } }
@@ -1069,29 +1088,34 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         var comAg = pes.filter(function(p){ return p.ags > 0; }).length;
         var lider = ((u.total||0) === maior && maior > 0) ? ' lider' : '';
 
-        // ── bloco da meta do dia ──
+        // ── bloco da meta: o numero e um campo, editavel aqui mesmo ──
+        // No filtro Dia escreve em meta_dia; no filtro Mes, em meta_agend.
+        // Meta zerada tambem vira campo, senao a unidade sem meta so poderia
+        // ser ajustada abrindo o modal — que e justo o que queremos evitar.
         var mensal = (modo === 'mes');
         var meta   = Number(mensal ? u.meta_mes : u.meta_dia) || 0;
         var feito  = u.total || 0;
+        var campo  = '<input class="ag-meta-in" data-uni="' + esc(u.unidade) +
+                     '" data-campo="' + (mensal ? 'mes' : 'dia') +
+                     '" value="' + (meta || '') + '" placeholder="—"' +
+                     ' title="Clique para editar a meta ' + (mensal ? 'do mês' : 'do dia') + '"/>' +
+                     '<span class="ag-meta-sv" data-sv="' + esc(u.unidade) + '"></span>';
         var bloco;
         if(meta > 0){
           var falta = Math.max(0, meta - feito);
           var pct   = Math.min(100, Math.round(feito / meta * 100));
           var cor   = (feito >= meta) ? '#22c55e' : (pct >= 60 ? '#fbbf24' : '#f59e0b');
           bloco = '<div class="ag-meta"><div class="l">' +
-                    '<span class="k">Meta</span><span class="v">' + meta + '</span>' +
+                    '<span class="k">Meta</span>' + campo +
                     (feito >= meta
                       ? '<span class="ok">✓ Meta batida</span>'
                       : '<span class="falta" style="color:' + cor + '"><small>Faltam</small>' + falta + '</span>') +
                   '</div><div class="ag-barra"><i style="width:' + pct + '%;background:' + cor + '"></i></div></div>';
-        } else if(!mensal && (Number(u.meta_mes) || 0) > 0){
-          // meta do dia veio zero mas o mes tem meta: o mes ja fechou
-          bloco = '<div class="ag-meta mesok"><div class="l">' +
-                    '<span class="okmes">✓ Meta do mês alcançada</span></div>' +
-                  '<div class="ag-barra"><i style="width:100%;background:#22c55e"></i></div></div>';
         } else {
-          bloco = '<div class="ag-semmeta">Meta ' + (mensal ? 'do mês' : 'do dia') +
-                  ' não cadastrada</div>';
+          bloco = '<div class="ag-meta"><div class="l">' +
+                    '<span class="k">Meta</span>' + campo +
+                    '<span class="semmeta">não cadastrada</span>' +
+                  '</div><div class="ag-barra"><i style="width:0"></i></div></div>';
         }
 
         return '<div class="ag-uni' + lider + '" data-uni="' + esc(u.unidade) + '">' +
@@ -1109,6 +1133,71 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       ajusta();
       return comGente;
     }
+        /* ── Salvar a meta digitada no cartao ─────────────────────────────────
+       O /api/metas sobrescreve os CINCO campos da linha que recebe. Entao
+       primeiro leio a linha inteira daquela unidade e devolvo tudo, trocando
+       so o numero editado. Sem isso, mexer na meta do dia zerava a META MES,
+       a META COMP e a AGEND HORA da unidade. */
+    function metaAnoMes(){
+      var hj = new Date();
+      var em = document.getElementById('filter-month');
+      var mi = em ? parseInt(em.value) : hj.getMonth();
+      if(isNaN(mi)) mi = hj.getMonth();
+      return { ano: hj.getFullYear(), mes: mi + 1 };
+    }
+    function avisoMeta(uni, texto, cls){
+      var el = document.querySelector('.ag-meta-sv[data-sv="' +
+               String(uni).replace(/"/g, '') + '"]');
+      if(!el) return;
+      el.textContent = texto;
+      el.className = 'ag-meta-sv on ' + (cls || '');
+      if(cls === 'salvo') setTimeout(function(){ el.classList.remove('on'); }, 1800);
+    }
+    async function salvaMetaCartao(uni, qual, valor){
+      var am = metaAnoMes();
+      avisoMeta(uni, 'salvando…', 'salvando');
+      try{
+        var r = await fetch('/api/metas?ano=' + am.ano + '&mes=' + am.mes);
+        var todas = r.ok ? await r.json() : [];
+        var atual = null;
+        (todas || []).forEach(function(m){
+          // so a linha da UNIDADE: bairro vazio. A do bairro tem outro numero.
+          if((m.unidade || '') === uni && !(m.bairro || '')) atual = m;
+        });
+        var linha = {
+          unidade: uni, bairro: '',
+          meta_agend:    Number((atual && atual.meta_agend)    || 0),
+          meta_comp:     Number((atual && atual.meta_comp)     || 0),
+          meta_comp_dia: Number((atual && atual.meta_comp_dia) || 0),
+          meta_dia:      Number((atual && atual.meta_dia)      || 0),
+          meta_hora:     Number((atual && atual.meta_hora)     || 0),
+          meta_conv:     Number((atual && atual.meta_conv)     || 0)
+        };
+        if(qual === 'mes') linha.meta_agend = valor;
+        else               linha.meta_dia   = valor;
+        var p = await fetch('/api/metas', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ano: am.ano, mes: am.mes, metas: [linha] })
+        });
+        if(!p.ok) throw new Error('http ' + p.status);
+        avisoMeta(uni, '✓ salvo', 'salvo');
+        tick();                         // redesenha ja com o numero novo
+      }catch(e){
+        avisoMeta(uni, 'erro', 'erro');
+        if(typeof showToast !== 'undefined') showToast('Não consegui salvar a meta.', 'error');
+      }
+    }
+    // O ouvinte fica na grade, que nunca e recriada — so o conteudo dela.
+    grade.addEventListener('change', function(e){
+      var el = e.target;
+      if(!el || !el.classList || !el.classList.contains('ag-meta-in')) return;
+      var n = parseInt(String(el.value).replace(/\D/g, '')) || 0;
+      salvaMetaCartao(el.getAttribute('data-uni'), el.getAttribute('data-campo'), n);
+    });
+    grade.addEventListener('keydown', function(e){
+      if(e.key === 'Enter' && e.target && e.target.classList &&
+         e.target.classList.contains('ag-meta-in')) e.target.blur();
+    });
     /* ══════════════ Comemoração de meta batida ══════════════ */
     /* Cada unidade aponta para o video da equipe dela.
        Quem nao estiver aqui comemora sem video, direto na caixa. */
@@ -1404,12 +1493,13 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       (unidades || []).forEach(function(u){
         var nome = u.unidade || '';
         if(!nome) return;
-        var meta    = Number(u.meta_dia) || 0;
-        var metaMes = Number(u.meta_mes) || 0;
-        var feito   = u.total || 0;
-        var tipo = null;
-        if(metaMes > 0 && meta === 0) tipo = 'mês';        // mes fechado
-        else if(meta > 0 && feito >= meta) tipo = 'dia';
+        var meta  = Number(u.meta_dia) || 0;
+        var feito = u.total || 0;
+        // So existe um motivo de festa: bateu a meta do dia. Antes havia um
+        // segundo — "meta_dia zerada com meta do mes preenchida" — que queria
+        // dizer "o mes fechou", porque a meta do dia era calculada. Agora ela
+        // e digitada, e zero so quer dizer "ainda nao preencheram".
+        var tipo = (meta > 0 && feito >= meta) ? 'dia' : null;
         if(!tipo) return;
         if(tgJaFez(nome)) return;
         tgMarca(nome, tipo);
@@ -1512,6 +1602,10 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         if(Date.now() - tentadoEm < 45000) return;
         ocupado = false;
       }
+       // Enquanto alguem edita a meta, nao redesenha: o campo seria trocado
+      // no meio da digitacao e o numero se perderia.
+      var _fo = document.activeElement;
+      if(_fo && _fo.classList && _fo.classList.contains('ag-meta-in')) return;
       if(document.hidden) return;   // aba em segundo plano nao consulta
       ocupado = true;
       tentadoEm = Date.now();
