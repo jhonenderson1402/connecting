@@ -1964,7 +1964,141 @@ def api_set_user_role(uid):
         return jsonify({'ok': True})
     except ValueError as e:
         return _err(str(e))
+# ── Troca CRM (pedidos vindos da extensao do RD Station) ─────────────────────
+# O atendente pede a troca de responsavel pela extensao; o pedido cai aqui e a
+# lider resolve. Com RDCRM_TOKEN configurado, o "Aprovar" troca no RD sozinho;
+# sem o token, ele so marca como feito e a troca continua sendo na mao.
+import urllib.error
+from datetime import timedelta
+from urllib.parse import quote
 
+RD_DEAL_URL = 'https://crm.rdstation.com/api/v1/deals/'
+
+def _extn_auth_ok():
+    """Chave propria da extensao.
+
+    NAO e a EXTERNAL_API_KEY: aquela da leitura dos relatorios, e esta aqui
+    vai no navegador de cada operador. Se vazar, o pior que acontece e alguem
+    encher a fila de pedido falso — nenhum dado sai.
+    """
+    key = os.environ.get('EXTN_API_KEY', '').strip()
+    return bool(key) and request.headers.get('X-API-Key', '') == key
+
+def _rd_ligado():
+    return bool(os.environ.get('RDCRM_TOKEN', '').strip())
+
+def _rd_troca_responsavel(deal_id, user_id):
+    """Troca o responsavel da negociacao no RD. Devolve (ok, motivo).
+
+    O user_id e o do RD, do jeito que a extensao mandou — aqui nao ha de-para.
+    Nunca levanta erro: o que der errado vira texto, aparece na tela da lider
+    e fica gravado no pedido. Clicar e nao saber o que aconteceu e pior do que
+    o erro em si.
+    """
+    token = os.environ.get('RDCRM_TOKEN', '').strip()
+    if not token:
+        return False, 'RDCRM_TOKEN nao configurado no servidor.'
+    if not str(deal_id or '').strip():
+        return False, 'Pedido sem o ID da negociacao.'
+    if not str(user_id or '').strip():
+        return False, 'Pedido sem o ID do usuario no RD.'
+    url = (RD_DEAL_URL + quote(str(deal_id).strip(), safe='')
+           + '?token=' + quote(token, safe=''))
+    corpo = _json.dumps({'deal': {'user_id': str(user_id).strip()}}).encode('utf-8')
+    req = urllib.request.Request(url, data=corpo, method='PUT',
+                                 headers={'Content-Type': 'application/json'})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            if 200 <= r.status < 300:
+                return True, ''
+            return False, 'RD respondeu %s.' % r.status
+    except urllib.error.HTTPError as e:
+        try:
+            detalhe = e.read().decode('utf-8', 'replace')[:300]
+        except Exception:
+            detalhe = ''
+        return False, ('RD respondeu %s. %s' % (e.code, detalhe)).strip()
+    except Exception as e:
+        return False, 'Nao consegui falar com o RD: %s' % e
+
+@app.route('/troca-crm')
+@login_required
+def troca_crm_page():
+    return render_template('troca_crm.html')
+
+@app.route('/api/crm_trocas', methods=['GET'])
+@login_required
+def api_crm_trocas():
+    status  = (request.args.get('status') or '').strip().lower()
+    unidade = (request.args.get('unidade') or '').strip()
+    desde = None
+    try:
+        dias = int(request.args.get('dias') or 0)
+        if dias > 0:
+            desde = (datetime.utcnow() - timedelta(days=min(dias, 365))).isoformat()
+    except (TypeError, ValueError):
+        desde = None
+    if status not in ('pendente', 'feito', 'recusado', 'erro'):
+        status = None
+    return jsonify({
+        'rd_ligado': _rd_ligado(),
+        'unidades':  db.get_crm_unidades(),
+        'pendentes': db.count_crm_pendentes(),
+        'itens':     db.get_crm_trocas(status=status,
+                                       unidade=unidade or None,
+                                       desde=desde),
+    })
+
+@app.route('/api/crm_trocas/pendentes', methods=['GET'])
+@login_required
+def api_crm_pendentes():
+    """So o numero, para o contador da barra lateral."""
+    return jsonify({'n': db.count_crm_pendentes()})
+
+@app.route('/api/crm_trocas/<int:tid>/aprovar', methods=['POST'])
+@login_required
+def api_crm_aprovar(tid):
+    t = db.get_crm_troca(tid)
+    if not t:
+        return _err('Pedido não encontrado.', 404)
+    if t['status'] == 'feito':
+        return jsonify(t)
+    quem = session.get('username') or ''
+    if not _rd_ligado():
+        # Sem integracao: o Connecting so registra. A troca e na mao.
+        return jsonify(db.resolve_crm_troca(tid, 'feito', quem))
+    ok, motivo = _rd_troca_responsavel(t['deal_id'], t['resp_novo_id'])
+    if ok:
+        return jsonify(db.resolve_crm_troca(tid, 'feito', quem))
+    return jsonify(db.resolve_crm_troca(tid, 'erro', quem, motivo))
+
+@app.route('/api/crm_trocas/<int:tid>/recusar', methods=['POST'])
+@login_required
+def api_crm_recusar(tid):
+    t = db.resolve_crm_troca(tid, 'recusado', session.get('username') or '')
+    if not t:
+        return _err('Pedido não encontrado.', 404)
+    return jsonify(t)
+
+@app.route('/api/externo/troca-crm', methods=['POST'])
+@limiter.limit("120 per minute")
+def api_ext_troca_crm():
+    """A extensao chama aqui, do service worker, com a X-API-Key da EXTN_API_KEY."""
+    if not _extn_auth_ok():
+        return jsonify({'error': 'unauthorized'}), 401
+    dados = request.get_json(silent=True) or {}
+    if not str(dados.get('deal_id') or '').strip():
+        return jsonify({'error': 'deal_id obrigatorio'}), 400
+    if not str(dados.get('solicitante') or '').strip():
+        return jsonify({'error': 'solicitante obrigatorio'}), 400
+    novo, duplicado = db.create_crm_troca(dados)
+    if not novo:
+        return jsonify({'error': 'nao consegui gravar o pedido'}), 500
+    if duplicado:
+        # Nao e erro: o pedido dele ja estava na fila. A extensao trata 409
+        # como aviso, nao como falha.
+        return jsonify({'ok': True, 'id': novo['id'], 'duplicado': True}), 409
+    return jsonify({'ok': True, 'id': novo['id']}), 201
 # ── Bootstrap ─────────────────────────────────────────────────────────────────
 # Inicializa o banco assim que o módulo é importado (necessário pro Gunicorn
 # em produção). Em dev, o `python app.py` também passa por aqui antes do run.
