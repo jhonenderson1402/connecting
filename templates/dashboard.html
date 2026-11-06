@@ -2271,7 +2271,7 @@ async function loadRanking() {
     const data = await res.json();
     appts.push({unit, data});
   }
-  renderRankingGrid(appts, leadsTmk);
+  renderRankingGrid(juntaManaus(appts), leadsTmk);
 }
 
 function renderUnitsGrid() {
@@ -2328,7 +2328,30 @@ function renderUnitsGrid() {
     grid.appendChild(card);
   });
 }
-
+/* As unidades de Manaus aparecem como uma caixa so no ranking: "MANAUS GERAL".
+   A lista e por nome, sem acento e sem diferenca de maiuscula — unidade nova
+   de Manaus precisa ser acrescentada aqui. */
+const MANAUS_UNIDADES = ['MANAUS','MANAUS MATRIZ','MANAUS CENTRO','MANOA'];
+function _semAcento(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+         .replace(/\s+/g,' ').trim().toUpperCase();
+}
+function juntaManaus(lista){
+  const alvo = MANAUS_UNIDADES.map(_semAcento);
+  const juntas = [], fora = [];
+  lista.forEach(function(x){
+    (alvo.indexOf(_semAcento(x.unit)) >= 0 ? juntas : fora).push(x);
+  });
+  if(juntas.length < 2) return lista;        // nada a juntar: deixa como esta
+  /* a caixa entra no lugar da primeira unidade de Manaus, para o rank nao
+     mudar de posicao na tela */
+  const pos = lista.indexOf(juntas[0]);
+  const dados = [];
+  juntas.forEach(function(x){ (x.data||[]).forEach(function(a){ dados.push(a); }); });
+  const saida = fora.slice();
+  saida.splice(Math.min(pos, saida.length), 0, {unit:'MANAUS GERAL', data:dados});
+  return saida;
+}
 function renderRankingGrid(unitsData, leadsTmk) {
   leadsTmk = leadsTmk || {};
   const grid = document.getElementById('ranking-grid');
