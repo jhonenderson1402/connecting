@@ -73,6 +73,7 @@
       <button class="btn btn-primary" onclick="addLinha()">+ Adicionar Linha</button>
       <button class="btn btn-outline" onclick="toggleLocais()">⚙ Locais</button>
       <button class="btn btn-outline" onclick="exportCsv()">⬇ Exportar CSV</button>
+      <button class="btn btn-outline" onclick="imagemHxH()">🖼 Gerar Imagem</button>
       <button class="btn btn-danger" onclick="limparDia()">🗑 Limpar Dia</button>
     </div>
   </div>
@@ -666,7 +667,222 @@ function exportCsv(){
   a.click();
   URL.revokeObjectURL(a.href);
 }
+/* ── Imagem do Leads HxH ───────────────────────────────────────────────────
+   Mesma linguagem visual do Fechamento. Tudo fica dentro deste IIFE: a tela
+   so enxerga window.imagemHxH. */
+(function(){
+  var C = {
+    papel:'#fffffd', faixa:'#15171b', painel:'#f6f5f2', borda:'#e4e2dc',
+    tinta:'#111113', corpo:'#48484e', fraco:'#92929a', claro:'#c4c4cc',
+    ouro:'#bf9620', ouroE:'#967516', fio:'#eae8e2'
+  };
+  var IM = 54, IR = 1240 - 54;
+  var CX_LEADS = IR - 150, CX_PCT = IR;
+  var H_UNI = 24, H_CAN = 21, H_TOT = 25;
+  var CX_COLS = 3, CX_GAP = 10, CX_ALT = 58;
+  var TOTAL_GERAL = 0;
 
+  function fnt(p,t){ return p + ' ' + t + 'px Lato, Inter, sans-serif'; }
+  function n(v){ return (Number(v)||0).toLocaleString('pt-BR'); }
+  function pc(v,t){ return t>0 ? (v/t*100).toFixed(1).replace('.',',')+'%' : '0%'; }
+
+  function T(ct,x,y,s,f,cor,dir){
+    ct.font=f; ct.fillStyle=cor||C.tinta; ct.textBaseline='top';
+    var w=ct.measureText(s).width;
+    if(dir==='r') x-=w; else if(dir==='c') x-=w/2;
+    ct.fillText(s,x,y); return w;
+  }
+  /* corta o texto que nao cabe na largura dada */
+  function TCORTA(ct,x,y,s,f,cor,max){
+    ct.font=f;
+    while(s.length>3 && ct.measureText(s).width>max) s=s.slice(0,-1);
+    if(ct.measureText(s).width>max) s=s.slice(0,3);
+    return T(ct,x,y,s,f,cor);
+  }
+  function CAP(ct,x,y,s,f,cor,esp,dir){
+    ct.font=f; ct.fillStyle=cor||C.fraco; ct.textBaseline='top';
+    esp=(esp===undefined)?2.4:esp;
+    var larg=0,i;
+    for(i=0;i<s.length;i++) larg+=ct.measureText(s[i]).width+esp;
+    larg-=esp;
+    if(dir==='r') x-=larg; else if(dir==='c') x-=larg/2;
+    for(i=0;i<s.length;i++){ ct.fillText(s[i],x,y); x+=ct.measureText(s[i]).width+esp; }
+    return larg;
+  }
+  function RET(ct,x,y,w,h,cor){ ct.fillStyle=cor; ct.fillRect(x,y,w,h); }
+  function BORDA(ct,x,y,w,h,cor){
+    ct.strokeStyle=cor; ct.lineWidth=1; ct.strokeRect(x+0.5,y+0.5,w-1,h-1);
+  }
+  function LIN(ct,x0,y0,x1,cor,larg){
+    ct.strokeStyle=cor; ct.lineWidth=larg||1;
+    ct.beginPath(); ct.moveTo(x0,y0+0.5); ct.lineTo(x1,y0+0.5); ct.stroke();
+  }
+  function SECAO(ct,y,rotulo){
+    RET(ct,IM,y,7,26,C.ouro);
+    CAP(ct,IM+20,y+4,rotulo,fnt(700,18),C.tinta,2.8);
+    return y+35;
+  }
+
+  /* A logo tem margem transparente em volta: medimos a area pintada para
+     centralizar o desenho, e nao a moldura do arquivo. */
+  var _logo=null,_corte=null,_tentou=false;
+  function carregaLogo(cb){
+    if(_logo || _tentou){ cb(); return; }
+    var im=new Image();
+    im.onload=function(){
+      _logo=im; _tentou=true;
+      try{
+        var c=document.createElement('canvas'); c.width=im.width; c.height=im.height;
+        var x=c.getContext('2d'); x.drawImage(im,0,0);
+        var d=x.getImageData(0,0,im.width,im.height).data;
+        var x0=im.width,y0=im.height,x1=-1,y1=-1;
+        for(var py=0;py<im.height;py++) for(var px=0;px<im.width;px++)
+          if(d[(py*im.width+px)*4+3]>8){
+            if(px<x0)x0=px; if(px>x1)x1=px; if(py<y0)y0=py; if(py>y1)y1=py; }
+        if(x1>x0&&y1>y0) _corte={x:x0,y:y0,w:x1-x0+1,h:y1-y0+1};
+      }catch(e){ _corte=null; }
+      cb();
+    };
+    im.onerror=function(){ _tentou=true; cb(); };
+    im.src='/static/logo.png';
+  }
+
+  /* ── agregacao: por unidade (local) e por fonte (nome) ── */
+  function agrega(){
+    var mapa={}, fonte={}, total=0;
+    visiveisAtual().forEach(function(x){
+      var t = somaLinha(x.l);
+      if(t<=0) return;                       // linha zerada nao vira caixinha
+      var u = String(x.l.local || '—').trim() || '—';
+      var f = String(x.l.nome  || '—').trim() || '—';
+      if(!mapa[u]) mapa[u]={nome:u, total:0, canais:{}};
+      mapa[u].canais[f]=(mapa[u].canais[f]||0)+t;
+      mapa[u].total+=t;
+      fonte[f]=(fonte[f]||0)+t;
+      total+=t;
+    });
+    var unis=Object.keys(mapa).map(function(k){
+      var u=mapa[k];
+      u.lista=Object.keys(u.canais).map(function(c){ return {nome:c, v:u.canais[c]}; })
+               .sort(function(a,b){ return b.v-a.v; });
+      return u;
+    }).sort(function(a,b){ return b.total-a.total; });
+    var fontes=Object.keys(fonte).map(function(k){ return {nome:k, v:fonte[k]}; })
+                .sort(function(a,b){ return b.v-a.v; });
+    return {unis:unis, fontes:fontes, total:total};
+  }
+
+  function alturaCaixas(qtd){
+    return Math.ceil(qtd / CX_COLS) * (CX_ALT + CX_GAP);
+  }
+  /* grade de caixinhas, no mesmo formato do "Agendamentos por unidade" */
+  function caixas(ct, y, itens){
+    var larg = (IR - IM - (CX_COLS-1)*CX_GAP) / CX_COLS;
+    itens.forEach(function(it, i){
+      var cx = IM + (i % CX_COLS) * (larg + CX_GAP);
+      var cy = y + Math.floor(i / CX_COLS) * (CX_ALT + CX_GAP);
+      RET(ct, cx, cy, larg, CX_ALT, C.painel);
+      BORDA(ct, cx, cy, larg, CX_ALT, C.borda);
+      TCORTA(ct, cx+12, cy+10, it.nome, fnt(700,12.5), C.tinta, larg-80);
+      T(ct, cx+12, cy+27, n(it.v), fnt(800,24), C.tinta);
+      T(ct, cx+larg-12, cy+34, pc(it.v, TOTAL_GERAL), fnt(600,11), C.fraco, 'r');
+    });
+    return y + alturaCaixas(itens.length) + 12;
+  }
+  function cabecalhoTabela(ct, y, rotulo){
+    CAP(ct, IM+6,     y, rotulo,  fnt(700,10), C.fraco, 1.8);
+    CAP(ct, CX_LEADS, y, 'LEADS', fnt(700,10), C.fraco, 1.8, 'r');
+    CAP(ct, CX_PCT,   y, '%',     fnt(700,10), C.fraco, 1.8, 'r');
+    LIN(ct, IM, y+16, IR, C.borda, 1);
+    return y+22;
+  }
+
+  function desenha(){
+    var d = agrega();
+    TOTAL_GERAL = d.total;
+
+    var todo    = mesTodo();
+    var mi      = parseInt(document.getElementById('sel-month').value, 10);
+    var ano     = document.getElementById('sel-year').value;
+    var mes     = isNaN(mi) ? '—' : MONTHS[mi];
+    var carimbo = todo ? (mes + '/' + ano) : dateBr();
+    var periodo = (todo ? 'Leads recebidos no mês' : 'Leads recebidos no dia')
+                  + ' · ' + carimbo;
+
+    var alt = 153 + 26;
+    alt += 35 + alturaCaixas(d.unis.length) + 12;   // caixas por unidade
+    alt += 35 + 22;                                  // secao + cabecalho tabela
+    d.unis.forEach(function(u){ alt += H_UNI + u.lista.length*H_CAN + H_TOT; });
+    alt += H_TOT + 56;
+
+    var cv = document.createElement('canvas');
+    cv.width = 1240; cv.height = alt;
+    var ct = cv.getContext('2d');
+    RET(ct,0,0,1240,alt,C.papel);
+
+    /* faixa escura do topo */
+    RET(ct,0,0,1240,150,C.faixa);
+    if(_logo && _corte){
+      var h=54, w=_corte.w*(h/_corte.h);
+      ct.drawImage(_logo,_corte.x,_corte.y,_corte.w,_corte.h, 620-w/2, 26, w, h);
+    } else {
+      CAP(ct,620,36,'CONNECTING',fnt(800,22),'#fbbf24',5,'c');
+    }
+    CAP(ct,620,92,'LEADS HORA A HORA',fnt(800,17),'#fffffd',4.2,'c');
+    T(ct,620,118,periodo,fnt(400,12.5),'#8e8e96','c');
+    RET(ct,0,150,1240,3,C.ouro);
+
+    var y = 150 + 26;
+
+    /* caixinhas por unidade */
+    y = SECAO(ct, y, 'LEADS POR UNIDADE');
+    y = caixas(ct, y, d.unis.map(function(u){ return {nome:u.nome, v:u.total}; }));
+
+    /* detalhamento: unidade e fonte */
+    y = SECAO(ct, y, 'DETALHAMENTO POR UNIDADE E FONTE');
+    y = cabecalhoTabela(ct, y, 'UNIDADE E FONTE');
+    d.unis.forEach(function(u){
+      T(ct, IM+6, y+5, u.nome, fnt(700,14), C.tinta);
+      y += H_UNI;
+      u.lista.forEach(function(c, i){
+        if(i%2) RET(ct, IM, y, IR-IM, H_CAN, '#faf9f6');
+        T(ct, IM+24, y+4, c.nome,            fnt(400,12.5), C.corpo);
+        T(ct, CX_LEADS, y+3, n(c.v),         fnt(600,13),   C.tinta, 'r');
+        T(ct, CX_PCT,   y+4, pc(c.v,d.total),fnt(400,11.5), C.fraco, 'r');
+        y += H_CAN;
+      });
+      LIN(ct, IM+24, y, IR, C.fio, 1);
+      T(ct, IM+24, y+5, 'Total',                 fnt(700,12.5),  C.corpo);
+      T(ct, CX_LEADS, y+4, n(u.total),           fnt(800,13.5),  C.tinta, 'r');
+      T(ct, CX_PCT,   y+5, pc(u.total,d.total),  fnt(700,11.5),  C.ouroE, 'r');
+      y += H_TOT;
+    });
+    LIN(ct, IM, y, IR, C.ouro, 2);
+    RET(ct, IM, y+2, IR-IM, H_TOT-2, '#f3f1ea');
+    T(ct, IM+6, y+7, 'Total geral', fnt(800,13.5), C.tinta);
+    T(ct, CX_LEADS, y+6, n(d.total), fnt(800,15), C.ouroE, 'r');
+    T(ct, CX_PCT,   y+7, '100%',     fnt(700,12), C.ouroE, 'r');
+
+    LIN(ct,IM,alt-40,IR,C.fio,1);
+    T(ct,IM,alt-30,'Connecting · Sistema de Agendamentos',fnt(400,11),C.claro);
+    T(ct,IR,alt-30,carimbo,fnt(400,11),C.claro,'r');
+
+    var arq = todo
+      ? ('leads_hxh_' + ano + '-' + String(isNaN(mi)?0:mi+1).padStart(2,'0') + '_mes.png')
+      : ('leads_hxh_' + (dateKey() || 'dia') + '.png');
+    var a = document.createElement('a');
+    a.download = arq;
+    a.href = cv.toDataURL('image/png');
+    a.click();
+    showToast('Imagem gerada: ' + arq);
+  }
+
+  window.imagemHxH = function(){
+    var d = agrega();
+    if(!d.total){ showToast('Não há leads para gerar a imagem.','error'); return; }
+    carregaLogo(desenha);
+  };
+})();
 // Se o base.html não disparar, inicializa mesmo assim
 if(typeof formatDateKey === 'function'){
   setTimeout(() => { if(!document.getElementById('hh-body').innerHTML) onConstantsLoaded(); }, 900);
