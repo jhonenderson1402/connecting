@@ -268,6 +268,11 @@
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 14h5"/><path d="M8 17h8"/></svg></span>
           Fechamento
         </a>
+        <a href="/troca-crm" class="nav-item" data-path="/troca-crm">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span>
+          Troca CRM
+          <span id="tc-badge" style="margin-left:auto;min-width:17px;height:16px;padding:0 5px;border-radius:999px;display:none;place-items:center;font-size:9px;font-weight:800;background:var(--primary);color:var(--primary-fg)">0</span>
+        </a>
         <a href="/employees" class="nav-item" data-path="/employees">
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="3"/><path d="M22 20v-2a4 4 0 0 0-3-3.87"/></svg></span>
           Funcionários
@@ -310,7 +315,29 @@
         </script>
         {% endif %}
       </nav>
-
+      <script>
+      /* Contador de pedidos de Troca CRM pendentes, na barra lateral.
+         Some quando nao ha nada esperando. Quem nao enxerga a aba nao tem
+         o elemento na pagina e o script para na primeira linha. */
+      (function(){
+        var el = document.getElementById('tc-badge');
+        if(!el) return;
+        async function conta(){
+          if(document.hidden) return;
+          try{
+            var r = await fetch('/api/crm_trocas/pendentes');
+            if(!r.ok) return;
+            var d = await r.json();
+            var n = Number(d.n) || 0;
+            el.textContent = n;
+            el.style.display = n > 0 ? 'grid' : 'none';
+          }catch(e){}
+        }
+        conta();
+        setInterval(conta, 30000);
+        document.addEventListener('visibilitychange', function(){ if(!document.hidden) conta(); });
+      })();
+      </script>
       {% if current_user %}
       <div class="user-box">
         <div class="user-avatar">{{ current_user[0]|upper }}</div>
