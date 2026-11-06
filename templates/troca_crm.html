@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .tc-wrap{ overflow-x:auto; }
+  .tc-table{ width:100%; border-collapse:separate; border-spacing:0; min-width:1140px;
+             table-layout:fixed; background:var(--card); }
+  .tc-table thead th{ background:var(--primary); color:var(--primary-fg); font-weight:800;
+                      text-transform:uppercase; font-size:8.5px; letter-spacing:.3px;
+                      padding:9px 10px; text-align:left; white-space:nowrap;
+                      border-right:1px solid rgba(0,0,0,.08); }
+  .tc-table thead th:last-child{ border-right:none; text-align:right; }
+  .tc-table tbody td{ padding:8px 10px; background:var(--card); vertical-align:middle;
+                      border-bottom:1px solid var(--border); }
+  .tc-table tbody tr.alt td{ background:var(--secondary); }
+  .tc-table tbody tr:hover td{ background:hsl(220,10%,17%); }
+  .tc-table tbody tr:last-child td{ border-bottom:none; }
+  .tc-table tbody tr.resolvida td{ opacity:.5; }
+  body.tema-claro .tc-table tbody tr:hover td{ background:#f1f1ee; }
+
+  .tc-quando{ line-height:1.25; font-variant-numeric:tabular-nums; }
+  .tc-quando .d{ display:block; font-size:9px; color:var(--muted-fg); letter-spacing:.02em; }
+  .tc-quando .h{ display:block; font-size:13px; font-weight:700; color:var(--fg); }
+
+  .tc-quem{ font-size:11.5px; font-weight:650; white-space:nowrap; overflow:hidden;
+            text-overflow:ellipsis; }
+  .tc-uni{ display:inline-block; font-size:8px; font-weight:800; letter-spacing:.09em;
+           text-transform:uppercase; color:var(--muted-fg); background:var(--secondary);
+           border:1px solid var(--border); padding:3px 8px; border-radius:999px;
+           white-space:nowrap; }
+
+  .tc-lead b{ display:block; font-size:11.5px; font-weight:600; white-space:nowrap;
+              overflow:hidden; text-overflow:ellipsis; }
+  .tc-lead a, .tc-lead span.semlink{ display:inline-block; margin-top:2px; font-size:9.5px;
+              color:var(--muted-fg); border-bottom:1px dotted hsl(220,10%,32%); }
+  .tc-lead a:hover{ color:var(--primary); border-bottom-color:var(--primary); }
+  .tc-lead span.semlink{ border-bottom:none; font-style:italic; opacity:.7; }
+
+  .tc-etapa{ display:inline-block; font-size:9.5px; font-weight:650; letter-spacing:.04em;
+             color:var(--fg); background:rgba(255,255,255,.04); border:1px solid var(--border);
+             padding:3px 8px; border-radius:6px; max-width:100%; overflow:hidden;
+             text-overflow:ellipsis; white-space:nowrap; }
+  .tc-funil{ display:block; margin-top:3px; font-size:9px; color:var(--muted-fg);
+             white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  .tc-troca{ display:flex; align-items:center; gap:7px; white-space:nowrap; }
+  .tc-de,.tc-para{ display:inline-block; font-size:10.5px; padding:3px 8px; border-radius:6px;
+                   max-width:116px; overflow:hidden; text-overflow:ellipsis; }
+  .tc-de{ color:var(--muted-fg); background:rgba(255,255,255,.035);
+          border:1px solid var(--border); text-decoration:line-through;
+          text-decoration-color:hsl(220,10%,32%); }
+  .tc-seta{ color:var(--primary); font-weight:800; font-size:12px; flex:0 0 auto; }
+  .tc-para{ color:var(--fg); font-weight:700; background:rgba(255,187,0,.1);
+            border:1px solid rgba(255,187,0,.3); }
+
+  .tc-st{ display:inline-flex; align-items:center; gap:5px; font-size:8.5px; font-weight:800;
+          letter-spacing:.09em; text-transform:uppercase; padding:4px 9px; border-radius:999px;
+          white-space:nowrap; }
+  .tc-st::before{ content:''; width:5px; height:5px; border-radius:50%; background:currentColor; }
+  .tc-st.pendente{ background:rgba(255,187,0,.12); color:var(--primary);
+                   border:1px solid rgba(255,187,0,.32); }
+  .tc-st.feito{ background:rgba(34,197,94,.1); color:var(--green);
+                border:1px solid rgba(34,197,94,.28); }
+  .tc-st.recusado{ background:rgba(255,255,255,.04); color:var(--muted-fg);
+                   border:1px solid var(--border); }
+  .tc-st.erro{ background:rgba(239,68,68,.1); color:var(--destructive);
+               border:1px solid rgba(239,68,68,.32); }
+
+  .tc-acoes{ display:flex; gap:6px; justify-content:flex-end; }
+  .tc-acoes .btn{ height:28px; padding:0 11px; font-size:11px; }
+  .tc-feito-por{ font-size:9.5px; color:var(--muted-fg); text-align:right; line-height:1.4;
+                 font-variant-numeric:tabular-nums; }
+  .tc-feito-por b{ display:block; color:var(--fg); font-weight:600; font-size:10.5px; }
+  .tc-erro{ margin-top:5px; font-size:9.5px; color:var(--destructive); text-align:right;
+            white-space:normal; line-height:1.4; }
+
+  .tc-rodape{ display:flex; align-items:center; gap:7px; padding:8px 12px;
+              border-top:1px solid var(--border); background:var(--secondary);
+              font-size:9.5px; color:var(--muted-fg); }
+  .tc-vivo{ width:6px; height:6px; border-radius:50%; background:var(--green);
+            animation:tcPulsa 2s ease-in-out infinite; }
+  @keyframes tcPulsa{ 0%,100%{ opacity:1 } 50%{ opacity:.25 } }
+  .tc-vazio{ text-align:center; padding:38px; color:var(--muted-fg); font-style:italic;
+             font-size:11.5px; }
+
+  .tc-aviso{ display:none; align-items:center; gap:9px; margin-bottom:12px; padding:10px 13px;
+             border-radius:var(--radius); font-size:11px; line-height:1.5;
+             background:rgba(255,187,0,.07); border:1px solid rgba(255,187,0,.28);
+             color:var(--fg); }
+  .tc-aviso.on{ display:flex; }
+  .tc-aviso b{ color:var(--primary); }
+  .tc-kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
+  @media(max-width:768px){ .tc-kpis{ grid-template-columns:repeat(2,1fr); } }
+</style>
+
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <div class="title-bar">
+        <div class="title-accent"></div>
+        <h1 class="page-title">Troca CRM</h1>
+      </div>
+      <p class="page-subtitle" style="margin-left:14px;text-transform:none">
+        Pedidos de troca de responsável vindos da extensão do RD Station</p>
+    </div>
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label class="filter-label">STATUS</label>
+        <select class="select" id="f-status" onchange="carregar()">
+          <option value="pendente" selected>Pendentes</option>
+          <option value="">Todos</option>
+          <option value="feito">Feitos</option>
+          <option value="recusado">Recusados</option>
+          <option value="erro">Com erro</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">UNIDADE</label>
+        <select class="select" id="f-unidade" onchange="carregar()">
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">PERÍODO</label>
+        <select class="select" id="f-dias" onchange="carregar()">
+          <option value="1">Hoje</option>
+          <option value="7" selected>Últimos 7 dias</option>
+          <option value="30">Últimos 30 dias</option>
+          <option value="0">Tudo</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="tc-aviso" id="tc-aviso">
+    <span>⚠</span>
+    <span>A troca automática no RD Station ainda <b>não está ligada</b> — falta a
+      <b>RDCRM_TOKEN</b> no servidor. Até lá, o botão só marca o pedido como resolvido aqui;
+      a troca no RD continua sendo na mão.</span>
+  </div>
+
+  <div class="tc-kpis">
+    <div class="stat-card"><div class="stat-icon">⏳</div><div>
+      <div class="stat-value" id="k-pend" style="color:var(--primary)">0</div>
+      <div class="stat-label">Pendentes agora</div></div></div>
+    <div class="stat-card"><div class="stat-icon">✅</div><div>
+      <div class="stat-value" id="k-feitos" style="color:var(--green)">0</div>
+      <div class="stat-label" id="k-feitos-lbl">Resolvidos no período</div></div></div>
+    <div class="stat-card"><div class="stat-icon">⏱</div><div>
+      <div class="stat-value" id="k-espera">—</div>
+      <div class="stat-label">Espera média até resolver</div></div></div>
+    <div class="stat-card"><div class="stat-icon">⚠</div><div>
+      <div class="stat-value" id="k-erros" style="color:var(--destructive)">0</div>
+      <div class="stat-label">Falhou no RD</div></div></div>
+  </div>
+
+  <div class="card table-card">
+    <div class="tc-wrap">
+      <table class="tc-table">
+        <colgroup>
+          <col style="width:86px"><col style="width:128px"><col style="width:112px">
+          <col style="width:190px"><col style="width:128px"><col>
+          <col style="width:112px"><col style="width:196px">
+        </colgroup>
+        <thead><tr>
+          <th>Solicitado</th><th>Quem pediu</th><th>Unid. agendamento</th><th>Lead</th>
+          <th>Etapa</th><th>Responsável</th><th>Status</th><th></th>
+        </tr></thead>
+        <tbody id="tc-body">
+          <tr><td colspan="8" class="tc-vazio">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tc-rodape"><span class="tc-vivo"></span><span id="tc-rodape-txt">—</span></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* Troca CRM — fila de pedidos vindos da extensao do RD Station. */
+var ITENS = [], RD_LIGADO = false, ocupado = false;
+
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+/* O servidor grava em UTC sem o fuso no texto. Sem o 'Z' o navegador leria
+   como hora local e a lista apareceria 3 horas adiantada. */
+function paraData(iso){
+  if(!iso) return null;
+  var s = String(iso);
+  if(!/[zZ]$|[+-]\d\d:?\d\d$/.test(s)) s += 'Z';
+  var d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+function dm(d){
+  return String(d.getDate()).padStart(2,'0') + '/' +
+         String(d.getMonth()+1).padStart(2,'0');
+}
+function hm(d){
+  return String(d.getHours()).padStart(2,'0') + ':' +
+         String(d.getMinutes()).padStart(2,'0');
+}
+
+function celulaQuando(t){
+  var d = paraData(t.criado_em);
+  if(!d) return '<td class="tc-quando"><span class="h">—</span></td>';
+  return '<td class="tc-quando"><span class="d">' + dm(d) + '</span>' +
+         '<span class="h">' + hm(d) + '</span></td>';
+}
+function celulaLead(t){
+  var nome = esc(t.lead_nome) || '<span style="color:var(--muted-fg)">sem nome</span>';
+  var link = t.deal_url
+    ? '<a href="' + esc(t.deal_url) + '" target="_blank" rel="noopener">negociação #' +
+      esc(t.deal_id) + ' ↗</a>'
+    : '<span class="semlink">negociação ' + (t.deal_id ? '#' + esc(t.deal_id) : 'sem id') + '</span>';
+  return '<td class="tc-lead"><b>' + nome + '</b>' + link + '</td>';
+}
+/* Etapa e funil vem do RD pela extensao. Servem para a lider decidir sem
+   abrir a negociacao. Quem nao manda fica com o tracinho. */
+function celulaEtapa(t){
+  if(!t.etapa && !t.funil) return '<td><span style="color:var(--muted-fg)">—</span></td>';
+  return '<td>' +
+    (t.etapa ? '<span class="tc-etapa" title="' + esc(t.etapa) + '">' +
+               esc(t.etapa) + '</span>' : '') +
+    (t.funil ? '<span class="tc-funil" title="' + esc(t.funil) + '">' +
+               esc(t.funil) + '</span>' : '') +
+    '</td>';
+}
+function celulaAcoes(t){
+  if(t.status === 'feito' || t.status === 'recusado'){
+    var d = paraData(t.resolvido_em);
+    return '<td class="tc-feito-por"><b>' + (esc(t.resolvido_por) || '—') + '</b>' +
+           (d ? dm(d) + ' às ' + hm(d) : '') + '</td>';
+  }
+  var rotulo = (t.status === 'erro')
+    ? '↻ Tentar de novo'
+    : (RD_LIGADO ? 'Aprovar' : 'Marcar como feito');
+  var classeOk = (t.status === 'erro') ? 'btn btn-outline' : 'btn btn-primary';
+  var classeNo = (t.status === 'erro') ? 'btn btn-danger' : 'btn btn-outline';
+  return '<td><div class="tc-acoes">' +
+           '<button class="' + classeOk + '" onclick="aprovar(' + t.id + ', this)">' +
+             rotulo + '</button>' +
+           '<button class="' + classeNo + '" onclick="recusar(' + t.id + ', this)">' +
+             'Recusar</button>' +
+         '</div>' +
+         (t.erro ? '<div class="tc-erro">' + esc(t.erro) + '</div>' : '') +
+         '</td>';
+}
+
+function render(){
+  var tb = document.getElementById('tc-body');
+  if(!ITENS.length){
+    tb.innerHTML = '<tr><td colspan="8" class="tc-vazio">' +
+                   'Nenhum pedido neste filtro.</td></tr>';
+    return;
+  }
+  tb.innerHTML = ITENS.map(function(t, i){
+    var resolvida = (t.status === 'feito' || t.status === 'recusado') ? ' resolvida' : '';
+    return '<tr class="' + (i % 2 ? 'alt' : '') + resolvida + '">' +
+      celulaQuando(t) +
+      '<td class="tc-quem" title="' + esc(t.solicitante) + '">' +
+        (esc(t.solicitante) || '—') + '</td>' +
+      '<td>' + (t.unidade ? '<span class="tc-uni">' + esc(t.unidade) + '</span>' : '') + '</td>' +
+      celulaLead(t) +
+      celulaEtapa(t) +
+      '<td><div class="tc-troca">' +
+        '<span class="tc-de" title="' + esc(t.resp_atual) + '">' +
+          (esc(t.resp_atual) || '—') + '</span>' +
+        '<span class="tc-seta">→</span>' +
+        '<span class="tc-para" title="' + esc(t.resp_novo) + '">' +
+          (esc(t.resp_novo) || '—') + '</span></div></td>' +
+      '<td><span class="tc-st ' + esc(t.status) + '">' + esc(t.status) + '</span></td>' +
+      celulaAcoes(t) +
+    '</tr>';
+  }).join('');
+}
+
+/* Espera media: so conta quem ja foi resolvido e tem as duas horas. */
+function indicadores(pendentes){
+  var feitos = 0, erros = 0, somaMin = 0, nMin = 0;
+  ITENS.forEach(function(t){
+    if(t.status === 'feito' || t.status === 'recusado') feitos++;
+    if(t.status === 'erro') erros++;
+    var a = paraData(t.criado_em), b = paraData(t.resolvido_em);
+    if(a && b && b > a){ somaMin += (b - a) / 60000; nMin++; }
+  });
+  document.getElementById('k-pend').textContent   = pendentes;
+  document.getElementById('k-feitos').textContent = feitos;
+  document.getElementById('k-erros').textContent  = erros;
+  var el = document.getElementById('k-espera');
+  if(!nMin){ el.textContent = '—'; return; }
+  var m = Math.round(somaMin / nMin);
+  el.innerHTML = (m < 60 ? m : Math.round(m / 60)) +
+    '<span style="font-size:13px;font-weight:600;color:var(--muted-fg)"> ' +
+    (m < 60 ? 'min' : 'h') + '</span>';
+}
+
+function enchUnidades(lista){
+  var sel = document.getElementById('f-unidade');
+  var atual = sel.value;
+  var novo = '<option value="">Todas</option>' +
+    (lista || []).map(function(u){
+      return '<option value="' + esc(u) + '">' + esc(u) + '</option>';
+    }).join('');
+  if(novo === sel.innerHTML) return;      // nao mexe no campo sem necessidade
+  sel.innerHTML = novo;
+  sel.value = atual;
+}
+
+async function carregar(){
+  if(ocupado) return;
+  ocupado = true;
+  var rod = document.getElementById('tc-rodape-txt');
+  try{
+    var p = new URLSearchParams();
+    p.set('status',  document.getElementById('f-status').value);
+    p.set('unidade', document.getElementById('f-unidade').value);
+    p.set('dias',    document.getElementById('f-dias').value);
+    var r = await fetch('/api/crm_trocas?' + p.toString());
+    if(r.status === 401){ window.location.href = '/login'; return; }
+    if(!r.ok) throw new Error('http ' + r.status);
+    var d = await r.json();
+    RD_LIGADO = !!d.rd_ligado;
+    ITENS = d.itens || [];
+    document.getElementById('tc-aviso').classList.toggle('on', !RD_LIGADO);
+    enchUnidades(d.unidades);
+    render();
+    indicadores(Number(d.pendentes) || 0);
+    var ag = new Date();
+    rod.style.color = '';
+    rod.textContent = ITENS.length + ' pedido(s) · atualizado às ' +
+      hm(ag) + ':' + String(ag.getSeconds()).padStart(2,'0') +
+      ' · a lista se refaz sozinha a cada 15 segundos';
+  }catch(e){
+    rod.style.color = '#f87171';
+    rod.textContent = 'Não consegui atualizar — o que está na tela pode estar velho.';
+  }finally{
+    ocupado = false;
+  }
+}
+
+async function resolver(id, bt, caminho, falando){
+  if(!bt) return;
+  var irmaos = bt.parentNode.querySelectorAll('button');
+  irmaos.forEach(function(b){ b.disabled = true; b.style.opacity = '.5'; });
+  var antes = bt.textContent;
+  bt.textContent = falando;
+  try{
+    var r = await fetch('/api/crm_trocas/' + id + '/' + caminho, {method: 'POST'});
+    var d = await r.json().catch(function(){ return {}; });
+    if(!r.ok) throw new Error(d.error || ('http ' + r.status));
+    if(d.status === 'erro'){
+      showToast(d.erro || 'O RD recusou a troca.', 'error');
+    } else if(d.status === 'feito'){
+      showToast(RD_LIGADO ? 'Trocado no RD.' : 'Marcado como feito.', 'success');
+    } else {
+      showToast('Pedido recusado.', 'success');
+    }
+  }catch(e){
+    showToast(e.message || 'Não consegui resolver o pedido.', 'error');
+    irmaos.forEach(function(b){ b.disabled = false; b.style.opacity = ''; });
+    bt.textContent = antes;
+    return;
+  }
+  carregar();
+}
+function aprovar(id, bt){ resolver(id, bt, 'aprovar', 'aguarde...'); }
+function recusar(id, bt){ resolver(id, bt, 'recusar', 'aguarde...'); }
+
+document.addEventListener('visibilitychange', function(){
+  if(!document.hidden) carregar();
+});
+carregar();
+setInterval(function(){ if(!document.hidden) carregar(); }, 15000);
+</script>
+{% endblock %}
