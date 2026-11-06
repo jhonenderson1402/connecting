@@ -169,6 +169,46 @@ class LeadOpcao(Base):
         UniqueConstraint('tipo', 'nome', name='uq_lead_opcao'),
         Index('idx_lead_opcao_tipo', 'tipo'),
     )
+from sqlalchemy import text as _sa_text
+class CrmTroca(Base):
+    """Pedido de troca de responsavel no RD Station, vindo da extensao.
+
+    Guardamos o NOME do responsavel novo e o ID dele NO RD: o nome e para a
+    lider ler na tela, o id e o que o RD aceita na hora de trocar de verdade.
+    O Connecting nao traduz esse id — ele vai direto para o RD.
+    """
+    __tablename__ = 'crm_trocas'
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    criado_em     = Column(String(40), default=lambda: datetime.utcnow().isoformat())
+    solicitante       = Column(String(200), default='')
+    solicitante_email = Column(String(200), default='')
+    unidade       = Column(String(100), default='')   # Unidade de Agendamento do deal
+    deal_id       = Column(String(60),  default='')   # id da negociacao no RD
+    deal_url      = Column(String(400), default='')
+    lead_nome     = Column(String(300), default='')
+    etapa         = Column(String(120), default='')
+    funil         = Column(String(120), default='')
+    resp_atual    = Column(String(200), default='')
+    resp_novo     = Column(String(200), default='')
+    resp_novo_id  = Column(String(60),  default='')   # user_id do RD
+    status        = Column(String(20),  default='pendente')  # pendente|feito|recusado|erro
+    resolvido_por = Column(String(200), default='')
+    resolvido_em  = Column(String(40),  default='')
+    erro          = Column(Text, default='')
+    __table_args__ = (
+        Index('idx_crm_troca_status', 'status'),
+        Index('idx_crm_troca_criado', 'criado_em'),
+        # O mesmo operador nao enfileira duas vezes a mesma negociacao enquanto
+        # a primeira nao for resolvida. O indice e PARCIAL: so vale para
+        # 'pendente', entao pedir de novo depois de resolvido continua liberado.
+        # O nome entra na chave junto com o e-mail porque pedido sem e-mail
+        # senao travaria todos os operadores na mesma negociacao.
+        Index('uq_crm_troca_pendente',
+              'deal_id', 'solicitante_email', 'solicitante',
+              unique=True,
+              postgresql_where=_sa_text("status = 'pendente'"),
+              sqlite_where=_sa_text("status = 'pendente'")),
+    )
 # ---- Inicializacao ----------------------------------------------------------
 def init_db():
     """Cria tabelas e indices se ainda nao existirem. Idempotente.
@@ -1610,3 +1650,121 @@ def delete_lead_opcao(oid):
     with SessionLocal() as s:
         s.execute(delete(LeadOpcao).where(LeadOpcao.id == oid))
         s.commit()
+# ---- Troca CRM --------------------------------------------------------------
+from sqlalchemy.exc import IntegrityError
+def _crm_dict(t):
+    return {
+        'id':                t.id,
+        'criado_em':         t.criado_em or '',
+        'solicitante':       t.solicitante or '',
+        'solicitante_email': t.solicitante_email or '',
+        'unidade':           t.unidade or '',
+        'deal_id':           t.deal_id or '',
+        'deal_url':          t.deal_url or '',
+        'lead_nome':         t.lead_nome or '',
+        'etapa':             t.etapa or '',
+        'funil':             t.funil or '',
+        'resp_atual':        t.resp_atual or '',
+        'resp_novo':         t.resp_novo or '',
+        'resp_novo_id':      t.resp_novo_id or '',
+        'status':            t.status or 'pendente',
+        'resolvido_por':     t.resolvido_por or '',
+        'resolvido_em':      t.resolvido_em or '',
+        'erro':              t.erro or '',
+    }
+def _crm_pendente_igual(s, campos):
+    """O pedido pendente que ja existe para esta negociacao e este operador."""
+    return s.scalars(
+        select(CrmTroca).where(
+            CrmTroca.status == 'pendente',
+            CrmTroca.deal_id == campos['deal_id'],
+            CrmTroca.solicitante_email == campos['solicitante_email'],
+            CrmTroca.solicitante == campos['solicitante'],
+        ).limit(1)
+    ).first()
+def create_crm_troca(dados):
+    """Grava o pedido que veio da extensao. Devolve (registro, duplicado).
+
+    Duplicado=True quer dizer que o operador ja tinha um pedido PENDENTE para
+    a mesma negociacao — devolvemos o que ja esta na fila, e a rota responde
+    409. Isso nao e erro: e "seu pedido ja estava la".
+    """
+    def _t(chave, tam):
+        return str(dados.get(chave) or '').strip()[:tam]
+    campos = dict(
+        solicitante       = _t('solicitante', 200),
+        solicitante_email = _t('solicitante_email', 200).lower(),
+        unidade           = _t('unidade', 100),
+        deal_id           = _t('deal_id', 60),
+        deal_url          = _t('deal_url', 400),
+        lead_nome         = _t('lead_nome', 300),
+        etapa             = _t('etapa', 120),
+        funil             = _t('funil', 120),
+        resp_atual        = _t('resp_atual', 200),
+        resp_novo         = _t('resp_novo', 200),
+        resp_novo_id      = _t('resp_novo_id', 60),
+        status            = 'pendente',
+    )
+    with SessionLocal() as s:
+        achado = _crm_pendente_igual(s, campos)
+        if achado:
+            return _crm_dict(achado), True
+        t = CrmTroca(**campos)
+        s.add(t)
+        try:
+            s.commit()
+        except IntegrityError:
+            # Os 2 workers podem gravar no mesmo instante e a consulta acima
+            # nao pega isso. O indice unico barra o segundo; aqui a gente
+            # devolve o que ficou, em vez de estourar erro na cara do operador.
+            s.rollback()
+            achado = _crm_pendente_igual(s, campos)
+            return (_crm_dict(achado) if achado else None), True
+        s.refresh(t)
+        return _crm_dict(t), False
+def get_crm_trocas(status=None, unidade=None, desde=None, limite=400):
+    with SessionLocal() as s:
+        q = select(CrmTroca)
+        if status:
+            q = q.where(CrmTroca.status == status)
+        if unidade:
+            q = q.where(CrmTroca.unidade == unidade)
+        if desde:
+            q = q.where(CrmTroca.criado_em >= desde)
+        q = q.order_by(CrmTroca.criado_em.desc()).limit(limite)
+        return [_crm_dict(t) for t in s.scalars(q).all()]
+def get_crm_troca(tid):
+    with SessionLocal() as s:
+        t = s.get(CrmTroca, tid)
+        return _crm_dict(t) if t else None
+def count_crm_pendentes():
+    with SessionLocal() as s:
+        n = s.scalar(select(func.count(CrmTroca.id))
+                     .where(CrmTroca.status == 'pendente'))
+        return int(n or 0)
+def get_crm_unidades():
+    """Unidades que ja apareceram em algum pedido — alimenta o filtro da tela."""
+    with SessionLocal() as s:
+        linhas = s.scalars(select(CrmTroca.unidade).distinct()).all()
+        return sorted({(u or '').strip() for u in linhas if (u or '').strip()})
+def resolve_crm_troca(tid, status, quem, erro=''):
+    """Marca o pedido como feito / recusado / erro.
+
+    Quem ja esta 'feito' nao muda mais: se duas lideres clicarem na mesma
+    linha ao mesmo tempo, a segunda nao refaz a troca no RD nem apaga o
+    registro de quem resolveu primeiro.
+    """
+    with SessionLocal() as s:
+        t = s.get(CrmTroca, tid)
+        if not t:
+            return None
+        if t.status == 'feito':
+            return _crm_dict(t)
+        t.status = status
+        t.erro = (erro or '')[:2000]
+        if status in ('feito', 'recusado'):
+            t.resolvido_por = (quem or '')[:200]
+            t.resolvido_em = datetime.utcnow().isoformat()
+        s.commit()
+        s.refresh(t)
+        return _crm_dict(t)
