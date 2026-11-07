@@ -82,12 +82,20 @@
   .tc-vazio{ text-align:center; padding:38px; color:var(--muted-fg); font-style:italic;
              font-size:11.5px; }
 
-  .tc-aviso{ display:none; align-items:center; gap:9px; margin-bottom:12px; padding:10px 13px;
-             border-radius:var(--radius); font-size:11px; line-height:1.5;
-             background:rgba(255,187,0,.07); border:1px solid rgba(255,187,0,.28);
-             color:var(--fg); }
-  .tc-aviso.on{ display:flex; }
-  .tc-aviso b{ color:var(--primary); }
+  .tc-token{ display:none; align-items:center; gap:10px; flex-wrap:wrap;
+             margin-bottom:12px; padding:11px 13px; border-radius:var(--radius);
+             font-size:11.5px; line-height:1.5; color:var(--fg); }
+  .tc-token.on{ display:flex; }
+  .tc-token.falta{ background:rgba(255,187,0,.07); border:1px solid rgba(255,187,0,.28); }
+  .tc-token.ok{    background:rgba(34,197,94,.06); border:1px solid rgba(34,197,94,.22); }
+  .tc-token.erro{  background:rgba(239,68,68,.07); border:1px solid rgba(239,68,68,.28); }
+  .tc-token .tx{ flex:1; min-width:240px; color:var(--muted-fg); }
+  .tc-token .tx b{ color:var(--fg); font-weight:600; }
+  .tc-token input{ background:var(--secondary); border:1px solid var(--border);
+                   color:var(--fg); border-radius:7px; height:30px; width:230px;
+                   padding:0 9px; font-size:11.5px; font-family:inherit; outline:none; }
+  .tc-token input:focus{ border-color:var(--primary); }
+  .tc-token .btn{ height:30px; }
   .tc-kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
   @media(max-width:768px){ .tc-kpis{ grid-template-columns:repeat(2,1fr); } }
 </style>
@@ -131,12 +139,7 @@
     </div>
   </div>
 
-  <div class="tc-aviso" id="tc-aviso">
-    <span>⚠</span>
-    <span>A troca automática no RD Station ainda <b>não está ligada</b> — falta a
-      <b>RDCRM_TOKEN</b> no servidor. Até lá, o botão só marca o pedido como resolvido aqui;
-      a troca no RD continua sendo na mão.</span>
-  </div>
+  <div class="tc-token" id="tc-token"></div>
 
   <div class="tc-kpis">
     <div class="stat-card"><div class="stat-icon">⏳</div><div>
@@ -309,6 +312,88 @@ function enchUnidades(lista){
   sel.value = atual;
 }
 
+/* ── Token pessoal do RD ──────────────────────────────────────────────────
+   Cada lider cadastra o dela. O valor nunca volta do servidor: a tela so
+   sabe se existe e desde quando. */
+function renderToken(d){
+  var cx = document.getElementById('tc-token');
+  if(!cx) return;
+  // Enquanto ela digita, nao redesenha: o campo seria apagado no meio.
+  var campo = document.getElementById('tc-token-in');
+  if(campo && (document.activeElement === campo || String(campo.value||'').trim())) return;
+
+  var meu = d.meu_token || {};
+  if(!d.cifra_ligada){
+    cx.className = 'tc-token on erro';
+    cx.innerHTML = '<span>⚠</span><span class="tx">' +
+      '<b>Falta a TOKEN_KEY no servidor.</b> Sem ela o Connecting não guarda ' +
+      'token nenhum — credencial em claro no banco, não. Quem tem acesso ao ' +
+      'Easypanel precisa criar essa variável.</span>';
+    return;
+  }
+  if(meu.configurado){
+    var c = paraData(meu.criado_em), u = paraData(meu.ultimo_uso);
+    cx.className = 'tc-token on ok';
+    cx.innerHTML = '<span>✓</span><span class="tx">' +
+      '<b>Seu token do RD está cadastrado</b>' + (c ? ' desde ' + dm(c) : '') +
+      (u ? ' · último uso ' + dm(u) + ' às ' + hm(u) : ' · ainda não foi usado') +
+      '. Ao aprovar, o RD registra você como autora da troca.</span>' +
+      '<button class="btn btn-outline" onclick="trocaToken()">Trocar</button>' +
+      '<button class="btn btn-outline" onclick="removeToken()">Remover</button>';
+    return;
+  }
+  cx.className = 'tc-token on falta';
+  cx.innerHTML = '<span>⚠</span><span class="tx">' +
+    '<b>Você ainda não cadastrou seu token do RD.</b> Até cadastrar, o botão só ' +
+    'marca o pedido como resolvido aqui; a troca no RD continua na mão.</span>' +
+    campoToken();
+}
+function campoToken(){
+  return '<input id="tc-token-in" type="password" autocomplete="off" ' +
+         'placeholder="cole seu token do RD"/>' +
+         '<button class="btn btn-primary" onclick="salvaToken(this)">Salvar e testar</button>';
+}
+function trocaToken(){
+  var cx = document.getElementById('tc-token');
+  cx.className = 'tc-token on falta';
+  cx.innerHTML = '<span>↻</span><span class="tx">Cole o token novo — o antigo é ' +
+    'substituído.</span>' + campoToken() +
+    '<button class="btn btn-outline" onclick="carregar()">Cancelar</button>';
+  var campo = document.getElementById('tc-token-in');
+  if(campo) campo.focus();
+}
+async function salvaToken(bt){
+  var campo = document.getElementById('tc-token-in');
+  if(!campo || !bt) return;
+  var v = String(campo.value || '').trim();
+  if(v.length < 10){ showToast('Cole o token inteiro.', 'error'); return; }
+  bt.disabled = true;
+  var antes = bt.textContent;
+  bt.textContent = 'testando...';
+  try{
+    var r = await fetch('/api/meu_rd_token', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({token: v})
+    });
+    var d = await r.json().catch(function(){ return {}; });
+    if(!r.ok) throw new Error(d.error || ('http ' + r.status));
+    campo.value = '';
+    showToast('Token conferido com o RD e guardado.', 'success');
+    carregar();
+  }catch(e){
+    showToast(e.message || 'Não consegui guardar o token.', 'error');
+    bt.disabled = false;
+    bt.textContent = antes;
+  }
+}
+async function removeToken(){
+  if(!confirm('Remover seu token do RD?\n\nVocê continua aprovando pedidos, ' +
+              'mas a troca no RD volta a ser na mão.')) return;
+  try{ await fetch('/api/meu_rd_token', {method: 'DELETE'}); }catch(e){}
+  showToast('Token removido.', 'success');
+  carregar();
+}
+
 async function carregar(){
   if(ocupado) return;
   ocupado = true;
@@ -324,7 +409,7 @@ async function carregar(){
     var d = await r.json();
     RD_LIGADO = !!d.rd_ligado;
     ITENS = d.itens || [];
-    document.getElementById('tc-aviso').classList.toggle('on', !RD_LIGADO);
+    renderToken(d);
     enchUnidades(d.unidades);
     render();
     indicadores(Number(d.pendentes) || 0);
