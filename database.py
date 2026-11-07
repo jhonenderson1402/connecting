@@ -209,6 +209,22 @@ class CrmTroca(Base):
               postgresql_where=_sa_text("status = 'pendente'"),
               sqlite_where=_sa_text("status = 'pendente'")),
     )
+class CrmToken(Base):
+    """Token pessoal de cada lider no RD Station.
+
+    Uma linha por usuario do Connecting. O token fica CIFRADO: um vazamento
+    do banco sozinho nao entrega nada, porque a chave mora no ambiente do
+    servidor. O valor nunca volta para a tela, nem para a dona dele.
+    """
+    __tablename__ = 'crm_tokens'
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    user_id    = Column(Integer, nullable=False, unique=True)
+    token_cif  = Column(Text, default='')
+    criado_em  = Column(String(40), default=lambda: datetime.utcnow().isoformat())
+    ultimo_uso = Column(String(40), default='')
+    __table_args__ = (
+        Index('idx_crm_token_user', 'user_id'),
+    )
 # ---- Inicializacao ----------------------------------------------------------
 def init_db():
     """Cria tabelas e indices se ainda nao existirem. Idempotente.
@@ -1768,3 +1784,83 @@ def resolve_crm_troca(tid, status, quem, erro=''):
         s.commit()
         s.refresh(t)
         return _crm_dict(t)
+# ---- Token pessoal do RD Station --------------------------------------------
+# A cifra usa a TOKEN_KEY do ambiente. Sem ela, nenhum token pode ser gravado
+# nem lido — o sistema diz isso na cara em vez de guardar credencial em claro.
+# Trocar a TOKEN_KEY nao apaga nada, mas torna o que esta gravado ilegivel:
+# cada lider cadastra o token dela de novo. E recuperavel, so da trabalho.
+import base64 as _b64
+import hashlib as _hash
+def _token_fernet():
+    frase = os.environ.get('TOKEN_KEY', '').strip()
+    if not frase:
+        return None
+    try:
+        from cryptography.fernet import Fernet
+    except ImportError:
+        print("[token] biblioteca 'cryptography' ausente — veja requirements.txt")
+        return None
+    chave = _b64.urlsafe_b64encode(_hash.sha256(frase.encode('utf-8')).digest())
+    return Fernet(chave)
+def cifra_ligada():
+    return _token_fernet() is not None
+def set_crm_token(user_id, token):
+    """Guarda (ou troca) o token da pessoa. Devolve True se gravou."""
+    f = _token_fernet()
+    if not f:
+        return False
+    token = (token or '').strip()
+    if not token:
+        return False
+    cif = f.encrypt(token.encode('utf-8')).decode('ascii')
+    agora = datetime.utcnow().isoformat()
+    with SessionLocal() as s:
+        t = s.scalar(select(CrmToken).where(CrmToken.user_id == user_id))
+        if t:
+            t.token_cif = cif
+            t.criado_em = agora
+            t.ultimo_uso = ''
+        else:
+            s.add(CrmToken(user_id=user_id, token_cif=cif, criado_em=agora))
+        s.commit()
+    return True
+def get_crm_token(user_id):
+    """Devolve o token em claro para usar na chamada ao RD, ou None.
+
+    So quem vai falar com o RD chama isto. Nenhuma rota devolve esse valor
+    para a tela.
+    """
+    f = _token_fernet()
+    if not f:
+        return None
+    with SessionLocal() as s:
+        t = s.scalar(select(CrmToken).where(CrmToken.user_id == user_id))
+        if not t or not (t.token_cif or ''):
+            return None
+        try:
+            return f.decrypt(t.token_cif.encode('ascii')).decode('utf-8')
+        except Exception:
+            # TOKEN_KEY trocada: o que esta gravado nao abre mais.
+            return None
+def marca_uso_crm_token(user_id):
+    with SessionLocal() as s:
+        s.execute(update(CrmToken).where(CrmToken.user_id == user_id)
+                  .values(ultimo_uso=datetime.utcnow().isoformat()))
+        s.commit()
+def status_crm_token(user_id):
+    """O que a tela pode saber: se existe, quando foi cadastrado, ultimo uso.
+    Nunca o token."""
+    with SessionLocal() as s:
+        t = s.scalar(select(CrmToken).where(CrmToken.user_id == user_id))
+        if not t or not (t.token_cif or ''):
+            return {'configurado': False, 'criado_em': '', 'ultimo_uso': ''}
+        return {'configurado': True,
+                'criado_em': t.criado_em or '',
+                'ultimo_uso': t.ultimo_uso or ''}
+def delete_crm_token(user_id):
+    with SessionLocal() as s:
+        s.execute(delete(CrmToken).where(CrmToken.user_id == user_id))
+        s.commit()
+def conta_crm_tokens():
+    with SessionLocal() as s:
+        return int(s.scalar(select(func.count(CrmToken.id))) or 0)
