@@ -5,3 +5,4 @@ gunicorn>=21.0.0
 Flask-Limiter>=3.0.0
 Flask-Caching>=2.0.0
 werkzeug>=3.0.0
+cryptography>=42.0.0
