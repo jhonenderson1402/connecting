@@ -1966,8 +1966,8 @@ def api_set_user_role(uid):
         return _err(str(e))
 # ── Troca CRM (pedidos vindos da extensao do RD Station) ─────────────────────
 # O atendente pede a troca de responsavel pela extensao; o pedido cai aqui e a
-# lider resolve. Com RDCRM_TOKEN configurado, o "Aprovar" troca no RD sozinho;
-# sem o token, ele so marca como feito e a troca continua sendo na mao.
+# lider resolve. Cada lider cadastra o token DELA do RD: com token, o "Aprovar"
+# troca no RD em nome dela; sem token, so marca como feito e a troca e na mao.
 import urllib.error
 from datetime import timedelta
 from urllib.parse import quote
@@ -1984,26 +1984,60 @@ def _extn_auth_ok():
     key = os.environ.get('EXTN_API_KEY', '').strip()
     return bool(key) and request.headers.get('X-API-Key', '') == key
 
-def _rd_ligado():
-    return bool(os.environ.get('RDCRM_TOKEN', '').strip())
+RD_API = 'https://crm.rdstation.com/api/v1/'
 
-def _rd_troca_responsavel(deal_id, user_id):
-    """Troca o responsavel da negociacao no RD. Devolve (ok, motivo).
+def _rd_get(caminho, token):
+    """GET simples na API do RD. Devolve (status, texto). Nunca levanta erro."""
+    url = (RD_API + caminho + ('&' if '?' in caminho else '?')
+           + 'token=' + quote(token, safe=''))
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url), timeout=12) as r:
+            return r.status, r.read(2000).decode('utf-8', 'replace')
+    except urllib.error.HTTPError as e:
+        try:
+            return e.code, e.read(300).decode('utf-8', 'replace')
+        except Exception:
+            return e.code, ''
+    except Exception as e:
+        return 0, str(e)
+
+def _rd_testa_token(token):
+    """Confere o token contra o RD ANTES de guardar. Devolve (ok, motivo).
+
+    Tenta o endpoint de verificacao; se ele nao existir, cai no /users, que e
+    o mesmo que a extensao usa. Assim a validacao nao depende de um unico
+    caminho da API. Guardar token errado so se descobriria na hora de aprovar
+    um pedido de verdade — tarde demais.
+    """
+    st = 0
+    for caminho in ('token/check', 'users'):
+        st, corpo = _rd_get(caminho, token)
+        if 200 <= st < 300:
+            return True, ''
+        if st in (401, 403):
+            return False, 'O RD recusou esse token (%s). Confira se copiou inteiro.' % st
+        if st == 0:
+            return False, 'Nao consegui falar com o RD: %s' % corpo[:120]
+    return False, 'O RD respondeu %s ao conferir o token.' % st
+
+def _rd_troca_responsavel(deal_id, user_id, token):
+    """Troca o responsavel da negociacao no RD, com o token de quem aprovou.
 
     O user_id e o do RD, do jeito que a extensao mandou — aqui nao ha de-para.
-    Nunca levanta erro: o que der errado vira texto, aparece na tela da lider
-    e fica gravado no pedido. Clicar e nao saber o que aconteceu e pior do que
-    o erro em si.
+    Como o token e pessoal, o RD registra a LIDER como autora da troca e
+    aplica as permissoes dela.
+
+    Nunca levanta erro: o que der errado vira texto, aparece na tela e fica
+    gravado no pedido. Clicar e nao saber o que aconteceu e pior que o erro.
     """
-    token = os.environ.get('RDCRM_TOKEN', '').strip()
-    if not token:
-        return False, 'RDCRM_TOKEN nao configurado no servidor.'
+    if not str(token or '').strip():
+        return False, 'Voce ainda nao cadastrou seu token do RD.'
     if not str(deal_id or '').strip():
         return False, 'Pedido sem o ID da negociacao.'
     if not str(user_id or '').strip():
         return False, 'Pedido sem o ID do usuario no RD.'
-    url = (RD_DEAL_URL + quote(str(deal_id).strip(), safe='')
-           + '?token=' + quote(token, safe=''))
+    url = (RD_API + 'deals/' + quote(str(deal_id).strip(), safe='')
+           + '?token=' + quote(str(token).strip(), safe=''))
     corpo = _json.dumps({'deal': {'user_id': str(user_id).strip()}}).encode('utf-8')
     req = urllib.request.Request(url, data=corpo, method='PUT',
                                  headers={'Content-Type': 'application/json'})
@@ -2017,9 +2051,47 @@ def _rd_troca_responsavel(deal_id, user_id):
             detalhe = e.read().decode('utf-8', 'replace')[:300]
         except Exception:
             detalhe = ''
+        if e.code in (401, 403):
+            return False, ('Seu token nao tem permissao para esta negociacao '
+                           '(%s). %s' % (e.code, detalhe)).strip()
         return False, ('RD respondeu %s. %s' % (e.code, detalhe)).strip()
     except Exception as e:
         return False, 'Nao consegui falar com o RD: %s' % e
+
+# ── Token pessoal de cada lider ──────────────────────────────────────────────
+# Cada uma cadastra o SEU token do RD. O valor nunca volta para a tela, nem
+# para a dona: a rota de leitura devolve so "configurado sim/nao" e as datas.
+@app.route('/api/meu_rd_token', methods=['GET'])
+@login_required
+def api_meu_rd_token():
+    dados = db.status_crm_token(session.get('user_id'))
+    dados['cifra_ligada'] = db.cifra_ligada()
+    return jsonify(dados)
+
+@app.route('/api/meu_rd_token', methods=['POST'])
+@limiter.limit("10 per minute")
+@login_required
+def api_salva_meu_rd_token():
+    if not db.cifra_ligada():
+        return _err('Falta a TOKEN_KEY no servidor. Sem ela eu nao guardo '
+                    'token — credencial em claro no banco, nao.', 503)
+    dados = request.get_json(silent=True) or {}
+    token = str(dados.get('token') or '').strip()
+    if len(token) < 10:
+        return _err('Cole o token inteiro.')
+    ok, motivo = _rd_testa_token(token)
+    if not ok:
+        return _err(motivo)
+    uid = session.get('user_id')
+    if not db.set_crm_token(uid, token):
+        return _err('Nao consegui guardar o token.', 500)
+    return jsonify(db.status_crm_token(uid))
+
+@app.route('/api/meu_rd_token', methods=['DELETE'])
+@login_required
+def api_apaga_meu_rd_token():
+    db.delete_crm_token(session.get('user_id'))
+    return jsonify({'ok': True})
 
 @app.route('/troca-crm')
 @login_required
@@ -2040,13 +2112,17 @@ def api_crm_trocas():
         desde = None
     if status not in ('pendente', 'feito', 'recusado', 'erro'):
         status = None
+    meu = db.status_crm_token(session.get('user_id'))
     return jsonify({
-        'rd_ligado': _rd_ligado(),
-        'unidades':  db.get_crm_unidades(),
-        'pendentes': db.count_crm_pendentes(),
-        'itens':     db.get_crm_trocas(status=status,
-                                       unidade=unidade or None,
-                                       desde=desde),
+        # "ligado" agora e por pessoa: quem tem token aprova de verdade.
+        'rd_ligado':    bool(meu.get('configurado')) and db.cifra_ligada(),
+        'cifra_ligada': db.cifra_ligada(),
+        'meu_token':    meu,
+        'unidades':     db.get_crm_unidades(),
+        'pendentes':    db.count_crm_pendentes(),
+        'itens':        db.get_crm_trocas(status=status,
+                                          unidade=unidade or None,
+                                          desde=desde),
     })
 
 @app.route('/api/crm_trocas/pendentes', methods=['GET'])
@@ -2063,15 +2139,18 @@ def api_crm_aprovar(tid):
         return _err('Pedido não encontrado.', 404)
     if t['status'] == 'feito':
         return jsonify(t)
-    quem = session.get('username') or ''
-    if not _rd_ligado():
-        # Sem integracao: o Connecting so registra. A troca e na mao.
+    quem  = session.get('username') or ''
+    uid   = session.get('user_id')
+    token = db.get_crm_token(uid) if uid else None
+    if not token:
+        # Sem token pessoal o Connecting nao fala com o RD: so registra que
+        # foi resolvido, e a troca continua sendo na mao.
         return jsonify(db.resolve_crm_troca(tid, 'feito', quem))
-    ok, motivo = _rd_troca_responsavel(t['deal_id'], t['resp_novo_id'])
+    ok, motivo = _rd_troca_responsavel(t['deal_id'], t['resp_novo_id'], token)
     if ok:
+        db.marca_uso_crm_token(uid)
         return jsonify(db.resolve_crm_troca(tid, 'feito', quem))
     return jsonify(db.resolve_crm_troca(tid, 'erro', quem, motivo))
-
 @app.route('/api/crm_trocas/<int:tid>/recusar', methods=['POST'])
 @login_required
 def api_crm_recusar(tid):
