@@ -1792,7 +1792,17 @@ def resolve_crm_troca(tid, status, quem, erro=''):
 import base64 as _b64
 import hashlib as _hash
 def _token_fernet():
-    frase = os.environ.get('TOKEN_KEY', '').strip()
+    """A chave da cifra.
+
+    Usa a TOKEN_KEY se existir; senao, a FLASK_SECRET, que ja esta no
+    ambiente em producao. Assim nao e preciso criar variavel nova so para a
+    tela do token funcionar.
+
+    Trocar a chave usada nao apaga nada, mas torna o que esta gravado
+    ilegivel: cada lider cadastra o token dela de novo.
+    """
+    frase = (os.environ.get('TOKEN_KEY', '').strip()
+             or os.environ.get('FLASK_SECRET', '').strip())
     if not frase:
         return None
     try:
