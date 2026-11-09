@@ -222,6 +222,12 @@ class CrmToken(Base):
     token_cif  = Column(Text, default='')
     criado_em  = Column(String(40), default=lambda: datetime.utcnow().isoformat())
     ultimo_uso = Column(String(40), default='')
+    # Quem e o dono do token no RD. Vem da propria conferencia do token e
+    # fica em claro de proposito: a tela precisa dizer DE QUEM e o token sem
+    # abrir o segredo a cada carregamento.
+    rd_nome    = Column(String(200), default='')
+    rd_email   = Column(String(200), default='')
+    rd_org     = Column(String(200), default='')
     __table_args__ = (
         Index('idx_crm_token_user', 'user_id'),
     )
@@ -317,6 +323,17 @@ def _run_migrations():
             conn.commit()
         except Exception:
             conn.rollback()
+        # Migração: nome, e-mail e empresa do dono do token do RD.
+        # A tabela crm_tokens ja existe em producao, e create_all nao
+        # acrescenta coluna em tabela existente.
+        for _col in ('rd_nome', 'rd_email', 'rd_org'):
+            try:
+                conn.execute(text(
+                    "ALTER TABLE crm_tokens ADD COLUMN %s VARCHAR(200) DEFAULT ''" % _col))
+                conn.commit()
+                print("[migration] Coluna '%s' adicionada à tabela crm_tokens." % _col)
+            except Exception:
+                conn.rollback()  # Coluna já existe, ignora
         # Migração 3: cria a tabela 'metas' se não existir (Base.metadata.create_all já cobre,
         # mas garantimos aqui para bancos que rodaram create_all antes deste modelo existir).
         # Nada a fazer além do create_all; deixado como marcador.
@@ -1814,8 +1831,11 @@ def _token_fernet():
     return Fernet(chave)
 def cifra_ligada():
     return _token_fernet() is not None
-def set_crm_token(user_id, token):
-    """Guarda (ou troca) o token da pessoa. Devolve True se gravou."""
+def set_crm_token(user_id, token, nome='', email='', org=''):
+    """Guarda (ou troca) o token da pessoa. Devolve True se gravou.
+
+    O nome, o e-mail e a empresa vem do proprio RD, da conferencia do token.
+    """
     f = _token_fernet()
     if not f:
         return False
@@ -1826,12 +1846,15 @@ def set_crm_token(user_id, token):
     agora = datetime.utcnow().isoformat()
     with SessionLocal() as s:
         t = s.scalar(select(CrmToken).where(CrmToken.user_id == user_id))
-        if t:
-            t.token_cif = cif
-            t.criado_em = agora
-            t.ultimo_uso = ''
-        else:
-            s.add(CrmToken(user_id=user_id, token_cif=cif, criado_em=agora))
+        if not t:
+            t = CrmToken(user_id=user_id)
+            s.add(t)
+        t.token_cif  = cif
+        t.criado_em  = agora
+        t.ultimo_uso = ''
+        t.rd_nome    = (nome  or '')[:200]
+        t.rd_email   = (email or '')[:200]
+        t.rd_org     = (org   or '')[:200]
         s.commit()
     return True
 def get_crm_token(user_id):
@@ -1858,15 +1881,20 @@ def marca_uso_crm_token(user_id):
                   .values(ultimo_uso=datetime.utcnow().isoformat()))
         s.commit()
 def status_crm_token(user_id):
-    """O que a tela pode saber: se existe, quando foi cadastrado, ultimo uso.
+    """O que a tela pode saber: se existe, de quem e, e as datas.
     Nunca o token."""
+    vazio = {'configurado': False, 'criado_em': '', 'ultimo_uso': '',
+             'rd_nome': '', 'rd_email': '', 'rd_org': ''}
     with SessionLocal() as s:
         t = s.scalar(select(CrmToken).where(CrmToken.user_id == user_id))
         if not t or not (t.token_cif or ''):
-            return {'configurado': False, 'criado_em': '', 'ultimo_uso': ''}
+            return vazio
         return {'configurado': True,
-                'criado_em': t.criado_em or '',
-                'ultimo_uso': t.ultimo_uso or ''}
+                'criado_em':  t.criado_em or '',
+                'ultimo_uso': t.ultimo_uso or '',
+                'rd_nome':    t.rd_nome or '',
+                'rd_email':   t.rd_email or '',
+                'rd_org':     t.rd_org or ''}
 def delete_crm_token(user_id):
     with SessionLocal() as s:
         s.execute(delete(CrmToken).where(CrmToken.user_id == user_id))
