@@ -2222,6 +2222,22 @@ def api_ext_troca_crm():
         # como aviso, nao como falha.
         return jsonify({'ok': True, 'id': novo['id'], 'duplicado': True}), 409
     return jsonify({'ok': True, 'id': novo['id']}), 201
+@app.route('/api/externo/minhas-trocas', methods=['GET'])
+@limiter.limit("60 per minute")
+def api_ext_minhas_trocas():
+    """A extensao pergunta o andamento dos pedidos DAQUELE operador.
+
+    A chave sozinha nao varre a fila: sem e-mail nao devolve nada, e com
+    e-mail devolve so os pedidos daquele e-mail. Quem decide continua sendo
+    a lider, na aba Troca CRM — isto aqui so conta o que ja foi decidido.
+    """
+    if not _extn_auth_ok():
+        return jsonify({'error': 'unauthorized'}), 401
+    email = (request.args.get('email') or '').strip().lower()
+    if not email:
+        return jsonify({'error': 'email obrigatorio'}), 400
+    return jsonify({'ok': True,
+                    'trocas': db.get_crm_trocas_do_solicitante(email, 30)})
 # ── Bootstrap ─────────────────────────────────────────────────────────────────
 # Inicializa o banco assim que o módulo é importado (necessário pro Gunicorn
 # em produção). Em dev, o `python app.py` também passa por aqui antes do run.
