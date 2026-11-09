@@ -2001,24 +2001,57 @@ def _rd_get(caminho, token):
     except Exception as e:
         return 0, str(e)
 
-def _rd_testa_token(token):
-    """Confere o token contra o RD ANTES de guardar. Devolve (ok, motivo).
+def _rd_dono_de(d):
+    """Acha nome/e-mail/empresa na resposta do RD, mesmo se vier aninhada.
 
-    Tenta o endpoint de verificacao; se ele nao existir, cai no /users, que e
-    o mesmo que a extensao usa. Assim a validacao nao depende de um unico
-    caminho da API. Guardar token errado so se descobriria na hora de aprovar
-    um pedido de verdade — tarde demais.
+    A doc diz que vem no primeiro nivel, mas conta diferente pode devolver
+    dentro de "user" ou "data". Procurar nos tres custa nada e evita dizer
+    "nao sei de quem e" quando o dado estava ali.
     """
-    st = 0
-    for caminho in ('token/check', 'users'):
-        st, corpo = _rd_get(caminho, token)
-        if 200 <= st < 300:
-            return True, ''
-        if st in (401, 403):
-            return False, 'O RD recusou esse token (%s). Confira se copiou inteiro.' % st
-        if st == 0:
-            return False, 'Nao consegui falar com o RD: %s' % corpo[:120]
-    return False, 'O RD respondeu %s ao conferir o token.' % st
+    if not isinstance(d, dict):
+        return {}
+    for n in (d, d.get('user'), d.get('data'), d.get('token')):
+        if isinstance(n, dict) and (n.get('name') or n.get('email')):
+            return {'nome':  str(n.get('name') or '').strip(),
+                    'email': str(n.get('email') or '').strip(),
+                    'org':   str(n.get('organization') or n.get('account') or '').strip()}
+    return {}
+
+def _rd_testa_token(token):
+    """Confere o token contra o RD ANTES de guardar.
+
+    Devolve (ok, motivo, dono). Em 'dono' vem quem e o dono do token no RD.
+    Quando o nome nao vem, 'dono' traz um '_diag' dizendo POR QUE nao veio —
+    sem isso a tela so sabe dizer "nao sei", e ninguem consegue consertar.
+    """
+    def _limpo(txt):
+        # o corpo da resposta nunca deve ecoar o token de volta para a tela
+        return str(txt or '').replace(token, '***')[:140]
+
+    st, corpo = _rd_get('token/check', token)
+    if 200 <= st < 300:
+        try:
+            d = _json.loads(corpo or '{}')
+        except Exception:
+            d = {}
+        dono = _rd_dono_de(d)
+        if dono.get('nome') or dono.get('email'):
+            return True, '', dono
+        return True, '', {'_diag': 'o RD respondeu 200 sem nome: ' + _limpo(corpo)}
+    if st in (401, 403):
+        return False, 'O RD recusou esse token (%s). Confira se copiou inteiro.' % st, {}
+    if st == 0:
+        return False, 'Nao consegui falar com o RD: %s' % _limpo(corpo), {}
+    # O endpoint de conferencia pode nao existir nessa conta: cai no /users,
+    # que e o mesmo que a extensao usa. Por esse caminho nao da para saber
+    # o nome do dono — a tela diz isso, e diz o motivo.
+    diag = 'o /token/check respondeu %s' % st
+    st2, corpo2 = _rd_get('users', token)
+    if 200 <= st2 < 300:
+        return True, '', {'_diag': diag}
+    if st2 in (401, 403):
+        return False, 'O RD recusou esse token (%s). Confira se copiou inteiro.' % st2, {}
+    return False, 'O RD respondeu %s ao conferir o token.' % st2, {}
 
 def _rd_troca_responsavel(deal_id, user_id, token):
     """Troca o responsavel da negociacao no RD, com o token de quem aprovou.
@@ -2072,18 +2105,29 @@ def api_meu_rd_token():
 @limiter.limit("10 per minute")
 @login_required
 def api_salva_meu_rd_token():
+    """Duas fases.
+
+    Sem "confirmar", so pergunta ao RD de quem e o token e devolve o nome —
+    nada e gravado. Com "confirmar", grava.
+
+    E a lider quem diz "esse nome sou eu": o sistema nao tem como saber
+    sozinho se o token que ela colou e o dela ou o de outra pessoa.
+    """
     if not db.cifra_ligada():
-        return _err('Falta a TOKEN_KEY no servidor. Sem ela eu nao guardo '
-                    'token — credencial em claro no banco, nao.', 503)
+        return _err('Servidor sem chave de cifra: defina FLASK_SECRET ou '
+                    'TOKEN_KEY. Credencial em claro no banco, nao.', 503)
     dados = request.get_json(silent=True) or {}
     token = str(dados.get('token') or '').strip()
     if len(token) < 10:
         return _err('Cole o token inteiro.')
-    ok, motivo = _rd_testa_token(token)
+    ok, motivo, dono = _rd_testa_token(token)
     if not ok:
         return _err(motivo)
+    if not dados.get('confirmar'):
+        return jsonify({'confirmar': True, 'dono': dono})
     uid = session.get('user_id')
-    if not db.set_crm_token(uid, token):
+    if not db.set_crm_token(uid, token, dono.get('nome', ''),
+                            dono.get('email', ''), dono.get('org', '')):
         return _err('Nao consegui guardar o token.', 500)
     return jsonify(db.status_crm_token(uid))
 
