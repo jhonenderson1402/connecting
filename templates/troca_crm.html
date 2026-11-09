@@ -418,7 +418,8 @@ function pedeConfirmacao(dono){
       (dono.email ? ' · ' + esc(dono.email) : '') +
       (dono.org   ? ' · ' + esc(dono.org)   : '') + ' — <i>é você?</i>'
     : '<b>O token funciona</b>, mas o RD não disse de quem é. ' +
-      '<i>Confirme só se tiver certeza de que é o seu.</i>';
+      '<i>Confirme só se tiver certeza de que é o seu' +
+      (dono._diag ? ' — ' + esc(dono._diag) : '') + '.</i>';
   cx.innerHTML = '<span class="ic">👤</span><span class="tx">' + quem + '</span>' +
     '<button class="btn btn-primary" onclick="confirmaToken(this)">Sim, sou eu</button>' +
     '<button class="btn btn-outline" onclick="cancelaToken()">Não, cancelar</button>';
