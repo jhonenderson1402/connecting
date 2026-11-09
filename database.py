@@ -1780,6 +1780,33 @@ def get_crm_unidades():
     with SessionLocal() as s:
         linhas = s.scalars(select(CrmTroca.unidade).distinct()).all()
         return sorted({(u or '').strip() for u in linhas if (u or '').strip()})
+def get_crm_trocas_do_solicitante(email, limite=30):
+    """Os pedidos daquele operador, para a extensao mostrar o andamento.
+
+    So o essencial. A extensao vive no navegador de quem atende, entao quanto
+    menos dado passar por la, melhor: nada de telefone, unidade, link, nem o
+    texto do erro, que pode trazer resposta crua do RD.
+    """
+    email = (email or '').strip().lower()
+    if not email:
+        return []
+    try:
+        limite = max(1, min(int(limite or 30), 100))
+    except (TypeError, ValueError):
+        limite = 30
+    with SessionLocal() as s:
+        q = (select(CrmTroca)
+             .where(CrmTroca.solicitante_email == email)
+             .order_by(CrmTroca.criado_em.desc())
+             .limit(limite))
+        return [{'id':           t.id,
+                 'criado_em':    t.criado_em or '',
+                 'deal_id':      t.deal_id or '',
+                 'lead_nome':    t.lead_nome or '',
+                 'resp_atual':   t.resp_atual or '',
+                 'status':       t.status or 'pendente',
+                 'resolvido_em': t.resolvido_em or ''}
+                for t in s.scalars(q).all()]
 def resolve_crm_troca(tid, status, quem, erro=''):
     """Marca o pedido como feito / recusado / erro.
 
