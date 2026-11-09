@@ -82,20 +82,29 @@
   .tc-vazio{ text-align:center; padding:38px; color:var(--muted-fg); font-style:italic;
              font-size:11.5px; }
 
-  .tc-token{ display:none; align-items:center; gap:10px; flex-wrap:wrap;
-             margin-bottom:12px; padding:11px 13px; border-radius:var(--radius);
-             font-size:11.5px; line-height:1.5; color:var(--fg); }
+  .tc-token{ display:none; align-items:center; gap:9px; margin-bottom:12px;
+             padding:8px 11px; border-radius:var(--radius); font-size:11px;
+             background:var(--card); border:1px solid var(--border);
+             border-left:2px solid var(--muted-fg); color:var(--fg); }
   .tc-token.on{ display:flex; }
-  .tc-token.falta{ background:rgba(255,187,0,.07); border:1px solid rgba(255,187,0,.28); }
-  .tc-token.ok{    background:rgba(34,197,94,.06); border:1px solid rgba(34,197,94,.22); }
-  .tc-token.erro{  background:rgba(239,68,68,.07); border:1px solid rgba(239,68,68,.28); }
-  .tc-token .tx{ flex:1; min-width:240px; color:var(--muted-fg); }
+  .tc-token .ic{ width:22px; height:22px; flex:0 0 auto; border-radius:6px;
+                 display:grid; place-items:center; font-size:11px;
+                 background:rgba(255,255,255,.05); }
+  .tc-token .tx{ flex:1; min-width:200px; color:var(--muted-fg); line-height:1.45; }
   .tc-token .tx b{ color:var(--fg); font-weight:600; }
+  .tc-token .tx i{ font-style:normal; color:hsl(220,10%,42%); }
+  .tc-token.falta{ border-left-color:var(--primary); }
+  .tc-token.falta .ic{ background:rgba(255,187,0,.12); color:var(--primary); }
+  .tc-token.ok{ border-left-color:var(--green); }
+  .tc-token.ok .ic{ background:rgba(34,197,94,.12); color:var(--green); }
+  .tc-token.erro{ border-left-color:var(--destructive); }
+  .tc-token.erro .ic{ background:rgba(239,68,68,.12); color:var(--destructive); }
   .tc-token input{ background:var(--secondary); border:1px solid var(--border);
-                   color:var(--fg); border-radius:7px; height:30px; width:230px;
-                   padding:0 9px; font-size:11.5px; font-family:inherit; outline:none; }
+                   color:var(--fg); border-radius:6px; height:28px; width:210px;
+                   padding:0 9px; font-size:11px; font-family:inherit; outline:none; }
   .tc-token input:focus{ border-color:var(--primary); }
-  .tc-token .btn{ height:30px; }
+  .tc-token .btn{ height:28px; padding:0 11px; font-size:10.5px; }
+
   .tc-kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
   @media(max-width:768px){ .tc-kpis{ grid-template-columns:repeat(2,1fr); } }
 </style>
@@ -314,62 +323,76 @@ function enchUnidades(lista){
 
 /* ── Token pessoal do RD ──────────────────────────────────────────────────
    Cada lider cadastra o dela. O valor nunca volta do servidor: a tela so
-   sabe se existe e desde quando. */
+   sabe de quem e o token e desde quando.
+   O cadastro tem duas fases de proposito — primeiro o RD diz de quem e o
+   token, e so depois de a lider confirmar o nome e que ele e guardado. */
+var TOKEN_OCUPADO = false;   // trava o refresh de 15s durante o cadastro
+
 function renderToken(d){
   var cx = document.getElementById('tc-token');
-  if(!cx) return;
-  // Enquanto ela digita, nao redesenha: o campo seria apagado no meio.
-  var campo = document.getElementById('tc-token-in');
-  if(campo && (document.activeElement === campo || String(campo.value||'').trim())) return;
+  if(!cx || TOKEN_OCUPADO) return;
 
   var meu = d.meu_token || {};
   if(!d.cifra_ligada){
     cx.className = 'tc-token on erro';
-    cx.innerHTML = '<span>⚠</span><span class="tx">' +
-      '<b>Falta a TOKEN_KEY no servidor.</b> Sem ela o Connecting não guarda ' +
-      'token nenhum — credencial em claro no banco, não. Quem tem acesso ao ' +
-      'Easypanel precisa criar essa variável.</span>';
+    cx.innerHTML = '<span class="ic">⚠</span><span class="tx">' +
+      '<b>TOKEN_KEY ausente no servidor.</b> Nenhum token é guardado até ela ' +
+      'existir — credencial em claro no banco, não. ' +
+      '<i>Quem tem o Easypanel cria essa variável.</i></span>';
     return;
   }
   if(meu.configurado){
     var c = paraData(meu.criado_em), u = paraData(meu.ultimo_uso);
+    var quem = meu.rd_nome
+      ? '<b>' + esc(meu.rd_nome) + '</b>' +
+        (meu.rd_email ? ' · ' + esc(meu.rd_email) : '') +
+        (meu.rd_org   ? ' · ' + esc(meu.rd_org)   : '')
+      : '<b>Token cadastrado</b>';
     cx.className = 'tc-token on ok';
-    cx.innerHTML = '<span>✓</span><span class="tx">' +
-      '<b>Seu token do RD está cadastrado</b>' + (c ? ' desde ' + dm(c) : '') +
-      (u ? ' · último uso ' + dm(u) + ' às ' + hm(u) : ' · ainda não foi usado') +
-      '. Ao aprovar, o RD registra você como autora da troca.</span>' +
+    cx.innerHTML = '<span class="ic">✓</span><span class="tx">' + quem +
+      '<i>' + (c ? ' · desde ' + dm(c) : '') +
+      (u ? ' · uso ' + dm(u) + ' ' + hm(u) : ' · sem uso ainda') + '</i></span>' +
       '<button class="btn btn-outline" onclick="trocaToken()">Trocar</button>' +
       '<button class="btn btn-outline" onclick="removeToken()">Remover</button>';
     return;
   }
   cx.className = 'tc-token on falta';
-  cx.innerHTML = '<span>⚠</span><span class="tx">' +
-    '<b>Você ainda não cadastrou seu token do RD.</b> Até cadastrar, o botão só ' +
-    'marca o pedido como resolvido aqui; a troca no RD continua na mão.</span>' +
+  cx.innerHTML = '<span class="ic">🔑</span><span class="tx">' +
+    '<b>Cadastre seu token do RD</b> para aprovar direto no CRM. ' +
+    '<i>Sem ele, o botão só marca o pedido como resolvido aqui.</i></span>' +
     campoToken();
 }
 function campoToken(){
   return '<input id="tc-token-in" type="password" autocomplete="off" ' +
-         'placeholder="cole seu token do RD"/>' +
-         '<button class="btn btn-primary" onclick="salvaToken(this)">Salvar e testar</button>';
+         'placeholder="cole seu token do RD" oninput="TOKEN_OCUPADO=true"/>' +
+         '<button class="btn btn-primary" onclick="confereToken(this)">Conferir</button>';
 }
 function trocaToken(){
+  TOKEN_OCUPADO = true;
   var cx = document.getElementById('tc-token');
   cx.className = 'tc-token on falta';
-  cx.innerHTML = '<span>↻</span><span class="tx">Cole o token novo — o antigo é ' +
-    'substituído.</span>' + campoToken() +
-    '<button class="btn btn-outline" onclick="carregar()">Cancelar</button>';
+  cx.innerHTML = '<span class="ic">↻</span><span class="tx">Cole o token novo — ' +
+    '<i>o antigo é substituído.</i></span>' + campoToken() +
+    '<button class="btn btn-outline" onclick="cancelaToken()">Cancelar</button>';
   var campo = document.getElementById('tc-token-in');
   if(campo) campo.focus();
 }
-async function salvaToken(bt){
+function cancelaToken(){
+  TOKEN_PENDENTE = '';
+  TOKEN_OCUPADO = false;
+  carregar();
+}
+
+/* Fase 1: pergunta ao RD de quem e o token. Nada e gravado ainda. */
+var TOKEN_PENDENTE = '';
+async function confereToken(bt){
   var campo = document.getElementById('tc-token-in');
   if(!campo || !bt) return;
   var v = String(campo.value || '').trim();
   if(v.length < 10){ showToast('Cole o token inteiro.', 'error'); return; }
   bt.disabled = true;
   var antes = bt.textContent;
-  bt.textContent = 'testando...';
+  bt.textContent = 'conferindo...';
   try{
     var r = await fetch('/api/meu_rd_token', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -377,19 +400,58 @@ async function salvaToken(bt){
     });
     var d = await r.json().catch(function(){ return {}; });
     if(!r.ok) throw new Error(d.error || ('http ' + r.status));
-    campo.value = '';
-    showToast('Token conferido com o RD e guardado.', 'success');
+    TOKEN_PENDENTE = v;
+    pedeConfirmacao(d.dono || {});
+  }catch(e){
+    showToast(e.message || 'Não consegui conferir o token.', 'error');
+    bt.disabled = false;
+    bt.textContent = antes;
+  }
+}
+/* Mostra o nome que veio do RD e espera o "sou eu". */
+function pedeConfirmacao(dono){
+  TOKEN_OCUPADO = true;
+  var cx = document.getElementById('tc-token');
+  cx.className = 'tc-token on falta';
+  var quem = dono.nome
+    ? 'Token de <b>' + esc(dono.nome) + '</b>' +
+      (dono.email ? ' · ' + esc(dono.email) : '') +
+      (dono.org   ? ' · ' + esc(dono.org)   : '') + ' — <i>é você?</i>'
+    : '<b>O token funciona</b>, mas o RD não disse de quem é. ' +
+      '<i>Confirme só se tiver certeza de que é o seu.</i>';
+  cx.innerHTML = '<span class="ic">👤</span><span class="tx">' + quem + '</span>' +
+    '<button class="btn btn-primary" onclick="confirmaToken(this)">Sim, sou eu</button>' +
+    '<button class="btn btn-outline" onclick="cancelaToken()">Não, cancelar</button>';
+}
+/* Fase 2: agora sim grava. */
+async function confirmaToken(bt){
+  if(!TOKEN_PENDENTE || !bt) return;
+  bt.disabled = true;
+  bt.textContent = 'guardando...';
+  try{
+    var r = await fetch('/api/meu_rd_token', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({token: TOKEN_PENDENTE, confirmar: true})
+    });
+    var d = await r.json().catch(function(){ return {}; });
+    if(!r.ok) throw new Error(d.error || ('http ' + r.status));
+    TOKEN_PENDENTE = '';
+    TOKEN_OCUPADO = false;
+    showToast(d.rd_nome ? ('Token de ' + d.rd_nome + ' guardado.')
+                        : 'Token guardado.', 'success');
     carregar();
   }catch(e){
     showToast(e.message || 'Não consegui guardar o token.', 'error');
     bt.disabled = false;
-    bt.textContent = antes;
+    bt.textContent = 'Sim, sou eu';
   }
 }
 async function removeToken(){
   if(!confirm('Remover seu token do RD?\n\nVocê continua aprovando pedidos, ' +
               'mas a troca no RD volta a ser na mão.')) return;
   try{ await fetch('/api/meu_rd_token', {method: 'DELETE'}); }catch(e){}
+  TOKEN_PENDENTE = '';
+  TOKEN_OCUPADO = false;
   showToast('Token removido.', 'success');
   carregar();
 }
