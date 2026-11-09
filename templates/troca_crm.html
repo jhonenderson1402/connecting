@@ -336,9 +336,9 @@ function renderToken(d){
   if(!d.cifra_ligada){
     cx.className = 'tc-token on erro';
     cx.innerHTML = '<span class="ic">⚠</span><span class="tx">' +
-      '<b>TOKEN_KEY ausente no servidor.</b> Nenhum token é guardado até ela ' +
-      'existir — credencial em claro no banco, não. ' +
-      '<i>Quem tem o Easypanel cria essa variável.</i></span>';
+      '<b>Servidor sem chave de cifra.</b> Defina <b>FLASK_SECRET</b> ou ' +
+      '<b>TOKEN_KEY</b> no Easypanel — sem uma delas nenhum token é guardado. ' +
+      '<i>Credencial em claro no banco, não.</i></span>';
     return;
   }
   if(meu.configurado){
