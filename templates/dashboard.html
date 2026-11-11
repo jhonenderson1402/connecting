@@ -8,22 +8,23 @@
     {key:"comp",  label:"COMP",   cls:"rank-comp",   hidx:3},
     {key:"vendas",label:"VENDAS", cls:"rank-vendas", hidx:4},
     {key:"conv",  label:"CONV%",  cls:"rank-conv",   hidx:5},
-    {key:"pun",   label:"PUN",    cls:"rank-pun",    hidx:6}
+    {key:"pun",   label:"PUN",    cls:"rank-pun",    hidx:6},
+    {key:"creal", label:"COMP REAL", cls:"rank-creal", hidx:7, w:46}
   ];
   var active={};
   try{ var s=localStorage.getItem("rankCols"); if(s) active=JSON.parse(s); }catch(e){}
   COLS.forEach(function(c){ if(!(c.key in active)) active[c.key]=true; });
 
   function save(){ try{ localStorage.setItem("rankCols",JSON.stringify(active)); }catch(e){} }
-  function rep(n){ var s=""; for(var i=0;i<n;i++) s+=" 33px"; return s; }
+  function rep(){ var s=""; COLS.forEach(function(c){ if(active[c.key]) s+=" "+(c.w||33)+"px"; }); return s; }
   function nAtivas(){ var n=0; COLS.forEach(function(c){ if(active[c.key]) n++; }); return n; }
 
   function applyFilter(){
     var grid=document.getElementById("ranking-grid");
     if(!grid) return;
     var n=nAtivas();
-    var rowGTC="15px 1fr"+rep(n);
-    var headGTC="1fr"+rep(n);
+    var rowGTC="15px 1fr"+rep();
+    var headGTC="1fr"+rep();
     grid.querySelectorAll(".rank-row").forEach(function(row){
       COLS.forEach(function(c){
         var sp=row.querySelector("."+c.cls);
@@ -146,8 +147,8 @@
 }
 #rank-geral-box .rank-unit-title{ color:var(--primary) !important; }
 
-#ranking-grid .rank-header-row{ grid-template-columns:1fr 33px 33px 33px 33px 33px 33px !important; }
-#ranking-grid .rank-row{ grid-template-columns:15px 1fr 33px 33px 33px 33px 33px 33px !important; }
+#ranking-grid .rank-header-row{ grid-template-columns:1fr 33px 33px 33px 33px 33px 33px 46px !important; }
+#ranking-grid .rank-row{ grid-template-columns:15px 1fr 33px 33px 33px 33px 33px 33px 46px !important; }
 #leader-ranking .rank-header-row{ grid-template-columns:1fr 33px 33px 33px 33px 33px !important; }
 #leader-ranking .rank-row{ grid-template-columns:15px 1fr 33px 33px 33px 33px 33px !important; }
 
@@ -180,13 +181,14 @@ body.tema-claro .rank-row:hover{ background:rgba(0,0,0,.04); }
 body.tema-claro .rank-name{ color:#52525b !important; }
 .rank-row.pod .rank-name{ color:var(--fg) !important; font-weight:500 !important; }
 
-.rank-leads,.rank-ag,.rank-comp,.rank-vendas,.rank-conv,.rank-pun{
+.rank-leads,.rank-ag,.rank-comp,.rank-vendas,.rank-conv,.rank-pun,.rank-creal{
   font-size:10px !important; font-weight:500 !important; text-align:right !important;
   font-variant-numeric:tabular-nums;
 }
 .rank-leads,.rank-comp,.rank-vendas,.rank-pun{ color:#8f8f99 !important; }
 .rank-ag{ color:var(--fg) !important; font-weight:600 !important; }
 .rank-conv{ font-weight:600 !important; }
+.rank-creal{ color:var(--fg) !important; font-weight:600 !important; }
 .rank-zero{ color:#52525b !important; }
 body.tema-claro .rank-zero{ color:#d4d4cd !important; }
 .no-data{ font-size:10.5px !important; padding:10px 9px !important; color:#52525b !important; }
@@ -200,8 +202,8 @@ body.tema-claro .rank-zero{ color:#d4d4cd !important; }
     var pm={};
     apps.forEach(function(a){ (a.rows||[]).forEach(function(r){ var nm=(r.name||"").trim().toUpperCase(); if(!nm) return; if(!pm[nm])pm[nm]={ag:0,comp:0,pun:0,vendas:0}; pm[nm].ag+=Object.values(r.slots||{}).reduce(function(s,v){return s+(Number(v)||0);},0)+(Number(r.inclusao)||0); });; var cd=a.comparecimento_data||{}; var cpun=cd.__punicoes__||{}; Object.keys(cd).forEach(function(nm){ if(nm==="__vendas__"){ Object.keys(cd[nm]).forEach(function(e){ if(!pm[e])pm[e]={ag:0,comp:0,pun:0,vendas:0}; pm[e].vendas=(pm[e].vendas||0)+(Number(cd[nm][e])||0); }); return; } if(/^__.*__$/.test(nm)) return; nm=nm.trim().toUpperCase(); if(!pm[nm])pm[nm]={ag:0,comp:0,pun:0,vendas:0}; pm[nm].comp+=Number(cd[nm])||0; });; Object.keys(cpun).forEach(function(nm){ if(!pm[nm])pm[nm]={ag:0,comp:0,pun:0,vendas:0}; pm[nm].pun=(pm[nm].pun||0)+(Number(cpun[nm])||0); }); });
     var ranked=Object.keys(pm).map(function(nm){ return {name:nm, leads:Number(lm[nm])||0, ag:pm[nm].ag, comp:pm[nm].comp, pun:pm[nm].pun||0,vendas:pm[nm].vendas||0}; }).sort(function(a,b){ return (b.comp - a.comp) || (b.ag - a.ag); });
-    var rows=ranked.map(function(p,i){ var conv=p.ag>0?Math.round((p.comp/p.ag)*100):0; var cc=conv>=50?"#22c55e":conv>=40?"#fbbf24":conv>0?"#ef4444":"#3f3f46"; var z=function(v){ return (Number(v)||0)===0?" rank-zero":""; }; return "<div class=\"rank-row"+(i<3?" pod":"")+"\"><span class=\"rank-pos\">"+(i+1)+"</span><span class=\"rank-name\" title=\""+p.name+"\">"+p.name+"</span><span class=\"rank-leads"+z(p.leads)+"\">"+p.leads+"</span><span class=\"rank-ag"+z(p.ag)+"\">"+p.ag+"</span><span class=\"rank-comp"+z(p.comp)+"\">"+p.comp+"</span><span class=\"rank-vendas"+z(p.vendas)+"\">"+(p.vendas||0)+"</span><span class=\"rank-conv\" style=\"color:"+cc+"\">"+conv+"%</span><span class=\"rank-pun"+(p.pun>0?"":" rank-zero")+"\" style=\""+(p.pun>0?"color:#f87171":"")+"\">"+(p.pun>0?"-"+p.pun:0)+"</span></div>"; }).join("");
-    var inner=ranked.length===0?"<p class=\"no-data\">Sem dados</p>":"<div class=\"rank-header-row\"><span>NOME</span><span>LDS</span><span>AGD</span><span>CMP</span><span>VND</span><span>CNV</span><span>PUN</span></div>"+rows;
+    var rows=ranked.map(function(p,i){ var conv=p.ag>0?Math.round((p.comp/p.ag)*100):0; var cc=conv>=50?"#22c55e":conv>=40?"#fbbf24":conv>0?"#ef4444":"#3f3f46"; var z=function(v){ return (Number(v)||0)===0?" rank-zero":""; }; return "<div class=\"rank-row"+(i<3?" pod":"")+"\"><span class=\"rank-pos\">"+(i+1)+"</span><span class=\"rank-name\" title=\""+p.name+"\">"+p.name+"</span><span class=\"rank-leads"+z(p.leads)+"\">"+p.leads+"</span><span class=\"rank-ag"+z(p.ag)+"\">"+p.ag+"</span><span class=\"rank-comp"+z(p.comp)+"\">"+p.comp+"</span><span class=\"rank-vendas"+z(p.vendas)+"\">"+(p.vendas||0)+"</span><span class=\"rank-conv\" style=\"color:"+cc+"\">"+conv+"%</span><span class=\"rank-pun"+(p.pun>0?"":" rank-zero")+"\" style=\""+(p.pun>0?"color:#f87171":"")+"\">"+(p.pun>0?"-"+p.pun:0)+"</span><span class=\"rank-creal\">"+(p.comp-(p.pun||0))+"</span></div>"; }).join("");
+    var inner=ranked.length===0?"<p class=\"no-data\">Sem dados</p>":"<div class=\"rank-header-row\"><span>NOME</span><span>LDS</span><span>AGD</span><span>CMP</span><span>VND</span><span>CNV</span><span>PUN</span><span>COMP REAL</span></div>"+rows;
     return "<div class=\"rank-unit-box\" id=\"rank-geral-box\" style=\"border:1px solid rgba(251,191,36,.4)\"><div class=\"rank-unit-title\" style=\"color:#fbbf24\">🏆 RANK GERAL — TODAS AS UNIDADES</div>"+inner+"</div>";
   }
   function ensure(){ var g=document.getElementById("ranking-grid"); if(!g) return; if(g.querySelector("#rank-geral-box")) return; if(!g.children.length) return; g.insertAdjacentHTML("afterbegin", buildGeral()); }
@@ -1778,12 +1780,14 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
   #rank-card:fullscreen .rank-vendas,
   #rank-card:fullscreen .rank-conv,
   #rank-card:fullscreen .rank-pun,
+  #rank-card:fullscreen .rank-creal,
   #rank-card:-webkit-full-screen .rank-leads,
   #rank-card:-webkit-full-screen .rank-ag,
   #rank-card:-webkit-full-screen .rank-comp,
   #rank-card:-webkit-full-screen .rank-vendas,
   #rank-card:-webkit-full-screen .rank-conv,
-  #rank-card:-webkit-full-screen .rank-pun{ font-size:calc(14px * var(--f)) !important; }
+  #rank-card:-webkit-full-screen .rank-pun,
+  #rank-card:-webkit-full-screen .rank-creal{ font-size:calc(14px * var(--f)) !important; }
   #rank-card:fullscreen .rank-tv-f,
   #rank-card:-webkit-full-screen .rank-tv-f{
     display:block; flex:0 0 auto; margin-top:auto;
@@ -2395,6 +2399,7 @@ function renderRankingGrid(unitsData, leadsTmk) {
         <span class="rank-vendas${z(p.vendas)}">${p.vendas||0}</span>
         <span class="rank-conv" style="color:${cc}">${conv}%</span>
         <span class="rank-pun${p.pun>0?'':' rank-zero'}" style="${p.pun>0?'color:#f87171':''}">${p.pun>0?`-${p.pun}`:0}</span>
+        <span class="rank-creal">${p.comp-(p.pun||0)}</span>
       </div>`;
     }).join('');
     const box = document.createElement('div');
@@ -2402,7 +2407,7 @@ function renderRankingGrid(unitsData, leadsTmk) {
     box.innerHTML = `<div class="rank-unit-title">${unit}</div>
       ${ranked.length===0?'<p class="no-data">Sem dados</p>':`
       <div class="rank-header-row">
-      <span>NOME</span><span>LDS</span><span>AGD</span><span>CMP</span><span>VND</span><span>CNV</span><span>PUN</span>
+      <span>NOME</span><span>LDS</span><span>AGD</span><span>CMP</span><span>VND</span><span>CNV</span><span>PUN</span><span>COMP REAL</span>
       </div>${rows}`}`;
     grid.appendChild(box);
   });
