@@ -800,7 +800,14 @@ var C = {
   fio:'#eae8e2'
 };
 
-function fnt(peso, tam){ return peso + ' ' + tam + 'px Lato, Inter, sans-serif'; }
+/* Todo texto da imagem passa por aqui. Para aumentar ou diminuir a letra da
+   folha inteira, mexa so neste numero — 1 e o tamanho original.
+   Acima de 1.15 o numero grande do cartao de unidade encosta na borda de
+   baixo, porque a altura do cartao e fixa em 74px. */
+var ESCALA_TXT = 1.12;
+function fnt(peso, tam){
+  return peso + ' ' + Math.round(tam * ESCALA_TXT) + 'px Lato, Inter, sans-serif';
+}
 
 var _logo = null, _corte = null;
 function carregaLogo(cb){
