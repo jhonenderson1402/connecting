@@ -2001,6 +2001,115 @@ def _rd_get(caminho, token):
     except Exception as e:
         return 0, str(e)
 
+# ── Dados ao vivo da negociacao no RD ────────────────────────────────────────
+# A extensao parou de mandar o que lia da tela do RD: unidade, etapa e
+# responsavel atual chegam vazios. Em vez de consertar a leitura da pagina,
+# perguntamos ao proprio RD pelo deal_id que ja esta guardado. Assim nao
+# quebra de novo quando o RD mudar o layout.
+from concurrent.futures import ThreadPoolExecutor
+_RD_CACHE = {}          # deal_id -> (quando, dados)
+_RD_CACHE_SEG = 300     # a fila recarrega a cada 15s; nao da para perguntar sempre
+_RD_MAX = 30            # teto de negociacoes consultadas por carregamento
+def _rd_deal(deal_id, token):
+    """A negociacao inteira, como o RD devolve. {} quando nao der."""
+    url = (RD_API + 'deals/' + quote(str(deal_id).strip(), safe='')
+           + '?token=' + quote(str(token).strip(), safe=''))
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url), timeout=8) as r:
+            return _json.loads(r.read(200000).decode('utf-8', 'replace')) or {}
+    except Exception:
+        return {}
+def _rd_txt(v):
+    return str(v or '').strip()
+def _rd_data_br(v):
+    """Vira DD/MM/AAAA. Devolve '' se o valor nao for uma data."""
+    import re as _re
+    s = _rd_txt(v)[:10]
+    m = _re.match(r'^(\d{4})-(\d{2})-(\d{2})$', s)
+    if m:
+        return '%s/%s/%s' % (m.group(3), m.group(2), m.group(1))
+    return s if _re.match(r'^\d{2}/\d{2}/\d{4}$', s) else ''
+def _rd_resumo(d):
+    """Do que o RD devolve, so o que a fila precisa mostrar.
+
+    O nome do campo da data nao e fixo entre contas, entao procuramos pelo
+    ROTULO: o primeiro campo personalizado que fale de agendamento e tenha
+    cara de data. Nao achando, a coluna fica vazia — nunca inventa.
+    """
+    vazio = {'resp_atual': '', 'unidade': '', 'etapa': '', 'funil': '', 'agendado': ''}
+    if not isinstance(d, dict):
+        return vazio
+    out = dict(vazio)
+    dono = d.get('user') or d.get('owner') or {}
+    if isinstance(dono, dict):
+        out['resp_atual'] = _rd_txt(dono.get('name'))[:200]
+    etapa = d.get('deal_stage') or {}
+    if isinstance(etapa, dict):
+        out['etapa'] = _rd_txt(etapa.get('name'))[:120]
+        funil = etapa.get('deal_pipeline') or {}
+        if isinstance(funil, dict):
+            out['funil'] = _rd_txt(funil.get('name'))[:120]
+    if not out['funil']:
+        funil = d.get('deal_pipeline') or {}
+        if isinstance(funil, dict):
+            out['funil'] = _rd_txt(funil.get('name'))[:120]
+    for c in (d.get('deal_custom_fields') or []):
+        if not isinstance(c, dict):
+            continue
+        meta = c.get('custom_field') if isinstance(c.get('custom_field'), dict) else {}
+        rotulo = _rd_txt(meta.get('label') or c.get('label')).lower()
+        valor = c.get('value')
+        if isinstance(valor, list):
+            valor = ', '.join(_rd_txt(x) for x in valor if _rd_txt(x))
+        valor = _rd_txt(valor)
+        if not rotulo or not valor:
+            continue
+        if not out['agendado'] and 'agenda' in rotulo:
+            out['agendado'] = _rd_data_br(valor)
+        if not out['unidade'] and 'unidade' in rotulo:
+            out['unidade'] = valor[:100]
+    return out
+def _enriquece_do_rd(itens, token):
+    """Completa com o RD o que a extensao deixou em branco.
+
+    So os PENDENTES. Nos ja resolvidos o RD responderia o dono novo, e a
+    coluna "de" passaria a mentir sobre o que aconteceu naquele dia.
+    """
+    if not token or not itens:
+        return
+    agora = time.time()
+    if len(_RD_CACHE) > 2000:
+        _RD_CACHE.clear()
+    faltam, vistos = [], set()
+    for i in itens:
+        if i.get('status') != 'pendente':
+            continue
+        did = _rd_txt(i.get('deal_id'))
+        if not did or did in vistos:
+            continue
+        vistos.add(did)
+        guardado = _RD_CACHE.get(did)
+        if not guardado or (agora - guardado[0]) >= _RD_CACHE_SEG:
+            faltam.append(did)
+    lote = faltam[:_RD_MAX]
+    if lote:
+        def _busca(x):
+            return _rd_resumo(_rd_deal(x, token))
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            for did, dados in zip(lote, pool.map(_busca, lote)):
+                _RD_CACHE[did] = (agora, dados)
+    for i in itens:
+        if i.get('status') != 'pendente':
+            continue
+        guardado = _RD_CACHE.get(_rd_txt(i.get('deal_id')))
+        if not guardado:
+            continue
+        rd = guardado[1] or {}
+        i['agendado'] = rd.get('agendado') or ''
+        # o que a extensao mandou tem preferencia; o RD so preenche o vazio
+        for campo in ('resp_atual', 'unidade', 'etapa', 'funil'):
+            if not _rd_txt(i.get(campo)) and rd.get(campo):
+                i[campo] = rd[campo]
 def _rd_dono_de(d):
     """Acha nome/e-mail/empresa na resposta do RD, mesmo se vier aninhada.
 
@@ -2157,6 +2266,8 @@ def api_crm_trocas():
     if status not in ('pendente', 'feito', 'recusado', 'erro'):
         status = None
     meu = db.status_crm_token(session.get('user_id'))
+    itens = db.get_crm_trocas(status=status, unidade=unidade or None, desde=desde)
+    _enriquece_do_rd(itens, db.get_crm_token(session.get('user_id')))
     return jsonify({
         # "ligado" agora e por pessoa: quem tem token aprova de verdade.
         'rd_ligado':    bool(meu.get('configurado')) and db.cifra_ligada(),
@@ -2164,11 +2275,8 @@ def api_crm_trocas():
         'meu_token':    meu,
         'unidades':     db.get_crm_unidades(),
         'pendentes':    db.count_crm_pendentes(),
-        'itens':        db.get_crm_trocas(status=status,
-                                          unidade=unidade or None,
-                                          desde=desde),
+        'itens':        itens,
     })
-
 @app.route('/api/crm_trocas/pendentes', methods=['GET'])
 @login_required
 def api_crm_pendentes():
