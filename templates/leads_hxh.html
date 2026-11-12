@@ -804,7 +804,7 @@ function exportCsv(){
     var ano     = document.getElementById('sel-year').value;
     var mes     = isNaN(mi) ? '—' : MONTHS[mi];
     var carimbo = todo ? (mes + '/' + ano) : dateBr();
-    var periodo = (todo ? 'Leads recebidos no mês' : 'Leads recebidos no dia')
+    var periodo = (todo ? 'Leads recebidos no mês' : 'Iniciamos o dia com')
                   + ' · ' + carimbo;
 
     var alt = 115 + 22;
