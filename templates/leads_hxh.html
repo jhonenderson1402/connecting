@@ -804,8 +804,8 @@ function exportCsv(){
     var ano     = document.getElementById('sel-year').value;
     var mes     = isNaN(mi) ? '—' : MONTHS[mi];
     var carimbo = todo ? (mes + '/' + ano) : dateBr();
-    var periodo = (todo ? 'Leads recebidos no mês' : 'Iniciamos o dia com')
-                  + ' · ' + carimbo;
+    var periodo = todo ? ('Leads recebidos no mês · ' + carimbo)
+                       : ('Iniciamos o dia ' + carimbo + ' com');
 
     var alt = 115 + 22;
     alt += 29 + alturaCaixas(d.unis.length) + 10;   // caixas por unidade
