@@ -82,6 +82,21 @@
   .tc-vazio{ text-align:center; padding:38px; color:var(--muted-fg); font-style:italic;
              font-size:11.5px; }
 
+  .tc-table tbody tr.repetida td{ background:rgba(239,68,68,.07); }
+  .tc-table tbody tr.repetida.alt td{ background:rgba(239,68,68,.10); }
+  .tc-table tbody tr.repetida td:first-child{ box-shadow:inset 3px 0 0 var(--destructive); }
+  .tc-rep{ display:inline-flex; align-items:center; gap:5px; margin-top:4px;
+           font-size:8.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase;
+           padding:3px 8px; border-radius:999px; white-space:nowrap;
+           color:#ff6b6b; background:rgba(239,68,68,.13);
+           border:1px solid rgba(239,68,68,.42);
+           animation:tcPisca 1.25s ease-in-out infinite; }
+  .tc-rep::before{ content:''; width:5px; height:5px; border-radius:50%;
+                   background:currentColor; }
+  @keyframes tcPisca{ 0%,100%{ opacity:1 } 50%{ opacity:.42 } }
+  .tc-rep-det{ display:block; margin-top:3px; font-size:9px; color:#d98b8b;
+               line-height:1.35; }
+
   .tc-token{ display:none; align-items:center; gap:9px; margin-bottom:12px;
              padding:8px 11px; border-radius:var(--radius); font-size:11px;
              background:var(--card); border:1px solid var(--border);
@@ -227,7 +242,32 @@ function celulaLead(t){
     ? '<a href="' + esc(t.deal_url) + '" target="_blank" rel="noopener">negociação #' +
       esc(t.deal_id) + ' ↗</a>'
     : '<span class="semlink">negociação ' + (t.deal_id ? '#' + esc(t.deal_id) : 'sem id') + '</span>';
-  return '<td class="tc-lead"><b>' + nome + '</b>' + link + '</td>';
+  return '<td class="tc-lead"><b>' + nome + '</b>' + link + avisoRepetida(t) + '</td>';
+}
+/* Negociacao que ja passou de mao nos ultimos 3 meses. Pisca so o selo: a
+   linha inteira piscando numa tela aberta o dia todo cansa a vista. */
+function avisoRepetida(t){
+  var h = t.historico || [];
+  if(!h.length) return '';
+  var d = paraData(h[0].criado_em);
+  var selo = (h.length > 1)
+    ? ('já trocou · ' + h.length + ' vezes')
+    : ('já trocou' + (d ? ' · ' + faz(d) : ''));
+  var det = h.map(function(x){
+    var dx = paraData(x.criado_em);
+    return (dx ? dm(dx) : '—') + ' · ' + (esc(x.resp_atual) || '—') + ' → ' +
+           (esc(x.resp_novo) || '—') + ' · ' + esc(x.status);
+  }).join('<br>');
+  return '<span class="tc-rep">' + esc(selo) + '</span>' +
+         '<span class="tc-rep-det">' + det + '</span>';
+}
+function faz(d){
+  var dias = Math.round((Date.now() - d.getTime()) / 86400000);
+  if(dias <= 0) return 'hoje';
+  if(dias === 1) return 'ontem';
+  if(dias < 30)  return 'há ' + dias + ' dias';
+  var m = Math.round(dias / 30);
+  return 'há ' + m + (m === 1 ? ' mês' : ' meses');
 }
 /* Etapa e funil vem do RD pela extensao. Servem para a lider decidir sem
    abrir a negociacao. Quem nao manda fica com o tracinho. */
@@ -270,7 +310,8 @@ function render(){
   }
   tb.innerHTML = ITENS.map(function(t, i){
     var resolvida = (t.status === 'feito' || t.status === 'recusado') ? ' resolvida' : '';
-    return '<tr class="' + (i % 2 ? 'alt' : '') + resolvida + '">' +
+    var repetida  = (t.historico && t.historico.length) ? ' repetida' : '';
+    return '<tr class="' + (i % 2 ? 'alt' : '') + resolvida + repetida + '">' +
       celulaQuando(t) +
       '<td class="tc-quem" title="' + esc(t.solicitante) + '">' +
         (esc(t.solicitante) || '—') + '</td>' +
