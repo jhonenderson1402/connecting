@@ -1765,7 +1765,38 @@ def get_crm_trocas(status=None, unidade=None, desde=None, limite=400):
         if desde:
             q = q.where(CrmTroca.criado_em >= desde)
         q = q.order_by(CrmTroca.criado_em.desc()).limit(limite)
-        return [_crm_dict(t) for t in s.scalars(q).all()]
+        itens = [_crm_dict(t) for t in s.scalars(q).all()]
+        _anexa_historico(s, itens)
+        return itens
+def _anexa_historico(s, itens, meses=3):
+    """Marca o pedido cuja negociacao JA teve outro pedido na janela.
+
+    So conta o que veio ANTES daquele pedido: a lider precisa saber que a
+    negociacao ja passou de mao antes de aprovar mais uma troca. Pedido
+    recusado tambem conta — insistir numa troca ja negada e justamente o
+    caso que ela tem de ver.
+    """
+    from datetime import timedelta
+    ids = {i['deal_id'] for i in itens if i.get('deal_id')}
+    if not ids:
+        return
+    corte = (datetime.utcnow() - timedelta(days=31 * meses)).isoformat()
+    anteriores = s.scalars(
+        select(CrmTroca)
+        .where(CrmTroca.deal_id.in_(ids))
+        .where(CrmTroca.criado_em >= corte)
+        .order_by(CrmTroca.criado_em.desc())
+    ).all()
+    por_deal = {}
+    for t in anteriores:
+        por_deal.setdefault(t.deal_id or '', []).append(t)
+    for i in itens:
+        antes = [t for t in por_deal.get(i['deal_id'], [])
+                 if t.id != i['id'] and (t.criado_em or '') < (i['criado_em'] or '')]
+        i['historico'] = [{'criado_em':  t.criado_em or '',
+                           'resp_atual': t.resp_atual or '',
+                           'resp_novo':  t.resp_novo or '',
+                           'status':     t.status or ''} for t in antes[:4]]
 def get_crm_troca(tid):
     with SessionLocal() as s:
         t = s.get(CrmTroca, tid)
