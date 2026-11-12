@@ -679,7 +679,7 @@ function exportCsv(){
   };
   var W = 760, IM = 34, IR = W - 34;
   var CX_LEADS = IR - 90, CX_PCT = IR;
-  var H_UNI = 20, H_CAN = 18, H_TOT = 21;
+  var H_UNI = 20, H_CAN = 18, H_TOT = 21, H_GER = 30;
   var CX_COLS = 2, CX_GAP = 8, CX_ALT = 50;
   var TOTAL_GERAL = 0;
 
@@ -811,7 +811,7 @@ function exportCsv(){
     alt += 29 + alturaCaixas(d.unis.length) + 10;   // caixas por unidade
     alt += 29 + 19;                                  // secao + cabecalho tabela
     d.unis.forEach(function(u){ alt += H_UNI + u.lista.length*H_CAN + H_TOT; });
-    alt += H_TOT + 46;
+    alt += H_GER + 46;
 
     var cv = document.createElement('canvas');
     cv.width = W; cv.height = alt;
@@ -856,10 +856,10 @@ function exportCsv(){
       y += H_TOT;
     });
     LIN(ct, IM, y, IR, C.ouro, 2);
-    RET(ct, IM, y+2, IR-IM, H_TOT-2, '#f3f1ea');
-    T(ct, IM+5, y+5, 'Total geral', fnt(800,12),  C.tinta);
-    T(ct, CX_LEADS, y+4, n(d.total),fnt(800,13),  C.ouroE, 'r');
-    T(ct, CX_PCT,   y+5, '100%',    fnt(700,10.5),C.ouroE, 'r');
+    RET(ct, IM, y+2, IR-IM, H_GER-2, '#f3f1ea');
+    T(ct, IM+5, y+8, 'Total geral', fnt(800,15),  C.tinta);
+    T(ct, CX_LEADS, y+7, n(d.total),fnt(800,16),  C.ouroE, 'r');
+    T(ct, CX_PCT,   y+9, '100%',    fnt(700,13),  C.ouroE, 'r');
 
     LIN(ct,IM,alt-34,IR,C.fio,1);
     T(ct,IM,alt-26,'Connecting · Sistema de Agendamentos',fnt(400,9.5),C.claro);
