@@ -1,567 +1,597 @@
-{% extends "base.html" %}
-{% block content %}
-<style>
-  .tc-wrap{ overflow-x:auto; }
-  .tc-table{ width:100%; border-collapse:separate; border-spacing:0; min-width:1140px;
-             table-layout:fixed; background:var(--card); }
-  .tc-table thead th{ background:var(--primary); color:var(--primary-fg); font-weight:800;
-                      text-transform:uppercase; font-size:8.5px; letter-spacing:.3px;
-                      padding:9px 10px; text-align:left; white-space:nowrap;
-                      border-right:1px solid rgba(0,0,0,.08); }
-  .tc-table thead th:last-child{ border-right:none; text-align:right; }
-  .tc-table tbody td{ padding:8px 10px; background:var(--card); vertical-align:middle;
-                      border-bottom:1px solid var(--border); }
-  .tc-table tbody tr.alt td{ background:var(--secondary); }
-  .tc-table tbody tr:hover td{ background:hsl(220,10%,17%); }
-  .tc-table tbody tr:last-child td{ border-bottom:none; }
-  .tc-table tbody tr.resolvida td{ opacity:.5; }
-  body.tema-claro .tc-table tbody tr:hover td{ background:#f1f1ee; }
-
-  .tc-quando{ line-height:1.25; font-variant-numeric:tabular-nums; }
-  .tc-quando .d{ display:block; font-size:9px; color:var(--muted-fg); letter-spacing:.02em; }
-  .tc-quando .h{ display:block; font-size:13px; font-weight:700; color:var(--fg); }
-
-  .tc-quem{ font-size:11.5px; font-weight:650; white-space:nowrap; overflow:hidden;
-            text-overflow:ellipsis; }
-  .tc-uni{ display:inline-block; font-size:8px; font-weight:800; letter-spacing:.09em;
-           text-transform:uppercase; color:var(--muted-fg); background:var(--secondary);
-           border:1px solid var(--border); padding:3px 8px; border-radius:999px;
-           white-space:nowrap; }
-
-  .tc-lead b{ display:block; font-size:11.5px; font-weight:600; white-space:nowrap;
-              overflow:hidden; text-overflow:ellipsis; }
-  .tc-lead a, .tc-lead span.semlink{ display:inline-block; margin-top:2px; font-size:9.5px;
-              color:var(--muted-fg); border-bottom:1px dotted hsl(220,10%,32%); }
-  .tc-lead a:hover{ color:var(--primary); border-bottom-color:var(--primary); }
-  .tc-lead span.semlink{ border-bottom:none; font-style:italic; opacity:.7; }
-
-  .tc-etapa{ display:inline-block; font-size:9.5px; font-weight:650; letter-spacing:.04em;
-             color:var(--fg); background:rgba(255,255,255,.04); border:1px solid var(--border);
-             padding:3px 8px; border-radius:6px; max-width:100%; overflow:hidden;
-             text-overflow:ellipsis; white-space:nowrap; }
-  .tc-funil{ display:block; margin-top:3px; font-size:9px; color:var(--muted-fg);
-             white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
-  .tc-troca{ display:flex; align-items:center; gap:7px; white-space:nowrap; }
-  .tc-de,.tc-para{ display:inline-block; font-size:10.5px; padding:3px 8px; border-radius:6px;
-                   max-width:116px; overflow:hidden; text-overflow:ellipsis; }
-  .tc-de{ color:var(--muted-fg); background:rgba(255,255,255,.035);
-          border:1px solid var(--border); text-decoration:line-through;
-          text-decoration-color:hsl(220,10%,32%); }
-  .tc-seta{ color:var(--primary); font-weight:800; font-size:12px; flex:0 0 auto; }
-  .tc-para{ color:var(--fg); font-weight:700; background:rgba(255,187,0,.1);
-            border:1px solid rgba(255,187,0,.3); }
-
-  .tc-st{ display:inline-flex; align-items:center; gap:5px; font-size:8.5px; font-weight:800;
-          letter-spacing:.09em; text-transform:uppercase; padding:4px 9px; border-radius:999px;
-          white-space:nowrap; }
-  .tc-st::before{ content:''; width:5px; height:5px; border-radius:50%; background:currentColor; }
-  .tc-st.pendente{ background:rgba(255,187,0,.12); color:var(--primary);
-                   border:1px solid rgba(255,187,0,.32); }
-  .tc-st.feito{ background:rgba(34,197,94,.1); color:var(--green);
-                border:1px solid rgba(34,197,94,.28); }
-  .tc-st.recusado{ background:rgba(255,255,255,.04); color:var(--muted-fg);
-                   border:1px solid var(--border); }
-  .tc-st.erro{ background:rgba(239,68,68,.1); color:var(--destructive);
-               border:1px solid rgba(239,68,68,.32); }
-
-  .tc-acoes{ display:flex; gap:6px; justify-content:flex-end; }
-  .tc-acoes .btn{ height:28px; padding:0 11px; font-size:11px; }
-  .tc-feito-por{ font-size:9.5px; color:var(--muted-fg); text-align:right; line-height:1.4;
-                 font-variant-numeric:tabular-nums; }
-  .tc-feito-por b{ display:block; color:var(--fg); font-weight:600; font-size:10.5px; }
-  .tc-erro{ margin-top:5px; font-size:9.5px; color:var(--destructive); text-align:right;
-            white-space:normal; line-height:1.4; }
-
-  .tc-rodape{ display:flex; align-items:center; gap:7px; padding:8px 12px;
-              border-top:1px solid var(--border); background:var(--secondary);
-              font-size:9.5px; color:var(--muted-fg); }
-  .tc-vivo{ width:6px; height:6px; border-radius:50%; background:var(--green);
-            animation:tcPulsa 2s ease-in-out infinite; }
-  @keyframes tcPulsa{ 0%,100%{ opacity:1 } 50%{ opacity:.25 } }
-  .tc-vazio{ text-align:center; padding:38px; color:var(--muted-fg); font-style:italic;
-             font-size:11.5px; }
-
-  .tc-table tbody tr.repetida td{ background:rgba(239,68,68,.07); }
-  .tc-table tbody tr.repetida.alt td{ background:rgba(239,68,68,.10); }
-  .tc-table tbody tr.repetida td:first-child{ box-shadow:inset 3px 0 0 var(--destructive); }
-  .tc-rep{ display:inline-flex; align-items:center; gap:5px; margin-top:4px;
-           font-size:8.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase;
-           padding:3px 8px; border-radius:999px; white-space:nowrap;
-           color:#ff6b6b; background:rgba(239,68,68,.13);
-           border:1px solid rgba(239,68,68,.42);
-           animation:tcPisca 1.25s ease-in-out infinite; }
-  .tc-rep::before{ content:''; width:5px; height:5px; border-radius:50%;
-                   background:currentColor; }
-  @keyframes tcPisca{ 0%,100%{ opacity:1 } 50%{ opacity:.42 } }
-  .tc-rep-det{ display:block; margin-top:3px; font-size:9px; color:#d98b8b;
-               line-height:1.35; }
-
-  .tc-token{ display:none; align-items:center; gap:9px; margin-bottom:12px;
-             padding:8px 11px; border-radius:var(--radius); font-size:11px;
-             background:var(--card); border:1px solid var(--border);
-             border-left:2px solid var(--muted-fg); color:var(--fg); }
-  .tc-token.on{ display:flex; }
-  .tc-token .ic{ width:22px; height:22px; flex:0 0 auto; border-radius:6px;
-                 display:grid; place-items:center; font-size:11px;
-                 background:rgba(255,255,255,.05); }
-  .tc-token .tx{ flex:1; min-width:200px; color:var(--muted-fg); line-height:1.45; }
-  .tc-token .tx b{ color:var(--fg); font-weight:600; }
-  .tc-token .tx i{ font-style:normal; color:hsl(220,10%,42%); }
-  .tc-token.falta{ border-left-color:var(--primary); }
-  .tc-token.falta .ic{ background:rgba(255,187,0,.12); color:var(--primary); }
-  .tc-token.ok{ border-left-color:var(--green); }
-  .tc-token.ok .ic{ background:rgba(34,197,94,.12); color:var(--green); }
-  .tc-token.erro{ border-left-color:var(--destructive); }
-  .tc-token.erro .ic{ background:rgba(239,68,68,.12); color:var(--destructive); }
-  .tc-token input{ background:var(--secondary); border:1px solid var(--border);
-                   color:var(--fg); border-radius:6px; height:28px; width:210px;
-                   padding:0 9px; font-size:11px; font-family:inherit; outline:none; }
-  .tc-token input:focus{ border-color:var(--primary); }
-  .tc-token .btn{ height:28px; padding:0 11px; font-size:10.5px; }
-
-  .tc-kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
-  @media(max-width:768px){ .tc-kpis{ grid-template-columns:repeat(2,1fr); } }
-</style>
-
-<div class="page-content">
-  <div class="page-header">
-    <div>
-      <div class="title-bar">
-        <div class="title-accent"></div>
-        <h1 class="page-title">Troca CRM</h1>
+  {% extends "base.html" %}
+  {% block content %}
+  <style>
+    .tc-wrap{ overflow-x:auto; }
+    .tc-table{ width:100%; border-collapse:separate; border-spacing:0; min-width:1244px;
+               table-layout:fixed; background:var(--card); }
+    .tc-table thead th{ background:var(--primary); color:var(--primary-fg); font-weight:800;
+                        text-transform:uppercase; font-size:8.5px; letter-spacing:.3px;
+                        padding:9px 10px; text-align:left; white-space:nowrap;
+                        border-right:1px solid rgba(0,0,0,.08); }
+    .tc-table thead th:last-child{ border-right:none; text-align:right; }
+    .tc-table tbody td{ padding:8px 10px; background:var(--card); vertical-align:middle;
+                        border-bottom:1px solid var(--border); }
+    .tc-table tbody tr.alt td{ background:var(--secondary); }
+    .tc-table tbody tr:hover td{ background:hsl(220,10%,17%); }
+    .tc-table tbody tr:last-child td{ border-bottom:none; }
+    .tc-table tbody tr.resolvida td{ opacity:.5; }
+    body.tema-claro .tc-table tbody tr:hover td{ background:#f1f1ee; }
+  
+    .tc-quando{ line-height:1.25; font-variant-numeric:tabular-nums; }
+    .tc-quando .d{ display:block; font-size:9px; color:var(--muted-fg); letter-spacing:.02em; }
+    .tc-quando .h{ display:block; font-size:13px; font-weight:700; color:var(--fg); }
+  
+    .tc-quem{ font-size:11.5px; font-weight:650; white-space:nowrap; overflow:hidden;
+              text-overflow:ellipsis; }
+    .tc-uni{ display:inline-block; font-size:8px; font-weight:800; letter-spacing:.09em;
+             text-transform:uppercase; color:var(--muted-fg); background:var(--secondary);
+             border:1px solid var(--border); padding:3px 8px; border-radius:999px;
+             white-space:nowrap; }
+  
+    .tc-lead b{ display:block; font-size:11.5px; font-weight:600; white-space:nowrap;
+                overflow:hidden; text-overflow:ellipsis; }
+    .tc-lead a, .tc-lead span.semlink{ display:inline-block; margin-top:2px; font-size:9.5px;
+                color:var(--muted-fg); border-bottom:1px dotted hsl(220,10%,32%); }
+    .tc-lead a:hover{ color:var(--primary); border-bottom-color:var(--primary); }
+    .tc-lead span.semlink{ border-bottom:none; font-style:italic; opacity:.7; }
+  
+    .tc-etapa{ display:inline-block; font-size:9.5px; font-weight:650; letter-spacing:.04em;
+               color:var(--fg); background:rgba(255,255,255,.04); border:1px solid var(--border);
+               padding:3px 8px; border-radius:6px; max-width:100%; overflow:hidden;
+               text-overflow:ellipsis; white-space:nowrap; }
+    .tc-funil{ display:block; margin-top:3px; font-size:9px; color:var(--muted-fg);
+               white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  
+    .tc-troca{ display:flex; align-items:center; gap:7px; white-space:nowrap; }
+    .tc-de,.tc-para{ display:inline-block; font-size:10.5px; padding:3px 8px; border-radius:6px;
+                     max-width:116px; overflow:hidden; text-overflow:ellipsis; }
+    .tc-de{ color:var(--muted-fg); background:rgba(255,255,255,.035);
+            border:1px solid var(--border); text-decoration:line-through;
+            text-decoration-color:hsl(220,10%,32%); }
+    .tc-seta{ color:var(--primary); font-weight:800; font-size:12px; flex:0 0 auto; }
+    .tc-para{ color:var(--fg); font-weight:700; background:rgba(255,187,0,.1);
+              border:1px solid rgba(255,187,0,.3); }
+  
+    .tc-st{ display:inline-flex; align-items:center; gap:5px; font-size:8.5px; font-weight:800;
+            letter-spacing:.09em; text-transform:uppercase; padding:4px 9px; border-radius:999px;
+            white-space:nowrap; }
+    .tc-st::before{ content:''; width:5px; height:5px; border-radius:50%; background:currentColor; }
+    .tc-st.pendente{ background:rgba(255,187,0,.12); color:var(--primary);
+                     border:1px solid rgba(255,187,0,.32); }
+    .tc-st.feito{ background:rgba(34,197,94,.1); color:var(--green);
+                  border:1px solid rgba(34,197,94,.28); }
+    .tc-st.recusado{ background:rgba(255,255,255,.04); color:var(--muted-fg);
+                     border:1px solid var(--border); }
+    .tc-st.erro{ background:rgba(239,68,68,.1); color:var(--destructive);
+                 border:1px solid rgba(239,68,68,.32); }
+  
+    .tc-acoes{ display:flex; gap:6px; justify-content:flex-end; }
+    .tc-acoes .btn{ height:28px; padding:0 11px; font-size:11px; }
+    .tc-feito-por{ font-size:9.5px; color:var(--muted-fg); text-align:right; line-height:1.4;
+                   font-variant-numeric:tabular-nums; }
+    .tc-feito-por b{ display:block; color:var(--fg); font-weight:600; font-size:10.5px; }
+    .tc-erro{ margin-top:5px; font-size:9.5px; color:var(--destructive); text-align:right;
+              white-space:normal; line-height:1.4; }
+  
+    .tc-rodape{ display:flex; align-items:center; gap:7px; padding:8px 12px;
+                border-top:1px solid var(--border); background:var(--secondary);
+                font-size:9.5px; color:var(--muted-fg); }
+    .tc-vivo{ width:6px; height:6px; border-radius:50%; background:var(--green);
+              animation:tcPulsa 2s ease-in-out infinite; }
+    @keyframes tcPulsa{ 0%,100%{ opacity:1 } 50%{ opacity:.25 } }
+    .tc-vazio{ text-align:center; padding:38px; color:var(--muted-fg); font-style:italic;
+               font-size:11.5px; }
+  
+    .tc-table tbody tr.repetida td{ background:rgba(239,68,68,.07); }
+    .tc-table tbody tr.repetida.alt td{ background:rgba(239,68,68,.10); }
+    .tc-table tbody tr.repetida td:first-child{ box-shadow:inset 3px 0 0 var(--destructive); }
+    .tc-rep{ display:inline-flex; align-items:center; gap:5px; margin-top:4px;
+             font-size:8.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase;
+             padding:3px 8px; border-radius:999px; white-space:nowrap;
+             color:#ff6b6b; background:rgba(239,68,68,.13);
+             border:1px solid rgba(239,68,68,.42);
+             animation:tcPisca 1.25s ease-in-out infinite; }
+    .tc-rep::before{ content:''; width:5px; height:5px; border-radius:50%;
+                     background:currentColor; }
+    @keyframes tcPisca{ 0%,100%{ opacity:1 } 50%{ opacity:.42 } }
+    .tc-rep-det{ display:block; margin-top:3px; font-size:9px; color:#d98b8b;
+                 line-height:1.35; }
+  
+    .tc-agd{ line-height:1.25; font-variant-numeric:tabular-nums; }
+    .tc-agd .dia{ display:block; font-size:12px; font-weight:700; color:var(--fg); }
+    .tc-agd .rel{ display:block; font-size:9px; color:var(--muted-fg); margin-top:1px; }
+    .tc-agd.passou .dia{ color:var(--muted-fg); }
+    .tc-agd.hoje .dia{ color:var(--primary); }
+    .tc-agd .vazio{ color:hsl(220,10%,34%); }
+  
+    .tc-token{ display:none; align-items:center; gap:9px; margin-bottom:12px;
+               padding:8px 11px; border-radius:var(--radius); font-size:11px;
+               background:var(--card); border:1px solid var(--border);
+               border-left:2px solid var(--muted-fg); color:var(--fg); }
+    .tc-token.on{ display:flex; }
+    .tc-token .ic{ width:22px; height:22px; flex:0 0 auto; border-radius:6px;
+                   display:grid; place-items:center; font-size:11px;
+                   background:rgba(255,255,255,.05); }
+    .tc-token .tx{ flex:1; min-width:200px; color:var(--muted-fg); line-height:1.45; }
+    .tc-token .tx b{ color:var(--fg); font-weight:600; }
+    .tc-token .tx i{ font-style:normal; color:hsl(220,10%,42%); }
+    .tc-token.falta{ border-left-color:var(--primary); }
+    .tc-token.falta .ic{ background:rgba(255,187,0,.12); color:var(--primary); }
+    .tc-token.ok{ border-left-color:var(--green); }
+    .tc-token.ok .ic{ background:rgba(34,197,94,.12); color:var(--green); }
+    .tc-token.erro{ border-left-color:var(--destructive); }
+    .tc-token.erro .ic{ background:rgba(239,68,68,.12); color:var(--destructive); }
+    .tc-token input{ background:var(--secondary); border:1px solid var(--border);
+                     color:var(--fg); border-radius:6px; height:28px; width:210px;
+                     padding:0 9px; font-size:11px; font-family:inherit; outline:none; }
+    .tc-token input:focus{ border-color:var(--primary); }
+    .tc-token .btn{ height:28px; padding:0 11px; font-size:10.5px; }
+  
+    .tc-kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
+    @media(max-width:768px){ .tc-kpis{ grid-template-columns:repeat(2,1fr); } }
+  </style>
+  
+  <div class="page-content">
+    <div class="page-header">
+      <div>
+        <div class="title-bar">
+          <div class="title-accent"></div>
+          <h1 class="page-title">Troca CRM</h1>
+        </div>
+        <p class="page-subtitle" style="margin-left:14px;text-transform:none">
+          Pedidos de troca de responsável vindos da extensão do RD Station</p>
       </div>
-      <p class="page-subtitle" style="margin-left:14px;text-transform:none">
-        Pedidos de troca de responsável vindos da extensão do RD Station</p>
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label class="filter-label">STATUS</label>
+          <select class="select" id="f-status" onchange="carregar()">
+            <option value="pendente" selected>Pendentes</option>
+            <option value="">Todos</option>
+            <option value="feito">Feitos</option>
+            <option value="recusado">Recusados</option>
+            <option value="erro">Com erro</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">UNIDADE</label>
+          <select class="select" id="f-unidade" onchange="carregar()">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">PERÍODO</label>
+          <select class="select" id="f-dias" onchange="carregar()">
+            <option value="1">Hoje</option>
+            <option value="7" selected>Últimos 7 dias</option>
+            <option value="30">Últimos 30 dias</option>
+            <option value="0">Tudo</option>
+          </select>
+        </div>
+      </div>
     </div>
-    <div class="filter-bar">
-      <div class="filter-group">
-        <label class="filter-label">STATUS</label>
-        <select class="select" id="f-status" onchange="carregar()">
-          <option value="pendente" selected>Pendentes</option>
-          <option value="">Todos</option>
-          <option value="feito">Feitos</option>
-          <option value="recusado">Recusados</option>
-          <option value="erro">Com erro</option>
-        </select>
+  
+    <div class="tc-token" id="tc-token"></div>
+  
+    <div class="tc-kpis">
+      <div class="stat-card"><div class="stat-icon">⏳</div><div>
+        <div class="stat-value" id="k-pend" style="color:var(--primary)">0</div>
+        <div class="stat-label">Pendentes agora</div></div></div>
+      <div class="stat-card"><div class="stat-icon">✅</div><div>
+        <div class="stat-value" id="k-feitos" style="color:var(--green)">0</div>
+        <div class="stat-label" id="k-feitos-lbl">Resolvidos no período</div></div></div>
+      <div class="stat-card"><div class="stat-icon">⏱</div><div>
+        <div class="stat-value" id="k-espera">—</div>
+        <div class="stat-label">Espera média até resolver</div></div></div>
+      <div class="stat-card"><div class="stat-icon">⚠</div><div>
+        <div class="stat-value" id="k-erros" style="color:var(--destructive)">0</div>
+        <div class="stat-label">Falhou no RD</div></div></div>
+    </div>
+  
+    <div class="card table-card">
+      <div class="tc-wrap">
+        <table class="tc-table">
+          <colgroup>
+            <col style="width:86px"><col style="width:128px"><col style="width:112px">
+            <col style="width:190px"><col style="width:104px"><col style="width:128px"><col>
+            <col style="width:112px"><col style="width:196px">
+          </colgroup>
+          <thead><tr>
+            <th>Solicitado</th><th>Quem pediu</th><th>Unid. agendamento</th><th>Lead</th>
+            <th>Agendado</th>
+            <th>Etapa</th><th>Responsável</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody id="tc-body">
+            <tr><td colspan="9" class="tc-vazio">Carregando...</td></tr>        </tbody>
+        </table>
       </div>
-      <div class="filter-group">
-        <label class="filter-label">UNIDADE</label>
-        <select class="select" id="f-unidade" onchange="carregar()">
-          <option value="">Todas</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label class="filter-label">PERÍODO</label>
-        <select class="select" id="f-dias" onchange="carregar()">
-          <option value="1">Hoje</option>
-          <option value="7" selected>Últimos 7 dias</option>
-          <option value="30">Últimos 30 dias</option>
-          <option value="0">Tudo</option>
-        </select>
-      </div>
+      <div class="tc-rodape"><span class="tc-vivo"></span><span id="tc-rodape-txt">—</span></div>
     </div>
   </div>
-
-  <div class="tc-token" id="tc-token"></div>
-
-  <div class="tc-kpis">
-    <div class="stat-card"><div class="stat-icon">⏳</div><div>
-      <div class="stat-value" id="k-pend" style="color:var(--primary)">0</div>
-      <div class="stat-label">Pendentes agora</div></div></div>
-    <div class="stat-card"><div class="stat-icon">✅</div><div>
-      <div class="stat-value" id="k-feitos" style="color:var(--green)">0</div>
-      <div class="stat-label" id="k-feitos-lbl">Resolvidos no período</div></div></div>
-    <div class="stat-card"><div class="stat-icon">⏱</div><div>
-      <div class="stat-value" id="k-espera">—</div>
-      <div class="stat-label">Espera média até resolver</div></div></div>
-    <div class="stat-card"><div class="stat-icon">⚠</div><div>
-      <div class="stat-value" id="k-erros" style="color:var(--destructive)">0</div>
-      <div class="stat-label">Falhou no RD</div></div></div>
-  </div>
-
-  <div class="card table-card">
-    <div class="tc-wrap">
-      <table class="tc-table">
-        <colgroup>
-          <col style="width:86px"><col style="width:128px"><col style="width:112px">
-          <col style="width:190px"><col style="width:128px"><col>
-          <col style="width:112px"><col style="width:196px">
-        </colgroup>
-        <thead><tr>
-          <th>Solicitado</th><th>Quem pediu</th><th>Unid. agendamento</th><th>Lead</th>
-          <th>Etapa</th><th>Responsável</th><th>Status</th><th></th>
-        </tr></thead>
-        <tbody id="tc-body">
-          <tr><td colspan="8" class="tc-vazio">Carregando...</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="tc-rodape"><span class="tc-vivo"></span><span id="tc-rodape-txt">—</span></div>
-  </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-/* Troca CRM — fila de pedidos vindos da extensao do RD Station. */
-var ITENS = [], RD_LIGADO = false, ocupado = false;
-
-function esc(s){
-  return String(s == null ? '' : s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-/* O servidor grava em UTC sem o fuso no texto. Sem o 'Z' o navegador leria
-   como hora local e a lista apareceria 3 horas adiantada. */
-function paraData(iso){
-  if(!iso) return null;
-  var s = String(iso);
-  if(!/[zZ]$|[+-]\d\d:?\d\d$/.test(s)) s += 'Z';
-  var d = new Date(s);
-  return isNaN(d.getTime()) ? null : d;
-}
-function dm(d){
-  return String(d.getDate()).padStart(2,'0') + '/' +
-         String(d.getMonth()+1).padStart(2,'0');
-}
-function hm(d){
-  return String(d.getHours()).padStart(2,'0') + ':' +
-         String(d.getMinutes()).padStart(2,'0');
-}
-
-function celulaQuando(t){
-  var d = paraData(t.criado_em);
-  if(!d) return '<td class="tc-quando"><span class="h">—</span></td>';
-  return '<td class="tc-quando"><span class="d">' + dm(d) + '</span>' +
-         '<span class="h">' + hm(d) + '</span></td>';
-}
-function celulaLead(t){
-  var nome = esc(t.lead_nome) || '<span style="color:var(--muted-fg)">sem nome</span>';
-  var link = t.deal_url
-    ? '<a href="' + esc(t.deal_url) + '" target="_blank" rel="noopener">negociação #' +
-      esc(t.deal_id) + ' ↗</a>'
-    : '<span class="semlink">negociação ' + (t.deal_id ? '#' + esc(t.deal_id) : 'sem id') + '</span>';
-  return '<td class="tc-lead"><b>' + nome + '</b>' + link + avisoRepetida(t) + '</td>';
-}
-/* Negociacao que ja passou de mao nos ultimos 3 meses. Pisca so o selo: a
-   linha inteira piscando numa tela aberta o dia todo cansa a vista. */
-function avisoRepetida(t){
-  var h = t.historico || [];
-  if(!h.length) return '';
-  var d = paraData(h[0].criado_em);
-  var selo = (h.length > 1)
-    ? ('já trocou · ' + h.length + ' vezes')
-    : ('já trocou' + (d ? ' · ' + faz(d) : ''));
-  var det = h.map(function(x){
-    var dx = paraData(x.criado_em);
-    return (dx ? dm(dx) : '—') + ' · ' + (esc(x.resp_atual) || '—') + ' → ' +
-           (esc(x.resp_novo) || '—') + ' · ' + esc(x.status);
-  }).join('<br>');
-  return '<span class="tc-rep">' + esc(selo) + '</span>' +
-         '<span class="tc-rep-det">' + det + '</span>';
-}
-function faz(d){
-  var dias = Math.round((Date.now() - d.getTime()) / 86400000);
-  if(dias <= 0) return 'hoje';
-  if(dias === 1) return 'ontem';
-  if(dias < 30)  return 'há ' + dias + ' dias';
-  var m = Math.round(dias / 30);
-  return 'há ' + m + (m === 1 ? ' mês' : ' meses');
-}
-/* Etapa e funil vem do RD pela extensao. Servem para a lider decidir sem
-   abrir a negociacao. Quem nao manda fica com o tracinho. */
-function celulaEtapa(t){
-  if(!t.etapa && !t.funil) return '<td><span style="color:var(--muted-fg)">—</span></td>';
-  return '<td>' +
-    (t.etapa ? '<span class="tc-etapa" title="' + esc(t.etapa) + '">' +
-               esc(t.etapa) + '</span>' : '') +
-    (t.funil ? '<span class="tc-funil" title="' + esc(t.funil) + '">' +
-               esc(t.funil) + '</span>' : '') +
-    '</td>';
-}
-function celulaAcoes(t){
-  if(t.status === 'feito' || t.status === 'recusado'){
-    var d = paraData(t.resolvido_em);
-    return '<td class="tc-feito-por"><b>' + (esc(t.resolvido_por) || '—') + '</b>' +
-           (d ? dm(d) + ' às ' + hm(d) : '') + '</td>';
+  {% endblock %}
+  
+  {% block scripts %}
+  <script>
+  /* Troca CRM — fila de pedidos vindos da extensao do RD Station. */
+  var ITENS = [], RD_LIGADO = false, ocupado = false;
+  
+  function esc(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
-  var rotulo = (t.status === 'erro')
-    ? '↻ Tentar de novo'
-    : (RD_LIGADO ? 'Aprovar' : 'Marcar como feito');
-  var classeOk = (t.status === 'erro') ? 'btn btn-outline' : 'btn btn-primary';
-  var classeNo = (t.status === 'erro') ? 'btn btn-danger' : 'btn btn-outline';
-  return '<td><div class="tc-acoes">' +
-           '<button class="' + classeOk + '" onclick="aprovar(' + t.id + ', this)">' +
-             rotulo + '</button>' +
-           '<button class="' + classeNo + '" onclick="recusar(' + t.id + ', this)">' +
-             'Recusar</button>' +
-         '</div>' +
-         (t.erro ? '<div class="tc-erro">' + esc(t.erro) + '</div>' : '') +
-         '</td>';
-}
-
-function render(){
-  var tb = document.getElementById('tc-body');
-  if(!ITENS.length){
-    tb.innerHTML = '<tr><td colspan="8" class="tc-vazio">' +
-                   'Nenhum pedido neste filtro.</td></tr>';
-    return;
+  /* O servidor grava em UTC sem o fuso no texto. Sem o 'Z' o navegador leria
+     como hora local e a lista apareceria 3 horas adiantada. */
+  function paraData(iso){
+    if(!iso) return null;
+    var s = String(iso);
+    if(!/[zZ]$|[+-]\d\d:?\d\d$/.test(s)) s += 'Z';
+    var d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
   }
-  tb.innerHTML = ITENS.map(function(t, i){
-    var resolvida = (t.status === 'feito' || t.status === 'recusado') ? ' resolvida' : '';
-    var repetida  = (t.historico && t.historico.length) ? ' repetida' : '';
-    return '<tr class="' + (i % 2 ? 'alt' : '') + resolvida + repetida + '">' +
-      celulaQuando(t) +
-      '<td class="tc-quem" title="' + esc(t.solicitante) + '">' +
-        (esc(t.solicitante) || '—') + '</td>' +
-      '<td>' + (t.unidade ? '<span class="tc-uni">' + esc(t.unidade) + '</span>' : '') + '</td>' +
-      celulaLead(t) +
-      celulaEtapa(t) +
-      '<td><div class="tc-troca">' +
-        '<span class="tc-de" title="' + esc(t.resp_atual) + '">' +
-          (esc(t.resp_atual) || '—') + '</span>' +
-        '<span class="tc-seta">→</span>' +
-        '<span class="tc-para" title="' + esc(t.resp_novo) + '">' +
-          (esc(t.resp_novo) || '—') + '</span></div></td>' +
-      '<td><span class="tc-st ' + esc(t.status) + '">' + esc(t.status) + '</span></td>' +
-      celulaAcoes(t) +
-    '</tr>';
-  }).join('');
-}
-
-/* Espera media: so conta quem ja foi resolvido e tem as duas horas. */
-function indicadores(pendentes){
-  var feitos = 0, erros = 0, somaMin = 0, nMin = 0;
-  ITENS.forEach(function(t){
-    if(t.status === 'feito' || t.status === 'recusado') feitos++;
-    if(t.status === 'erro') erros++;
-    var a = paraData(t.criado_em), b = paraData(t.resolvido_em);
-    if(a && b && b > a){ somaMin += (b - a) / 60000; nMin++; }
-  });
-  document.getElementById('k-pend').textContent   = pendentes;
-  document.getElementById('k-feitos').textContent = feitos;
-  document.getElementById('k-erros').textContent  = erros;
-  var el = document.getElementById('k-espera');
-  if(!nMin){ el.textContent = '—'; return; }
-  var m = Math.round(somaMin / nMin);
-  el.innerHTML = (m < 60 ? m : Math.round(m / 60)) +
-    '<span style="font-size:13px;font-weight:600;color:var(--muted-fg)"> ' +
-    (m < 60 ? 'min' : 'h') + '</span>';
-}
-
-function enchUnidades(lista){
-  var sel = document.getElementById('f-unidade');
-  var atual = sel.value;
-  var novo = '<option value="">Todas</option>' +
-    (lista || []).map(function(u){
-      return '<option value="' + esc(u) + '">' + esc(u) + '</option>';
+  function dm(d){
+    return String(d.getDate()).padStart(2,'0') + '/' +
+           String(d.getMonth()+1).padStart(2,'0');
+  }
+  function hm(d){
+    return String(d.getHours()).padStart(2,'0') + ':' +
+           String(d.getMinutes()).padStart(2,'0');
+  }
+  
+  function celulaQuando(t){
+    var d = paraData(t.criado_em);
+    if(!d) return '<td class="tc-quando"><span class="h">—</span></td>';
+    return '<td class="tc-quando"><span class="d">' + dm(d) + '</span>' +
+           '<span class="h">' + hm(d) + '</span></td>';
+  }
+  function celulaLead(t){
+    var nome = esc(t.lead_nome) || '<span style="color:var(--muted-fg)">sem nome</span>';
+    var link = t.deal_url
+      ? '<a href="' + esc(t.deal_url) + '" target="_blank" rel="noopener">negociação #' +
+        esc(t.deal_id) + ' ↗</a>'
+      : '<span class="semlink">negociação ' + (t.deal_id ? '#' + esc(t.deal_id) : 'sem id') + '</span>';
+    return '<td class="tc-lead"><b>' + nome + '</b>' + link + avisoRepetida(t) + '</td>';
+  }
+  /* Negociacao que ja passou de mao nos ultimos 3 meses. Pisca so o selo: a
+     linha inteira piscando numa tela aberta o dia todo cansa a vista. */
+  function avisoRepetida(t){
+    var h = t.historico || [];
+    if(!h.length) return '';
+    var d = paraData(h[0].criado_em);
+    var selo = (h.length > 1)
+      ? ('já trocou · ' + h.length + ' vezes')
+      : ('já trocou' + (d ? ' · ' + faz(d) : ''));
+    var det = h.map(function(x){
+      var dx = paraData(x.criado_em);
+      return (dx ? dm(dx) : '—') + ' · ' + (esc(x.resp_atual) || '—') + ' → ' +
+             (esc(x.resp_novo) || '—') + ' · ' + esc(x.status);
+    }).join('<br>');
+    return '<span class="tc-rep">' + esc(selo) + '</span>' +
+           '<span class="tc-rep-det">' + det + '</span>';
+  }
+  /* A data vem do RD, nao do pedido: vale para agendamento antigo e novo, e
+     acompanha se a pessoa for remarcada. Vazia nos pedidos ja resolvidos,
+     porque ali nao perguntamos mais ao RD. */
+  function celulaAgendado(t){
+    var s = (t.agendado || '').trim();
+    if(!s) return '<td><span class="tc-agd"><span class="vazio">—</span></span></td>';
+    var p = s.split('/');
+    var d = new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0]));
+    if(isNaN(d.getTime()))
+      return '<td><span class="tc-agd"><span class="dia">' + esc(s) + '</span></span></td>';
+    var hoje = new Date(); hoje.setHours(0,0,0,0);
+    var dias = Math.round((d - hoje) / 86400000);
+    var cls = dias === 0 ? ' hoje' : (dias < 0 ? ' passou' : '');
+    var rel = dias ===  0 ? 'hoje'
+            : dias ===  1 ? 'amanhã'
+            : dias === -1 ? 'ontem'
+            : dias  >   0 ? ('em ' + dias + ' dias')
+            :               ('há ' + (-dias) + ' dias');
+    return '<td><span class="tc-agd' + cls + '">' +
+           '<span class="dia">' + esc(s) + '</span>' +
+           '<span class="rel">' + rel + '</span></span></td>';
+  }
+  function faz(d){
+    var dias = Math.round((Date.now() - d.getTime()) / 86400000);
+    if(dias <= 0) return 'hoje';
+    if(dias === 1) return 'ontem';
+    if(dias < 30)  return 'há ' + dias + ' dias';
+    var m = Math.round(dias / 30);
+    return 'há ' + m + (m === 1 ? ' mês' : ' meses');
+  }
+  /* Etapa e funil vem do RD pela extensao. Servem para a lider decidir sem
+     abrir a negociacao. Quem nao manda fica com o tracinho. */
+  function celulaEtapa(t){
+    if(!t.etapa && !t.funil) return '<td><span style="color:var(--muted-fg)">—</span></td>';
+    return '<td>' +
+      (t.etapa ? '<span class="tc-etapa" title="' + esc(t.etapa) + '">' +
+                 esc(t.etapa) + '</span>' : '') +
+      (t.funil ? '<span class="tc-funil" title="' + esc(t.funil) + '">' +
+                 esc(t.funil) + '</span>' : '') +
+      '</td>';
+  }
+  function celulaAcoes(t){
+    if(t.status === 'feito' || t.status === 'recusado'){
+      var d = paraData(t.resolvido_em);
+      return '<td class="tc-feito-por"><b>' + (esc(t.resolvido_por) || '—') + '</b>' +
+             (d ? dm(d) + ' às ' + hm(d) : '') + '</td>';
+    }
+    var rotulo = (t.status === 'erro')
+      ? '↻ Tentar de novo'
+      : (RD_LIGADO ? 'Aprovar' : 'Marcar como feito');
+    var classeOk = (t.status === 'erro') ? 'btn btn-outline' : 'btn btn-primary';
+    var classeNo = (t.status === 'erro') ? 'btn btn-danger' : 'btn btn-outline';
+    return '<td><div class="tc-acoes">' +
+             '<button class="' + classeOk + '" onclick="aprovar(' + t.id + ', this)">' +
+               rotulo + '</button>' +
+             '<button class="' + classeNo + '" onclick="recusar(' + t.id + ', this)">' +
+               'Recusar</button>' +
+           '</div>' +
+           (t.erro ? '<div class="tc-erro">' + esc(t.erro) + '</div>' : '') +
+           '</td>';
+  }
+  
+  function render(){
+    var tb = document.getElementById('tc-body');
+    if(!ITENS.length){
+      tb.innerHTML = '<tr><td colspan="9" class="tc-vazio">' +
+                     'Nenhum pedido neste filtro.</td></tr>';
+      return;
+    }
+    tb.innerHTML = ITENS.map(function(t, i){
+      var resolvida = (t.status === 'feito' || t.status === 'recusado') ? ' resolvida' : '';
+      var repetida  = (t.historico && t.historico.length) ? ' repetida' : '';
+      return '<tr class="' + (i % 2 ? 'alt' : '') + resolvida + repetida + '">' +
+        celulaQuando(t) +
+        '<td class="tc-quem" title="' + esc(t.solicitante) + '">' +
+          (esc(t.solicitante) || '—') + '</td>' +
+        '<td>' + (t.unidade ? '<span class="tc-uni">' + esc(t.unidade) + '</span>' : '') + '</td>' +
+        celulaLead(t) +
+        celulaAgendado(t) +
+        celulaEtapa(t) +
+        '<td><div class="tc-troca">' +
+          '<span class="tc-de" title="' + esc(t.resp_atual) + '">' +
+            (esc(t.resp_atual) || '—') + '</span>' +
+          '<span class="tc-seta">→</span>' +
+          '<span class="tc-para" title="' + esc(t.resp_novo) + '">' +
+            (esc(t.resp_novo) || '—') + '</span></div></td>' +
+        '<td><span class="tc-st ' + esc(t.status) + '">' + esc(t.status) + '</span></td>' +
+        celulaAcoes(t) +
+      '</tr>';
     }).join('');
-  if(novo === sel.innerHTML) return;      // nao mexe no campo sem necessidade
-  sel.innerHTML = novo;
-  sel.value = atual;
-}
-
-/* ── Token pessoal do RD ──────────────────────────────────────────────────
-   Cada lider cadastra o dela. O valor nunca volta do servidor: a tela so
-   sabe de quem e o token e desde quando.
-   O cadastro tem duas fases de proposito — primeiro o RD diz de quem e o
-   token, e so depois de a lider confirmar o nome e que ele e guardado. */
-var TOKEN_OCUPADO = false;   // trava o refresh de 15s durante o cadastro
-
-function renderToken(d){
-  var cx = document.getElementById('tc-token');
-  if(!cx || TOKEN_OCUPADO) return;
-
-  var meu = d.meu_token || {};
-  if(!d.cifra_ligada){
-    cx.className = 'tc-token on erro';
-    cx.innerHTML = '<span class="ic">⚠</span><span class="tx">' +
-      '<b>Servidor sem chave de cifra.</b> Defina <b>FLASK_SECRET</b> ou ' +
-      '<b>TOKEN_KEY</b> no Easypanel — sem uma delas nenhum token é guardado. ' +
-      '<i>Credencial em claro no banco, não.</i></span>';
-    return;
   }
-  if(meu.configurado){
-    var c = paraData(meu.criado_em), u = paraData(meu.ultimo_uso);
-    var quem = meu.rd_nome
-      ? '<b>' + esc(meu.rd_nome) + '</b>' +
-        (meu.rd_email ? ' · ' + esc(meu.rd_email) : '') +
-        (meu.rd_org   ? ' · ' + esc(meu.rd_org)   : '')
-      : '<b>Token cadastrado</b>';
-    cx.className = 'tc-token on ok';
-    cx.innerHTML = '<span class="ic">✓</span><span class="tx">' + quem +
-      '<i>' + (c ? ' · desde ' + dm(c) : '') +
-      (u ? ' · uso ' + dm(u) + ' ' + hm(u) : ' · sem uso ainda') + '</i></span>' +
-      '<button class="btn btn-outline" onclick="trocaToken()">Trocar</button>' +
-      '<button class="btn btn-outline" onclick="removeToken()">Remover</button>';
-    return;
-  }
-  cx.className = 'tc-token on falta';
-  cx.innerHTML = '<span class="ic">🔑</span><span class="tx">' +
-    '<b>Cadastre seu token do RD</b> para aprovar direto no CRM. ' +
-    '<i>Sem ele, o botão só marca o pedido como resolvido aqui.</i></span>' +
-    campoToken();
-}
-function campoToken(){
-  return '<input id="tc-token-in" type="password" autocomplete="off" ' +
-         'placeholder="cole seu token do RD" oninput="TOKEN_OCUPADO=true"/>' +
-         '<button class="btn btn-primary" onclick="confereToken(this)">Conferir</button>';
-}
-function trocaToken(){
-  TOKEN_OCUPADO = true;
-  var cx = document.getElementById('tc-token');
-  cx.className = 'tc-token on falta';
-  cx.innerHTML = '<span class="ic">↻</span><span class="tx">Cole o token novo — ' +
-    '<i>o antigo é substituído.</i></span>' + campoToken() +
-    '<button class="btn btn-outline" onclick="cancelaToken()">Cancelar</button>';
-  var campo = document.getElementById('tc-token-in');
-  if(campo) campo.focus();
-}
-function cancelaToken(){
-  TOKEN_PENDENTE = '';
-  TOKEN_OCUPADO = false;
-  carregar();
-}
-
-/* Fase 1: pergunta ao RD de quem e o token. Nada e gravado ainda. */
-var TOKEN_PENDENTE = '';
-async function confereToken(bt){
-  var campo = document.getElementById('tc-token-in');
-  if(!campo || !bt) return;
-  var v = String(campo.value || '').trim();
-  if(v.length < 10){ showToast('Cole o token inteiro.', 'error'); return; }
-  bt.disabled = true;
-  var antes = bt.textContent;
-  bt.textContent = 'conferindo...';
-  try{
-    var r = await fetch('/api/meu_rd_token', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({token: v})
+  
+  /* Espera media: so conta quem ja foi resolvido e tem as duas horas. */
+  function indicadores(pendentes){
+    var feitos = 0, erros = 0, somaMin = 0, nMin = 0;
+    ITENS.forEach(function(t){
+      if(t.status === 'feito' || t.status === 'recusado') feitos++;
+      if(t.status === 'erro') erros++;
+      var a = paraData(t.criado_em), b = paraData(t.resolvido_em);
+      if(a && b && b > a){ somaMin += (b - a) / 60000; nMin++; }
     });
-    var d = await r.json().catch(function(){ return {}; });
-    if(!r.ok) throw new Error(d.error || ('http ' + r.status));
-    TOKEN_PENDENTE = v;
-    pedeConfirmacao(d.dono || {});
-  }catch(e){
-    showToast(e.message || 'Não consegui conferir o token.', 'error');
-    bt.disabled = false;
-    bt.textContent = antes;
+    document.getElementById('k-pend').textContent   = pendentes;
+    document.getElementById('k-feitos').textContent = feitos;
+    document.getElementById('k-erros').textContent  = erros;
+    var el = document.getElementById('k-espera');
+    if(!nMin){ el.textContent = '—'; return; }
+    var m = Math.round(somaMin / nMin);
+    el.innerHTML = (m < 60 ? m : Math.round(m / 60)) +
+      '<span style="font-size:13px;font-weight:600;color:var(--muted-fg)"> ' +
+      (m < 60 ? 'min' : 'h') + '</span>';
   }
-}
-/* Mostra o nome que veio do RD e espera o "sou eu". */
-function pedeConfirmacao(dono){
-  TOKEN_OCUPADO = true;
-  var cx = document.getElementById('tc-token');
-  cx.className = 'tc-token on falta';
-  var quem = dono.nome
-    ? 'Token de <b>' + esc(dono.nome) + '</b>' +
-      (dono.email ? ' · ' + esc(dono.email) : '') +
-      (dono.org   ? ' · ' + esc(dono.org)   : '') + ' — <i>é você?</i>'
-    : '<b>O token funciona</b>, mas o RD não disse de quem é. ' +
-      '<i>Confirme só se tiver certeza de que é o seu' +
-      (dono._diag ? ' — ' + esc(dono._diag) : '') + '.</i>';
-  cx.innerHTML = '<span class="ic">👤</span><span class="tx">' + quem + '</span>' +
-    '<button class="btn btn-primary" onclick="confirmaToken(this)">Sim, sou eu</button>' +
-    '<button class="btn btn-outline" onclick="cancelaToken()">Não, cancelar</button>';
-}
-/* Fase 2: agora sim grava. */
-async function confirmaToken(bt){
-  if(!TOKEN_PENDENTE || !bt) return;
-  bt.disabled = true;
-  bt.textContent = 'guardando...';
-  try{
-    var r = await fetch('/api/meu_rd_token', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({token: TOKEN_PENDENTE, confirmar: true})
-    });
-    var d = await r.json().catch(function(){ return {}; });
-    if(!r.ok) throw new Error(d.error || ('http ' + r.status));
+  
+  function enchUnidades(lista){
+    var sel = document.getElementById('f-unidade');
+    var atual = sel.value;
+    var novo = '<option value="">Todas</option>' +
+      (lista || []).map(function(u){
+        return '<option value="' + esc(u) + '">' + esc(u) + '</option>';
+      }).join('');
+    if(novo === sel.innerHTML) return;      // nao mexe no campo sem necessidade
+    sel.innerHTML = novo;
+    sel.value = atual;
+  }
+  
+  /* ── Token pessoal do RD ──────────────────────────────────────────────────
+     Cada lider cadastra o dela. O valor nunca volta do servidor: a tela so
+     sabe de quem e o token e desde quando.
+     O cadastro tem duas fases de proposito — primeiro o RD diz de quem e o
+     token, e so depois de a lider confirmar o nome e que ele e guardado. */
+  var TOKEN_OCUPADO = false;   // trava o refresh de 15s durante o cadastro
+  
+  function renderToken(d){
+    var cx = document.getElementById('tc-token');
+    if(!cx || TOKEN_OCUPADO) return;
+  
+    var meu = d.meu_token || {};
+    if(!d.cifra_ligada){
+      cx.className = 'tc-token on erro';
+      cx.innerHTML = '<span class="ic">⚠</span><span class="tx">' +
+        '<b>Servidor sem chave de cifra.</b> Defina <b>FLASK_SECRET</b> ou ' +
+        '<b>TOKEN_KEY</b> no Easypanel — sem uma delas nenhum token é guardado. ' +
+        '<i>Credencial em claro no banco, não.</i></span>';
+      return;
+    }
+    if(meu.configurado){
+      var c = paraData(meu.criado_em), u = paraData(meu.ultimo_uso);
+      var quem = meu.rd_nome
+        ? '<b>' + esc(meu.rd_nome) + '</b>' +
+          (meu.rd_email ? ' · ' + esc(meu.rd_email) : '') +
+          (meu.rd_org   ? ' · ' + esc(meu.rd_org)   : '')
+        : '<b>Token cadastrado</b>';
+      cx.className = 'tc-token on ok';
+      cx.innerHTML = '<span class="ic">✓</span><span class="tx">' + quem +
+        '<i>' + (c ? ' · desde ' + dm(c) : '') +
+        (u ? ' · uso ' + dm(u) + ' ' + hm(u) : ' · sem uso ainda') + '</i></span>' +
+        '<button class="btn btn-outline" onclick="trocaToken()">Trocar</button>' +
+        '<button class="btn btn-outline" onclick="removeToken()">Remover</button>';
+      return;
+    }
+    cx.className = 'tc-token on falta';
+    cx.innerHTML = '<span class="ic">🔑</span><span class="tx">' +
+      '<b>Cadastre seu token do RD</b> para aprovar direto no CRM. ' +
+      '<i>Sem ele, o botão só marca o pedido como resolvido aqui.</i></span>' +
+      campoToken();
+  }
+  function campoToken(){
+    return '<input id="tc-token-in" type="password" autocomplete="off" ' +
+           'placeholder="cole seu token do RD" oninput="TOKEN_OCUPADO=true"/>' +
+           '<button class="btn btn-primary" onclick="confereToken(this)">Conferir</button>';
+  }
+  function trocaToken(){
+    TOKEN_OCUPADO = true;
+    var cx = document.getElementById('tc-token');
+    cx.className = 'tc-token on falta';
+    cx.innerHTML = '<span class="ic">↻</span><span class="tx">Cole o token novo — ' +
+      '<i>o antigo é substituído.</i></span>' + campoToken() +
+      '<button class="btn btn-outline" onclick="cancelaToken()">Cancelar</button>';
+    var campo = document.getElementById('tc-token-in');
+    if(campo) campo.focus();
+  }
+  function cancelaToken(){
     TOKEN_PENDENTE = '';
     TOKEN_OCUPADO = false;
-    showToast(d.rd_nome ? ('Token de ' + d.rd_nome + ' guardado.')
-                        : 'Token guardado.', 'success');
     carregar();
-  }catch(e){
-    showToast(e.message || 'Não consegui guardar o token.', 'error');
-    bt.disabled = false;
-    bt.textContent = 'Sim, sou eu';
   }
-}
-async function removeToken(){
-  if(!confirm('Remover seu token do RD?\n\nVocê continua aprovando pedidos, ' +
-              'mas a troca no RD volta a ser na mão.')) return;
-  try{ await fetch('/api/meu_rd_token', {method: 'DELETE'}); }catch(e){}
-  TOKEN_PENDENTE = '';
-  TOKEN_OCUPADO = false;
-  showToast('Token removido.', 'success');
-  carregar();
-}
-
-async function carregar(){
-  if(ocupado) return;
-  ocupado = true;
-  var rod = document.getElementById('tc-rodape-txt');
-  try{
-    var p = new URLSearchParams();
-    p.set('status',  document.getElementById('f-status').value);
-    p.set('unidade', document.getElementById('f-unidade').value);
-    p.set('dias',    document.getElementById('f-dias').value);
-    var r = await fetch('/api/crm_trocas?' + p.toString());
-    if(r.status === 401){ window.location.href = '/login'; return; }
-    if(!r.ok) throw new Error('http ' + r.status);
-    var d = await r.json();
-    RD_LIGADO = !!d.rd_ligado;
-    ITENS = d.itens || [];
-    renderToken(d);
-    enchUnidades(d.unidades);
-    render();
-    indicadores(Number(d.pendentes) || 0);
-    var ag = new Date();
-    rod.style.color = '';
-    rod.textContent = ITENS.length + ' pedido(s) · atualizado às ' +
-      hm(ag) + ':' + String(ag.getSeconds()).padStart(2,'0') +
-      ' · a lista se refaz sozinha a cada 15 segundos';
-  }catch(e){
-    rod.style.color = '#f87171';
-    rod.textContent = 'Não consegui atualizar — o que está na tela pode estar velho.';
-  }finally{
-    ocupado = false;
-  }
-}
-
-async function resolver(id, bt, caminho, falando){
-  if(!bt) return;
-  var irmaos = bt.parentNode.querySelectorAll('button');
-  irmaos.forEach(function(b){ b.disabled = true; b.style.opacity = '.5'; });
-  var antes = bt.textContent;
-  bt.textContent = falando;
-  try{
-    var r = await fetch('/api/crm_trocas/' + id + '/' + caminho, {method: 'POST'});
-    var d = await r.json().catch(function(){ return {}; });
-    if(!r.ok) throw new Error(d.error || ('http ' + r.status));
-    if(d.status === 'erro'){
-      showToast(d.erro || 'O RD recusou a troca.', 'error');
-    } else if(d.status === 'feito'){
-      showToast(RD_LIGADO ? 'Trocado no RD.' : 'Marcado como feito.', 'success');
-    } else {
-      showToast('Pedido recusado.', 'success');
+  
+  /* Fase 1: pergunta ao RD de quem e o token. Nada e gravado ainda. */
+  var TOKEN_PENDENTE = '';
+  async function confereToken(bt){
+    var campo = document.getElementById('tc-token-in');
+    if(!campo || !bt) return;
+    var v = String(campo.value || '').trim();
+    if(v.length < 10){ showToast('Cole o token inteiro.', 'error'); return; }
+    bt.disabled = true;
+    var antes = bt.textContent;
+    bt.textContent = 'conferindo...';
+    try{
+      var r = await fetch('/api/meu_rd_token', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({token: v})
+      });
+      var d = await r.json().catch(function(){ return {}; });
+      if(!r.ok) throw new Error(d.error || ('http ' + r.status));
+      TOKEN_PENDENTE = v;
+      pedeConfirmacao(d.dono || {});
+    }catch(e){
+      showToast(e.message || 'Não consegui conferir o token.', 'error');
+      bt.disabled = false;
+      bt.textContent = antes;
     }
-  }catch(e){
-    showToast(e.message || 'Não consegui resolver o pedido.', 'error');
-    irmaos.forEach(function(b){ b.disabled = false; b.style.opacity = ''; });
-    bt.textContent = antes;
-    return;
   }
+  /* Mostra o nome que veio do RD e espera o "sou eu". */
+  function pedeConfirmacao(dono){
+    TOKEN_OCUPADO = true;
+    var cx = document.getElementById('tc-token');
+    cx.className = 'tc-token on falta';
+    var quem = dono.nome
+      ? 'Token de <b>' + esc(dono.nome) + '</b>' +
+        (dono.email ? ' · ' + esc(dono.email) : '') +
+        (dono.org   ? ' · ' + esc(dono.org)   : '') + ' — <i>é você?</i>'
+      : '<b>O token funciona</b>, mas o RD não disse de quem é. ' +
+        '<i>Confirme só se tiver certeza de que é o seu' +
+        (dono._diag ? ' — ' + esc(dono._diag) : '') + '.</i>';
+    cx.innerHTML = '<span class="ic">👤</span><span class="tx">' + quem + '</span>' +
+      '<button class="btn btn-primary" onclick="confirmaToken(this)">Sim, sou eu</button>' +
+      '<button class="btn btn-outline" onclick="cancelaToken()">Não, cancelar</button>';
+  }
+  /* Fase 2: agora sim grava. */
+  async function confirmaToken(bt){
+    if(!TOKEN_PENDENTE || !bt) return;
+    bt.disabled = true;
+    bt.textContent = 'guardando...';
+    try{
+      var r = await fetch('/api/meu_rd_token', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({token: TOKEN_PENDENTE, confirmar: true})
+      });
+      var d = await r.json().catch(function(){ return {}; });
+      if(!r.ok) throw new Error(d.error || ('http ' + r.status));
+      TOKEN_PENDENTE = '';
+      TOKEN_OCUPADO = false;
+      showToast(d.rd_nome ? ('Token de ' + d.rd_nome + ' guardado.')
+                          : 'Token guardado.', 'success');
+      carregar();
+    }catch(e){
+      showToast(e.message || 'Não consegui guardar o token.', 'error');
+      bt.disabled = false;
+      bt.textContent = 'Sim, sou eu';
+    }
+  }
+  async function removeToken(){
+    if(!confirm('Remover seu token do RD?\n\nVocê continua aprovando pedidos, ' +
+                'mas a troca no RD volta a ser na mão.')) return;
+    try{ await fetch('/api/meu_rd_token', {method: 'DELETE'}); }catch(e){}
+    TOKEN_PENDENTE = '';
+    TOKEN_OCUPADO = false;
+    showToast('Token removido.', 'success');
+    carregar();
+  }
+  
+  async function carregar(){
+    if(ocupado) return;
+    ocupado = true;
+    var rod = document.getElementById('tc-rodape-txt');
+    try{
+      var p = new URLSearchParams();
+      p.set('status',  document.getElementById('f-status').value);
+      p.set('unidade', document.getElementById('f-unidade').value);
+      p.set('dias',    document.getElementById('f-dias').value);
+      var r = await fetch('/api/crm_trocas?' + p.toString());
+      if(r.status === 401){ window.location.href = '/login'; return; }
+      if(!r.ok) throw new Error('http ' + r.status);
+      var d = await r.json();
+      RD_LIGADO = !!d.rd_ligado;
+      ITENS = d.itens || [];
+      renderToken(d);
+      enchUnidades(d.unidades);
+      render();
+      indicadores(Number(d.pendentes) || 0);
+      var ag = new Date();
+      rod.style.color = '';
+      rod.textContent = ITENS.length + ' pedido(s) · atualizado às ' +
+        hm(ag) + ':' + String(ag.getSeconds()).padStart(2,'0') +
+        ' · a lista se refaz sozinha a cada 15 segundos';
+    }catch(e){
+      rod.style.color = '#f87171';
+      rod.textContent = 'Não consegui atualizar — o que está na tela pode estar velho.';
+    }finally{
+      ocupado = false;
+    }
+  }
+  
+  async function resolver(id, bt, caminho, falando){
+    if(!bt) return;
+    var irmaos = bt.parentNode.querySelectorAll('button');
+    irmaos.forEach(function(b){ b.disabled = true; b.style.opacity = '.5'; });
+    var antes = bt.textContent;
+    bt.textContent = falando;
+    try{
+      var r = await fetch('/api/crm_trocas/' + id + '/' + caminho, {method: 'POST'});
+      var d = await r.json().catch(function(){ return {}; });
+      if(!r.ok) throw new Error(d.error || ('http ' + r.status));
+      if(d.status === 'erro'){
+        showToast(d.erro || 'O RD recusou a troca.', 'error');
+      } else if(d.status === 'feito'){
+        showToast(RD_LIGADO ? 'Trocado no RD.' : 'Marcado como feito.', 'success');
+      } else {
+        showToast('Pedido recusado.', 'success');
+      }
+    }catch(e){
+      showToast(e.message || 'Não consegui resolver o pedido.', 'error');
+      irmaos.forEach(function(b){ b.disabled = false; b.style.opacity = ''; });
+      bt.textContent = antes;
+      return;
+    }
+    carregar();
+  }
+  function aprovar(id, bt){ resolver(id, bt, 'aprovar', 'aguarde...'); }
+  function recusar(id, bt){ resolver(id, bt, 'recusar', 'aguarde...'); }
+  
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden) carregar();
+  });
   carregar();
-}
-function aprovar(id, bt){ resolver(id, bt, 'aprovar', 'aguarde...'); }
-function recusar(id, bt){ resolver(id, bt, 'recusar', 'aguarde...'); }
-
-document.addEventListener('visibilitychange', function(){
-  if(!document.hidden) carregar();
-});
-carregar();
-setInterval(function(){ if(!document.hidden) carregar(); }, 15000);
-</script>
-{% endblock %}
+  setInterval(function(){ if(!document.hidden) carregar(); }, 15000);
+  </script>
+  {% endblock %}
