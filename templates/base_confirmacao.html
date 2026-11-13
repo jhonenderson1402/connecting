@@ -20,7 +20,13 @@
 
     /* ── Sidebar ── */
     .conf-sidebar {
-      width:200px; min-height:100vh;
+      width:200px;
+      /* Altura TRAVADA no tamanho da tela. Com min-height a barra crescia junto
+         com a lista de atendentes e o Sair ficava fora do alcance, sem como
+         rolar ate ele. A segunda linha usa a medida nova (dvh), que desconta a
+         barra do navegador no celular; navegador antigo ignora e usa a de cima. */
+      height:100vh;
+      height:100dvh;
       background:#0f0f0f;
       border-right:1px solid #1f1f1f;
       display:flex; flex-direction:column;
@@ -37,35 +43,65 @@
       width:100%; max-width:150px;
       height:auto; display:block; margin:0 auto;
     }
+    /* cracha em contorno: deixa de disputar com o item ativo */
     .conf-team-badge {
-      margin:12px;
-      background:rgba(34,197,94,0.1);
-      border:1px solid rgba(34,197,94,0.25);
-      border-radius:8px;
-      padding:8px 12px;
-      font-size:11px;
-      font-weight:700;
-      color:#22c55e;
-      text-align:center;
-      letter-spacing:0.05em;
+      margin:11px 12px;
+      border:1px solid rgba(52,211,153,.3);
+      border-radius:9px;
+      padding:7px 10px;
+      font-size:9.5px; font-weight:750;
+      color:#34d399; text-align:center; letter-spacing:.08em;
+      background:linear-gradient(180deg,rgba(52,211,153,.08),transparent);
+      display:flex; align-items:center; justify-content:center; gap:6px;
     }
-    .conf-nav { flex:1; padding:8px 12px; overflow-y:auto; }
+    .conf-team-badge::before {
+      content:''; width:5px; height:5px; border-radius:50%; background:#34d399;
+      box-shadow:0 0 0 3px rgba(52,211,153,.15);
+    }
+    .conf-nav { flex:1; padding:4px 10px 10px; overflow-y:auto; }
+    .conf-nav::-webkit-scrollbar { width:6px; }
+    .conf-nav::-webkit-scrollbar-thumb { background:#2a2a32; border-radius:99px; }
     .conf-nav-label {
-      font-size:9px; font-weight:700;
-      color:#52525b; letter-spacing:.15em;
-      padding:8px 12px 6px;
+      font-size:8.5px; font-weight:750;
+      color:#5e5e6a; letter-spacing:.16em;
+      padding:14px 9px 6px; margin-top:4px;
+      border-top:1px solid #1a1a20;
     }
+    /* o primeiro rotulo nao leva fio: ja vem logo abaixo do cracha */
+    .conf-nav-label:first-of-type { border-top:none; margin-top:0; padding-top:8px; }
     .conf-nav-item {
-      display:flex; align-items:center; gap:10px;
-      padding:10px 12px; border-radius:8px;
+      display:flex; align-items:center; gap:9px;
+      padding:7px 9px; border-radius:9px;
       font-size:12px; font-weight:500;
-      color:#71717a; transition:all .2s;
-      cursor:pointer; margin-bottom:2px;
+      color:#9a9aa5; cursor:pointer; margin-bottom:1px;
+      position:relative; transition:background .13s, color .13s;
     }
-    .conf-nav-item:hover { color:#e4e4e7; background:#1a1a1a; }
-    .conf-nav-item.active { background:#22c55e; color:#052e16; font-weight:600; }
-    .conf-nav-icon { font-size:14px; flex-shrink:0; }
-
+    .conf-nav-item:hover { color:#ececf1; background:rgba(255,255,255,.045); }
+    /* ativo: faixa fina na borda, no lugar do bloco verde macico */
+    .conf-nav-item.active {
+      color:#34d399; font-weight:650;
+      background:linear-gradient(90deg,rgba(52,211,153,.17),rgba(52,211,153,.04));
+    }
+    .conf-nav-item.active::before {
+      content:''; position:absolute; left:0; top:6px; bottom:6px;
+      width:2.5px; border-radius:0 3px 3px 0; background:#34d399;
+    }
+    .conf-nav-item:focus-visible { outline:2px solid #34d399; outline-offset:2px; }
+    .conf-nav-icon { font-size:13px; width:17px; text-align:center; flex-shrink:0; }
+    /* iniciais do atendente, no lugar do mesmo bonequinho repetido */
+    .conf-ini {
+      width:21px; height:21px; flex:0 0 auto; border-radius:7px;
+      display:grid; place-items:center;
+      font-size:8.5px; font-weight:750; letter-spacing:.02em;
+      background:rgba(255,255,255,.06); color:#8d8d99;
+      transition:background .13s, color .13s;
+    }
+    .conf-nav-item:hover .conf-ini { background:rgba(255,255,255,.1); color:#ececf1; }
+    .conf-nav-item.active .conf-ini { background:#34d399; color:#04281c; }
+    /* Sair mora no rodape, fora da lista que rola */
+    .conf-sair-box { padding:9px 10px; border-top:1px solid #1d1d23; }
+    .conf-sair-box .conf-nav-item { margin:0; }
+    .conf-sair-box .conf-nav-item:hover { color:#f87171; background:rgba(248,113,113,.08); }
     /* User box */
     .conf-user-box {
       padding:12px 16px;
@@ -162,7 +198,7 @@
       <div class="conf-sidebar-logo">
         <img src="/static/logo.png" alt="Connecting"/>
       </div>
-      <div class="conf-team-badge">✅ EQUIPE CONFIRMAÇÃO</div>
+      <div class="conf-team-badge">EQUIPE CONFIRMAÇÃO</div>
       <nav class="conf-nav">
         <p class="conf-nav-label">NAVEGAÇÃO</p>
         <a href="/confirmacao" class="conf-nav-item {% if request.path == "/confirmacao" %}active{% endif %}">
@@ -174,7 +210,7 @@
         {% for nome in atendentes_list %}
         <a href="/confirmacao/{{ nome }}"
            class="conf-nav-item {% if atendente == nome %}active{% endif %}">
-          <span class="conf-nav-icon">👤</span> {{ nome }}
+          <span class="conf-ini">{{ nome.replace(' ','')[:2]|upper }}</span> {{ nome }}
         </a>
         {% endfor %}
 
@@ -186,9 +222,6 @@
         </a>
         {% endif %}
 
-        <a href="/logout" class="conf-nav-item" style="margin-top:8px;color:#fca5a5;border-top:1px solid #1f1f1f;padding-top:12px">
-          <span class="conf-nav-icon">⎋</span> Sair
-        </a>
       </nav>
       {% if current_user %}
       <div class="conf-user-box">
@@ -199,6 +232,11 @@
         </div>
       </div>
       {% endif %}
+      <div class="conf-sair-box">
+        <a href="/logout" class="conf-nav-item">
+          <span class="conf-nav-icon">⎋</span> Sair
+        </a>
+      </div>
       <div class="conf-sidebar-footer">v3.2 — Connecting</div>
     </aside>
 
