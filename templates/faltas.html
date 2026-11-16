@@ -552,8 +552,25 @@ function salva(r){
   }, 500);
 }
 
+/* ── "Todos os meses": o seletor de MÊS fica em 'todos' e a tela puxa o ano ── */
+function mesTodos(){ return valSel('f-mes') === 'todos'; }
+function travaDia(on){
+  var sel = document.getElementById('f-dia');
+  if(!sel || !sel.__cdd) return;            // ainda nao virou dropdown bonito
+  sel.__cdd.bt.disabled      = on;
+  sel.__cdd.bt.style.opacity = on ? '.45' : '';
+  sel.__cdd.bt.style.cursor  = on ? 'not-allowed' : '';
+}
+function isoHoje(){
+  var h = new Date();
+  return h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2,'0') +
+         '-' + String(h.getDate()).padStart(2,'0');
+}
+
 /* ── data da linha nova: a do filtro ── */
 function dataAtual(){
+  // com o ano inteiro na tela nao existe "mes do filtro": a linha nova e de hoje
+  if(mesTodos()) return isoHoje();
   var ano = Number(valSel('f-ano'));
   var mes = parseInt(valSel('f-mes'), 10);
   var dia = valSel('f-dia');
@@ -835,6 +852,27 @@ async function apagaFlag(id){
 async function carrega(){
   carregando = true; desenha();
   var ano = valSel('f-ano');
+  if(mesTodos()){
+    // os doze meses de uma vez. A API devolve todo registro que ENCOSTA no mes,
+    // entao um atestado de 28/10 a 03/11 volta duas vezes: junto pelo id.
+    var partes = await Promise.all([1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){
+      return fetch('/api/ocorrencias?ano=' + ano + '&mes=' + m)
+        .then(function(r){
+          if(r.status === 401){ window.location.href = '/login'; return []; }
+          return r.ok ? r.json() : [];
+        })
+        .catch(function(){ return []; });
+    }));
+    var vistos = {};
+    REG = [];
+    partes.forEach(function(lista){
+      (Array.isArray(lista) ? lista : []).forEach(function(x){
+        if(x && !vistos[x.id]){ vistos[x.id] = 1; REG.push(x); }
+      });
+    });
+    carregando = false; desenha();
+    return;
+  }
   var mes = parseInt(valSel('f-mes'), 10) + 1;
   var dia = valSel('f-dia');
   try{
@@ -853,6 +891,16 @@ async function carrega(){
 var diaJaEscolhido = false;
 function montaDias(){
   var sel = document.getElementById('f-dia');
+  if(mesTodos()){                       // ano inteiro: nao ha dia para escolher
+    sel.innerHTML = '<option value="">Mês inteiro</option>';
+    sel.value = '';
+    sel.disabled = true;
+    atualizaDropdown('f-dia');
+    travaDia(true);
+    return;
+  }
+  sel.disabled = false;
+  travaDia(false);
   var ano = Number(valSel('f-ano'));
   var mi  = parseInt(valSel('f-mes'), 10);
   var ult = new Date(ano, mi + 1, 0).getDate();
@@ -872,7 +920,6 @@ function montaDias(){
   }
   atualizaDropdown('f-dia');
 }
-
 /* ── dias com registro ficam dourados no seletor ──
    A API devolve todo registro que ENCOSTA no mes, nao so os que comecam nele
    (um atestado de 28/10 a 03/11 aparece nos dois meses). Por isso marco a
@@ -943,6 +990,9 @@ async function onConstantsLoaded(){
     selAno.appendChild(o);
   }
   var selMes = document.getElementById('f-mes');
+  var oTodos = document.createElement('option');
+  oTodos.value = 'todos'; oTodos.textContent = 'Todos os meses';
+  selMes.appendChild(oTodos);
   MESES.forEach(function(m, i){
     var o = document.createElement('option');
     o.value = i; o.textContent = m;
@@ -992,6 +1042,7 @@ function paraArquivo(){
 }
 function periodoTxt(){
   var ano = valSel('f-ano');
+  if(mesTodos()) return [ano, 'Todos os meses', '01/01 até 31/12'];
   var mi  = parseInt(valSel('f-mes'), 10);
   var dia = valSel('f-dia');
   var mm  = String(mi + 1).padStart(2,'0');
@@ -1169,13 +1220,17 @@ async function copiaZap(){
   var ano = valSel('f-ano'), mi = parseInt(valSel('f-mes'), 10);
   btn.disabled = true;
   var L = [];
-  try{
-    // o relatório é do mês inteiro, mesmo com um dia filtrado na tela
-    var r = await fetch('/api/ocorrencias?ano=' + ano + '&mes=' + (mi + 1));
-    if(r.status === 401){ window.location.href = '/login'; return; }
-    L = r.ok ? (await r.json()) : [];
-    if(!Array.isArray(L)) L = [];
-  }catch(e){ L = []; }
+  if(mesTodos()){
+    L = REG.slice();        // o ano inteiro ja esta carregado na tela
+  } else {
+    try{
+      // o relatório é do mês inteiro, mesmo com um dia filtrado na tela
+      var r = await fetch('/api/ocorrencias?ano=' + ano + '&mes=' + (mi + 1));
+      if(r.status === 401){ window.location.href = '/login'; return; }
+      L = r.ok ? (await r.json()) : [];
+      if(!Array.isArray(L)) L = [];
+    }catch(e){ L = []; }
+  }
   btn.disabled = false;
 
   if(FILTRO_NOME) L = L.filter(function(x){
@@ -1193,7 +1248,8 @@ async function copiaZap(){
                              : a.data.localeCompare(b.data);
   });
   var txt = 'RELATÓRIO DE FALTAS - ' +
-            (MESES[mi] || '').toUpperCase() + '/' + ano + '\n\n';
+            (mesTodos() ? 'ANO INTEIRO' : (MESES[mi] || '').toUpperCase()) +
+            '/' + ano + '\n\n';
   txt += L.map(function(r){
     var f = flagDe(r.flag_id);
     var dia = (fimDe(r) !== r.data) ? dmy(r.data) + ' a ' + dmy(fimDe(r)) : dmy(r.data);
