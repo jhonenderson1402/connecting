@@ -214,9 +214,18 @@
                 font-variant-numeric:tabular-nums; }
 
   /* ── painel da imagem ────────────────────────────────────────────────────── */
+  /* O painel fica preso na tela e rola por dentro, como o menu da esquerda:
+     as duas imagens cabem sem arrastar o formulario junto. */
   .saida{ position:sticky; top:72px; background:var(--card); border:1px solid var(--bd);
-          border-radius:10px; overflow:hidden;
+          border-radius:10px; overflow-x:hidden; overflow-y:auto;
+          max-height:calc(100vh - 86px);
           box-shadow:0 18px 44px -24px #000; }
+  /* a barrinha combina com o fundo do painel, nao com o da pagina */
+  .saida::-webkit-scrollbar-thumb{ border-color:var(--card); }
+  /* em tela estreita o painel cai embaixo do formulario: ai quem rola e a pagina */
+  @media (max-width:1180px){
+    .saida{ max-height:none; overflow:hidden; }
+  }
   .saida-h{ display:flex; align-items:center; gap:8px; padding:8px 12px 8px 13px;
             border-bottom:1px solid var(--bd); position:relative;
             background:linear-gradient(180deg,rgba(255,255,255,.028),transparent); }
