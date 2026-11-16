@@ -554,9 +554,12 @@ function salva(r){
 
 /* ── "Todos os meses": o seletor de MÊS fica em 'todos' e a tela puxa o ano ── */
 function mesTodos(){ return valSel('f-mes') === 'todos'; }
-function travaDia(on){
-  var sel = document.getElementById('f-dia');
-  if(!sel || !sel.__cdd) return;            // ainda nao virou dropdown bonito
+function anoTodos(){ return valSel('f-ano') === 'todos'; }
+function trava(idSelect, on){
+  var sel = document.getElementById(idSelect);
+  if(!sel) return;
+  sel.disabled = on;
+  if(!sel.__cdd) return;                    // ainda nao virou dropdown bonito
   sel.__cdd.bt.disabled      = on;
   sel.__cdd.bt.style.opacity = on ? '.45' : '';
   sel.__cdd.bt.style.cursor  = on ? 'not-allowed' : '';
@@ -566,11 +569,23 @@ function isoHoje(){
   return h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2,'0') +
          '-' + String(h.getDate()).padStart(2,'0');
 }
+/* "Todos os anos" so faz sentido com todos os meses: trava o seletor de MES */
+function ajustaFiltros(){
+  if(anoTodos()){
+    var selMes = document.getElementById('f-mes');
+    selMes.value = 'todos';
+    atualizaDropdown('f-mes');
+    trava('f-mes', true);
+  } else {
+    trava('f-mes', false);
+  }
+  montaDias();
+}
 
 /* ── data da linha nova: a do filtro ── */
 function dataAtual(){
   // com o ano inteiro na tela nao existe "mes do filtro": a linha nova e de hoje
-  if(mesTodos()) return isoHoje();
+  if(mesTodos() || anoTodos()) return isoHoje();
   var ano = Number(valSel('f-ano'));
   var mes = parseInt(valSel('f-mes'), 10);
   var dia = valSel('f-dia');
@@ -851,29 +866,8 @@ async function apagaFlag(id){
 /* ── carga ── */
 async function carrega(){
   carregando = true; desenha();
-  var ano = valSel('f-ano');
-  if(mesTodos()){
-    // os doze meses de uma vez. A API devolve todo registro que ENCOSTA no mes,
-    // entao um atestado de 28/10 a 03/11 volta duas vezes: junto pelo id.
-    var partes = await Promise.all([1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){
-      return fetch('/api/ocorrencias?ano=' + ano + '&mes=' + m)
-        .then(function(r){
-          if(r.status === 401){ window.location.href = '/login'; return []; }
-          return r.ok ? r.json() : [];
-        })
-        .catch(function(){ return []; });
-    }));
-    var vistos = {};
-    REG = [];
-    partes.forEach(function(lista){
-      (Array.isArray(lista) ? lista : []).forEach(function(x){
-        if(x && !vistos[x.id]){ vistos[x.id] = 1; REG.push(x); }
-      });
-    });
-    carregando = false; desenha();
-    return;
-  }
-  var mes = parseInt(valSel('f-mes'), 10) + 1;
+  var ano = anoTodos() ? 'todos' : valSel('f-ano');
+  var mes = (anoTodos() || mesTodos()) ? 'todos' : (parseInt(valSel('f-mes'), 10) + 1);
   var dia = valSel('f-dia');
   try{
     var r = await fetch('/api/ocorrencias?ano=' + ano + '&mes=' + mes +
@@ -891,16 +885,14 @@ async function carrega(){
 var diaJaEscolhido = false;
 function montaDias(){
   var sel = document.getElementById('f-dia');
-  if(mesTodos()){                       // ano inteiro: nao ha dia para escolher
+  if(mesTodos() || anoTodos()){         // ano inteiro: nao ha dia para escolher
     sel.innerHTML = '<option value="">Mês inteiro</option>';
     sel.value = '';
-    sel.disabled = true;
     atualizaDropdown('f-dia');
-    travaDia(true);
+    trava('f-dia', true);
     return;
   }
-  sel.disabled = false;
-  travaDia(false);
+  trava('f-dia', false);
   var ano = Number(valSel('f-ano'));
   var mi  = parseInt(valSel('f-mes'), 10);
   var ult = new Date(ano, mi + 1, 0).getDate();
@@ -983,6 +975,9 @@ function ehHoje(){
 async function onConstantsLoaded(){
   var hoje = new Date();
   var selAno = document.getElementById('f-ano');
+  var oAnoTodos = document.createElement('option');
+  oAnoTodos.value = 'todos'; oAnoTodos.textContent = 'Todos os anos';
+  selAno.appendChild(oAnoTodos);
   for(var y = hoje.getFullYear() - 2; y <= hoje.getFullYear() + 1; y++){
     var o = document.createElement('option');
     o.value = y; o.textContent = y;
@@ -1014,7 +1009,7 @@ async function onConstantsLoaded(){
     document.getElementById(id).addEventListener('change', function(){
       // a lista de meses so muda quando troca o ano
       if(id === 'f-ano') marcaMesesComDados();
-      montaDias(); marcaDiasComDados(); carrega();
+      ajustaFiltros(); marcaDiasComDados(); carrega();
     });
   });
   document.getElementById('f-dia').addEventListener('change', carrega);
@@ -1042,6 +1037,7 @@ function paraArquivo(){
 }
 function periodoTxt(){
   var ano = valSel('f-ano');
+  if(anoTodos()) return ['Todos os anos', 'Todos os meses', 'tudo'];
   if(mesTodos()) return [ano, 'Todos os meses', '01/01 até 31/12'];
   var mi  = parseInt(valSel('f-mes'), 10);
   var dia = valSel('f-dia');
@@ -1220,7 +1216,7 @@ async function copiaZap(){
   var ano = valSel('f-ano'), mi = parseInt(valSel('f-mes'), 10);
   btn.disabled = true;
   var L = [];
-  if(mesTodos()){
+  if(mesTodos() || anoTodos()){
     L = REG.slice();        // o ano inteiro ja esta carregado na tela
   } else {
     try{
@@ -1247,9 +1243,10 @@ async function copiaZap(){
     return a.data === b.data ? String(a.tmk).localeCompare(String(b.tmk), 'pt-BR')
                              : a.data.localeCompare(b.data);
   });
-  var txt = 'RELATÓRIO DE FALTAS - ' +
-            (mesTodos() ? 'ANO INTEIRO' : (MESES[mi] || '').toUpperCase()) +
-            '/' + ano + '\n\n';
+  var cab = anoTodos() ? 'TUDO'
+          : mesTodos() ? 'ANO INTEIRO/' + ano
+          : (MESES[mi] || '').toUpperCase() + '/' + ano;
+  var txt = 'RELATÓRIO DE FALTAS - ' + cab + '\n\n';
   txt += L.map(function(r){
     var f = flagDe(r.flag_id);
     var dia = (fimDe(r) !== r.data) ? dmy(r.data) + ' a ' + dmy(fimDe(r)) : dmy(r.data);
