@@ -1426,11 +1426,18 @@ def _ocor_to_dict(o):
             'lider': o.lider or '', 'tmk': o.tmk or '',
             'flag_id': o.flag_id or 0, 'obs': o.obs or ''}
 
-def get_ocorrencias(ano, mes, dia=None):
+def get_ocorrencias(ano=None, mes=None, dia=None):
     """Todos os registros que ENCOSTAM no periodo pedido, nao so os que comecam
     nele. Um atestado de 28/10 a 03/11 aparece tanto em outubro quanto em
-    novembro, porque a pessoa esteve fora nos dois meses."""
-    if dia:
+    novembro, porque a pessoa esteve fora nos dois meses.
+
+    Sem mes, pega o ano inteiro. Sem ano, pega tudo o que ja foi lancado."""
+    if not ano:
+        ini, fim = '0000-01-01', '9999-12-31'
+    elif not mes:
+        ini = '%04d-01-01' % ano
+        fim = '%04d-12-31' % ano
+    elif dia:
         ini = fim = '%04d-%02d-%02d' % (ano, mes, dia)
     else:
         ini = '%04d-%02d-01' % (ano, mes)
