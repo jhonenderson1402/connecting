@@ -250,8 +250,10 @@
     <div class="filtros">
       <div class="campo"><label>Fechamento</label>
         <input type="date" id="dt-fech" onchange="trocaDia()"></div>
-      <div class="campo"><label>Agendado para</label>
-        <input type="date" id="dt-alvo" oninput="monta()"></div>
+      <!-- Agendado para: nao aparece mais, mas continua existindo. E ele que
+           manda as siglas para o Acompanhamento Unidades e escreve a data na
+           tira. O valor sai sozinho do dia do fechamento, em alvoDe(). -->
+      <input type="hidden" id="dt-alvo">
       <button class="bt-ouro" onclick="salvar(this)">💾 Salvar</button>
     </div>
   </div>
@@ -403,7 +405,15 @@ function hoje(d){
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') +
          '-' + String(d.getDate()).padStart(2,'0');
 }
-
+/* O dia do agendamento vem sempre do fechamento: o dia seguinte.
+   Sabado e a excecao — no sabado se agenda para segunda, nao para domingo. */
+function alvoDe(dataFech){
+  var p = String(dataFech || '').split('-');
+  if(p.length !== 3) return '';
+  var d = new Date(+p[0], +p[1] - 1, +p[2]);
+  d.setDate(d.getDate() + (d.getDay() === 6 ? 2 : 1));
+  return hoje(d);
+}
 /* O total do dia e a soma das unidades — nao se digita. */
 function totalDia(){
   return TOTAIS.reduce(function(s,t){
@@ -565,14 +575,7 @@ async function carregaDia(data){
   document.getElementById('indic').value = Number(d.indicacao) || 0;
   VALORES = (d.siglas && typeof d.siglas === 'object') ? d.siglas : {};
 
-  var alvo = d.data_alvo;
-  if(!alvo){
-    var p = data.split('-');
-    var dd = new Date(+p[0], +p[1]-1, +p[2]);
-    dd.setDate(dd.getDate() + 1);
-    alvo = hoje(dd);
-  }
-  document.getElementById('dt-alvo').value = alvo;
+  document.getElementById('dt-alvo').value = alvoDe(data);
 
   calculaTotais();
 
