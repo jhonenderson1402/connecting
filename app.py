@@ -64,7 +64,7 @@ def _force_https():
 UNITS_FALLBACK = ["PARÁ", "MANAUS", "MANOA", "SÃO LUIZ", "FORTALEZA", "AÇÃO"]
 def _units():
     """Lista de unidades vinda do banco (Configuração > Unidades)."""
-   
+    try:
         return [u['nome'] for u in db.get_unidades()] or UNITS_FALLBACK
     except Exception:
         return UNITS_FALLBACK
@@ -93,7 +93,7 @@ def _err(msg, code=400):
 def _valid_date(s):
     if not isinstance(s, str):
         return False
-   
+    try:
         datetime.strptime(s, "%Y-%m-%d")
         return True
     except ValueError:
@@ -207,7 +207,7 @@ def login():
 def api_stats_publicas():
     """Rota PÚBLICA (sem login) para a landing. Devolve apenas 3 totais somados
     (leads, agendamentos, comparecimentos), sem expor nenhum dado individual."""
-   
+    try:
         return jsonify(db.get_stats_publicas())
     except Exception:
         # Se algo falhar, devolve zeros em vez de erro (a landing é pública)
@@ -283,7 +283,7 @@ def api_list_users():
 @admin_required
 def api_create_user():
     data = request.get_json(silent=True) or {}
-   
+    try:
         uid = db.create_user(data.get('username'), data.get('password'), data.get('role'))
         return jsonify({'id': uid, 'username': data['username'].strip()}), 201
     except ValueError as e:
@@ -308,7 +308,7 @@ def api_change_password(uid):
     if not is_admin and uid != session.get('user_id'):
         return _err('Você só pode alterar a sua própria senha.', 403)
     data = request.get_json(silent=True) or {}
-   
+    try:
         db.change_password(uid, data.get('password'))
         return jsonify({'ok': True})
     except ValueError as e:
@@ -359,7 +359,7 @@ def api_delete_employee(eid):
 @login_required
 def api_rename_employee():
     data = request.get_json(silent=True) or {}
-   
+    try:
         return jsonify(db.renomear_funcionario(data.get('de'), data.get('para')))
     except ValueError as e:
         return _err(str(e))
@@ -381,7 +381,7 @@ def _wh_config():
     url = os.environ.get('WEBHOOK_URL', '').strip()
     if not url:
         return None
-   
+    try:
         espera = int(os.environ.get('WEBHOOK_DEBOUNCE', '30'))
     except (TypeError, ValueError):
         espera = 30
