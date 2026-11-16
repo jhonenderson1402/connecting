@@ -678,7 +678,7 @@ function exportCsv(){
     ouro:'#bf9620', ouroE:'#967516', fio:'#eae8e2'
   };
   var W = 760, IM = 34, IR = W - 34;
-  var CX_LEADS = IR - 90, CX_PCT = IR;
+  var CX_LEADS = IR;              // a coluna % saiu: os numeros vao ate a borda
   var H_UNI = 20, H_CAN = 18, H_TOT = 21, H_GER = 30;
   var CX_COLS = 2, CX_GAP = 8, CX_ALT = 50;
   var TOTAL_GERAL = 0;
@@ -790,7 +790,6 @@ function exportCsv(){
   function cabecalhoTabela(ct, y, rotulo){
     CAP(ct, IM+5,     y, rotulo,  fnt(700,9), C.fraco, 1.5);
     CAP(ct, CX_LEADS, y, 'LEADS', fnt(700,9), C.fraco, 1.5, 'r');
-    CAP(ct, CX_PCT,   y, '%',     fnt(700,9), C.fraco, 1.5, 'r');
     LIN(ct, IM, y+13, IR, C.borda, 1);
     return y+19;
   }
@@ -846,20 +845,17 @@ function exportCsv(){
         if(i%2) RET(ct, IM, y, IR-IM, H_CAN, '#faf9f6');
         TCORTA(ct, IM+18, y+4, c.nome,       fnt(400,11),  C.corpo, CX_LEADS-IM-60);
         T(ct, CX_LEADS, y+3, n(c.v),         fnt(600,11.5),C.tinta, 'r');
-        T(ct, CX_PCT,   y+4, pc(c.v,d.total),fnt(400,10),  C.fraco, 'r');
-        y += H_CAN;
+      y += H_CAN;
       });
       LIN(ct, IM+18, y, IR, C.fio, 1);
       T(ct, IM+18, y+4, 'Total',                fnt(700,11),   C.corpo);
       T(ct, CX_LEADS, y+3, n(u.total),          fnt(800,12),   C.tinta, 'r');
-      T(ct, CX_PCT,   y+4, pc(u.total,d.total), fnt(700,10),   C.ouroE, 'r');
       y += H_TOT;
     });
     LIN(ct, IM, y, IR, C.ouro, 2);
     RET(ct, IM, y+2, IR-IM, H_GER-2, '#f3f1ea');
     T(ct, IM+5, y+8, 'Total geral', fnt(800,15),  C.tinta);
     T(ct, CX_LEADS, y+7, n(d.total),fnt(800,16),  C.ouroE, 'r');
-    T(ct, CX_PCT,   y+9, '100%',    fnt(700,13),  C.ouroE, 'r');
 
     LIN(ct,IM,alt-34,IR,C.fio,1);
     T(ct,IM,alt-26,'Connecting · Sistema de Agendamentos',fnt(400,9.5),C.claro);
