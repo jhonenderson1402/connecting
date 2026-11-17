@@ -5,17 +5,13 @@
   background:#141414; border:1px solid #1f1f1f;
   border-radius:12px; padding:20px;
 }
-.rank-tmk-row {
-  display:flex; align-items:center; gap:12px;
-  padding:10px 12px; border-radius:8px;
-  background:rgba(255,255,255,0.03); margin-bottom:6px;
-}
-.rank-tmk-pos { font-size:16px; min-width:28px; }
-.rank-tmk-name { flex:1; font-size:13px; font-weight:600; color:#e4e4e7; }
-.rank-tmk-bar-wrap { width:140px; height:8px; background:#1a1a1a; border-radius:4px; overflow:hidden; }
-.rank-tmk-bar { height:100%; background:#22c55e; border-radius:4px; transition:width .5s; }
-.rank-tmk-stats { display:flex; gap:12px; font-size:12px; font-weight:700; min-width:120px; justify-content:flex-end; }
-.unit-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+/* Rank TMK: cabeçalho clicável ordena */
+.ext-table th.tmk-ord { cursor:pointer; user-select:none; transition:color .13s; }
+.ext-table th.tmk-ord:hover { color:#e4e4e7; }
+.ext-table th.tmk-ord .tmk-seta { opacity:0; margin-left:3px; font-size:8px; }
+.ext-table th.tmk-ord:hover .tmk-seta { opacity:.4; }
+.ext-table th.tmk-ord.on { color:#22c55e !important; }
+.ext-table th.tmk-ord.on .tmk-seta { opacity:1; }.unit-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
 .unit-box {
   background:rgba(255,255,255,0.02); border:1px solid #1f1f1f;
   border-radius:10px; padding:14px;
@@ -173,6 +169,19 @@
     <div style="overflow-x:auto">
       <table class="ext-table" id="rank-conf-table" style="min-width:560px"></table>
     </div>
+  </div>
+    <!-- Rank TMK (erros) -->
+  <div class="analise-card">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <span style="font-size:18px">🏆</span>
+      <h2 style="font-size:14px;font-weight:700">Rank TMK — erros</h2>
+      <span id="rank-tmk-ord" style="margin-left:auto;font-size:10px;color:#52525b"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="ext-table" id="rank-tmk-table" style="min-width:620px"></table>
+    </div>
+    <p style="font-size:11px;color:#52525b;margin-top:9px">
+      A medalha acompanha o TOTAL de erros, não a ordem da lista.</p>
   </div>
   <!-- Performance por Unidade -->
   <div class="analise-card">
@@ -353,7 +362,8 @@ function renderAnalise() {
     <div class="stat-chip" style="background:rgba(34,197,94,0.1);color:#22c55e">✅ Confirmados: ${conf} (${pct}%)</div>
     <div class="stat-chip" style="background:#1f1f1f;color:#71717a">⏳ Pendentes: ${pend}</div>`;
   renderFlags(data);
-   renderRankConfirmacao(data);
+  renderRankConfirmacao(data);
+  renderRankTMK(data);
   renderUnidadesTabela(data);
 }
 function renderFlags(data) {
@@ -576,47 +586,79 @@ const FLAGS_RANK = [
   { key: 'NÃO AGENDADO',    label: 'NÃO AGENDADO',     short: 'N.AGEND.',  color: '#a855f7' },
   { key: 'UNIDADE ERRADA',  label: 'UNIDADE ERRADA',   short: 'UNID.ERR.', color: '#3b82f6' },
 ];
+// ── Rank TMK (erros) — cabecalho clicavel ordena A-Z / Z-A ──
+// A medalha fica presa ao TOTAL de erros, nao a ordem da tela: se voce ordenar
+// por nome, quem mais errou continua com a medalha dele ao lado do nome.
+let tmkOrd = { key: 'total', dir: 'desc' };
 function renderRankTMK(data) {
+  const tbl = document.getElementById('rank-tmk-table');
+  if(!tbl) return;
   const tmkMap = {};
-  data.forEach(r => {
-    const fRank = FLAGS_RANK.find(f => f.key === r.flag);
-    if(!fRank) return;                 // só conta registros que são erro
+  (data||[]).forEach(r => {
+    if(!FLAGS_RANK.some(f => f.key === r.flag)) return;   // so conta erro
     const tmk = (r.tmk||'').trim() || 'Sem TMK';
     if(!tmkMap[tmk]) {
       tmkMap[tmk] = { total: 0 };
       FLAGS_RANK.forEach(f => tmkMap[tmk][f.key] = 0);
     }
-    tmkMap[tmk].total++;               // TOTAL = soma dos erros do TMK
+    tmkMap[tmk].total++;
     tmkMap[tmk][r.flag]++;
   });
-  const ranked = Object.entries(tmkMap)
-    .map(([name, d]) => ({ name, ...d }))
-    .sort((a,b) => b.total - a.total);
-  const el = document.getElementById('rank-tmk-list');
-  if(ranked.length === 0) {
-    el.innerHTML = '<p style="color:#71717a;text-align:center;padding:20px;font-size:12px">Nenhum erro registrado no período. 👏</p>';
+  const lista = Object.entries(tmkMap).map(([name, d]) => Object.assign({name}, d));
+  const lbl = document.getElementById('rank-tmk-ord');
+  if(lista.length === 0) {
+    tbl.innerHTML = '<tbody><tr><td style="text-align:center;color:#52525b;padding:20px">' +
+                    'Nenhum erro registrado no período. 👏</td></tr></tbody>';
+    if(lbl) lbl.textContent = '';
     return;
   }
+  // posicao pelo TOTAL, independente da ordem escolhida
+  const pos = {};
+  lista.slice()
+    .sort((a,b) => b.total - a.total || a.name.localeCompare(b.name,'pt-BR'))
+    .forEach((r,i) => { pos[r.name] = i; });
+  // ordem da tela
+  const ord = lista.slice().sort((a,b) => {
+    const r = tmkOrd.key === 'name'
+      ? a.name.localeCompare(b.name,'pt-BR')
+      : ((a[tmkOrd.key]||0) - (b[tmkOrd.key]||0) || a.name.localeCompare(b.name,'pt-BR'));
+    return tmkOrd.dir === 'asc' ? r : -r;
+  });
   const medals = ['🥇','🥈','🥉'];
-  // Header
-  const header = `<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;margin-bottom:4px;font-size:9px;font-weight:700;color:#52525b;letter-spacing:.1em;border-bottom:1px solid #1f1f1f">
-    <span style="min-width:28px"></span>
-    <span style="flex:1">TMK</span>
-    <span style="min-width:48px;text-align:center">TOTAL</span>
-    ${FLAGS_RANK.map(f=>`<span style="min-width:56px;text-align:center;color:${f.color}">${f.short}</span>`).join('')}
-  </div>`;
-  const rows = ranked.map((r,i) => `
-    <div class="rank-tmk-row">
-      <span class="rank-tmk-pos">${i<3?medals[i]:`${i+1}º`}</span>
-      <span class="rank-tmk-name">${esc(r.name)}</span>
-      <span style="min-width:48px;text-align:center;font-size:12px;font-weight:700;color:#fbbf24">${r.total}</span>
-      ${FLAGS_RANK.map(f => {
-        const cnt = r[f.key] || 0;
-        return `<span style="min-width:56px;text-align:center;font-size:12px;font-weight:700;color:${cnt>0?f.color:'#3f3f46'}">${cnt}</span>`;
+  const cols = [{key:'total', short:'TOTAL', color:'#fbbf24'}].concat(FLAGS_RANK);
+  const seta = k => '<span class="tmk-seta">' +
+        (tmkOrd.key === k && tmkOrd.dir === 'asc' ? '▲' : '▼') + '</span>';
+  const head = '<thead><tr>' +
+    `<th class="tmk-ord${tmkOrd.key==='name'?' on':''}" data-k="name" style="text-align:left">TMK${seta('name')}</th>` +
+    cols.map(c => `<th class="tmk-ord${tmkOrd.key===c.key?' on':''}" data-k="${c.key}" style="color:${c.color}">${c.short}${seta(c.key)}</th>`).join('') +
+    '</tr></thead>';
+  const body = ord.map(r => {
+    const p = pos[r.name];
+    return `<tr>
+      <td style="text-align:left">${p<3?medals[p]:(p+1)+'º'} ${esc(r.name)}</td>
+      ${cols.map(c => {
+        const v = r[c.key] || 0;
+        return `<td style="color:${v>0?c.color:'#3f3f46'};font-weight:700">${v}</td>`;
       }).join('')}
-    </div>`).join('');
-  el.innerHTML = header + rows;
+    </tr>`;
+  }).join('');
+  tbl.innerHTML = head + '<tbody>' + body + '</tbody>';
+  if(lbl) {
+    const nomes = {name:'TMK', total:'TOTAL'};
+    FLAGS_RANK.forEach(f => nomes[f.key] = f.short);
+    lbl.textContent = 'ordenado por ' + nomes[tmkOrd.key] +
+      (tmkOrd.key === 'name' ? (tmkOrd.dir === 'asc' ? ' A–Z' : ' Z–A')
+                             : (tmkOrd.dir === 'asc' ? ' ↑' : ' ↓'));
+  }
 }
+document.addEventListener('click', function(e) {
+  const th = e.target.closest ? e.target.closest('#rank-tmk-table th.tmk-ord') : null;
+  if(!th) return;
+  const k = th.dataset.k;
+  if(tmkOrd.key === k) tmkOrd.dir = (tmkOrd.dir === 'asc' ? 'desc' : 'asc');
+  else tmkOrd = { key: k, dir: (k === 'name' ? 'asc' : 'desc') };
+  renderRankTMK(analiseData);
+});
 // ── Performance por Unidade (tabela com seletor de colunas) ──
 const UNID_COLS = [
   {key:'total',             label:'CONTATOS',   color:'#fbbf24'},
