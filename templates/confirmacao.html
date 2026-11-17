@@ -880,6 +880,7 @@ function openCtrlModal(){
       return '<option value="' + i + '">' + u.nome + '</option>';
     }).join('');
   }
+  ligaDropdown('ctrl-uni', 'DIGITE A UNIDADE');
   var dt = document.getElementById('ctrl-dia');
   if(dt && !dt.value){
     var h = new Date();
