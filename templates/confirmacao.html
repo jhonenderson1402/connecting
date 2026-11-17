@@ -881,12 +881,75 @@ function openCtrlModal(){
     }).join('');
   }
   ligaDropdown('ctrl-uni', 'DIGITE A UNIDADE');
-  var dt = document.getElementById('ctrl-dia');
-  if(dt && !dt.value){
-    var h = new Date();
-    dt.value = h.getFullYear() + '-' + String(h.getMonth()+1).padStart(2,'0') +
-               '-' + String(h.getDate()).padStart(2,'0');
-  }
+    // Conta as linhas que ja estao na tela e preenche manha / tarde sozinho.
+  // Vai num setTimeout para rodar depois que a DATA do modal ja foi preenchida.
+  setTimeout(function(){
+    function ctrlConta(){
+      var dd  = document.getElementById('ctrl-dia');
+      var iso = dd ? String(dd.value || '') : '';
+      var br  = '';
+      if(/^\d{4}-\d{2}-\d{2}$/.test(iso)){
+        var p = iso.split('-');
+        br = p[2] + '/' + p[1] + '/' + p[0];
+      }
+      var am = 0, tr = 0, sem = 0, ult = '', ultN = -1;
+      (typeof allConf !== 'undefined' ? allConf : []).forEach(function(r){
+        if(br && String(r.data_str || '').trim() !== br) return;
+        var txt = String(r.horario || '').trim();
+        var par = txt.split(':');
+        var h   = parseInt(par[0], 10);
+        if(isNaN(h)) { sem++; return; }
+        if(h < 13) am++; else tr++;
+        // compara em minutos: "9:00" sem zero na frente nao engana a comparacao
+        var m = parseInt(par[1], 10);
+        var n = h * 60 + (isNaN(m) ? 0 : m);
+        if(n > ultN) { ultN = n; ult = txt; }
+      });
+      var setV = function(id, n){
+        var el = document.getElementById(id);
+        if(!el) return;
+        el.value = String(n);
+        el.dispatchEvent(new Event('input', {bubbles:true}));
+      };
+      setV('ctrl-am', am);
+      setV('ctrl-at', tr);
+      // linha de conferencia, logo abaixo do campo da tarde
+      var alvo = document.getElementById('ctrl-at');
+      if(!alvo) return;
+      var box = document.getElementById('ctrl-cont');
+      if(!box){
+        box = document.createElement('div');
+        box.id = 'ctrl-cont';
+        box.style.cssText = 'font-size:10px;line-height:1.5;color:#52525b;margin:5px 0 2px';
+        alvo.insertAdjacentElement('afterend', box);
+      }
+      var tot = am + tr;
+      if(tot === 0 && sem === 0){
+        box.innerHTML = '<span style="color:#ca8a04">Nenhum agendamento na tela' +
+                        (br ? ' para ' + br : '') + '.</span>';
+      } else {
+        box.textContent = tot + ' agendamento' + (tot === 1 ? '' : 's') +
+          (br ? ' · ' + br : '') +
+          ' · manhã ' + am + ' · tarde ' + tr +
+          (ult ? ' · último horário ' + ult : '');
+        if(sem > 0){
+          box.innerHTML += '<br><span style="color:#ca8a04">' + sem +
+            ' sem horário — não entraram na conta.</span>';
+        }
+      }
+    }
+    ctrlConta();
+    var dd = document.getElementById('ctrl-dia');
+    if(dd && !dd.dataset.conta){
+      dd.dataset.conta = '1';
+      dd.addEventListener('change', ctrlConta);
+    }
+  }, 0);
+  // A DATA do modal segue sempre o dia da tela — e o dia cujos dados estao
+  // carregados no allConf. Mudar a mao depois continua valendo.
+  var dt  = document.getElementById('ctrl-dia');
+  var pbr = String(getDateStr() || '').split('/');   // DD/MM/AAAA
+  if(dt && pbr.length === 3) dt.value = pbr[2] + '-' + pbr[1] + '-' + pbr[0];
   if(!ctrlLigado){ ctrlLigaTeclado(); ctrlLigado = true; }
   ctrlHorario();
   document.getElementById('modal-ctrl').classList.add('show');
