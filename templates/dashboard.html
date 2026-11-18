@@ -1691,6 +1691,11 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       </div>
       <div class="c"><img src="/static/logo.png" alt="Connecting"></div>
       <div class="d">
+        <div class="rank-tam">
+          <button type="button" onclick="rankTam(-1)" title="Letra menor (tecla −)">A−</button>
+          <span id="rank-tv-tam">—</span>
+          <button type="button" onclick="rankTam(1)" title="Letra maior (tecla +)">A+</button>
+        </div>
         <div class="per"><b id="rank-tv-per">—</b><span>Período</span></div>
       </div>
     </div>
@@ -1758,6 +1763,18 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
   .rank-tvhead .vivo span{ font-size:11px; font-weight:750; letter-spacing:.14em;
                            text-transform:uppercase; color:#22c55e; }
   .rank-tvhead .per{ text-align:right; }
+  .rank-tvhead .rank-tam{ display:flex; align-items:center; gap:7px; margin-right:20px; }
+  .rank-tvhead .rank-tam button{
+    width:30px; height:30px; border-radius:8px; cursor:pointer; flex:0 0 auto;
+    background:rgba(255,255,255,.05); border:1px solid #2a2a30; color:#a1a1aa;
+    font-family:inherit; font-size:12px; font-weight:800; line-height:1;
+    transition:border-color .14s, color .14s;
+  }
+  .rank-tvhead .rank-tam button:hover{ border-color:#fbbf24; color:#fbbf24; }
+  .rank-tvhead .rank-tam span{
+    font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+    color:#6b6b75; min-width:66px; text-align:center; white-space:nowrap;
+  }
   .rank-tvhead .per b{ display:block; font-size:24px; font-weight:800; letter-spacing:-.02em;
                        line-height:1; color:#fbbf24; text-transform:uppercase; }
   .rank-tvhead .per span{ display:block; font-size:10px; color:#6b6b75; margin-top:5px;
@@ -1822,7 +1839,18 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
      e encolhe a letra o quanto for preciso para ninguem ficar cortado.
      No modo normal nada muda: continua mostrando todo mundo. */
   (function(){
-    var LIMITE = 15;
+    // Quantos nomes cada caixa mostra no modo TV e em quantas colunas o Rank
+    // Geral se divide. Os dois ficam salvos: cada TV guarda a preferencia dela.
+    var LIM_MIN = 5, LIM_MAX = 30, COL_MIN = 1, COL_MAX = 6;
+    function guarda(ch, v){ try{ localStorage.setItem(ch, String(v)); }catch(e){} }
+    function lido(ch, padrao, min, max){
+      var n = 0;
+      try{ n = parseInt(localStorage.getItem(ch), 10) || 0; }catch(e){}
+      return (n >= min && n <= max) ? n : padrao;
+    }
+    var LIMITE    = lido('rankLimite', 15, LIM_MIN, LIM_MAX);
+    var colsGeral = lido('rankColsGeral', 0, COL_MIN, COL_MAX);  // 0 = automatico
+    var colsAuto  = 3;
     var card = document.getElementById('rank-card');
     var grid = document.getElementById('ranking-grid');
     if(!card || !grid) return;
@@ -1853,7 +1881,36 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       else if(typeof showToast !== 'undefined')
         showToast('Este navegador nao permite tela cheia.','error');
     };
+    // A+ aumenta a letra, A- diminui. No modo unidades isso e menos nomes por
+    // caixa; no Rank Geral e mais colunas. O efeito e o mesmo: sobra altura,
+    // e o encolhe() para de reduzir a fonte.
+    function mudaTam(dir){                       // dir +1 = letra maior
+      if(rankAlvo === 'geral'){
+        var atual = colsGeral || colsAuto;
+        var c = Math.max(COL_MIN, Math.min(COL_MAX, atual + dir));
+        if(c === atual) return;
+        colsGeral = c; guarda('rankColsGeral', c);
+      } else {
+        var m = Math.max(LIM_MIN, Math.min(LIM_MAX, LIMITE - dir));
+        if(m === LIMITE) return;
+        LIMITE = m; guarda('rankLimite', m);
+      }
+      aplica();
+    }
+    window.rankTam = function(dir){ mudaTam(dir); };
 
+    // As teclas + e - so valem em tela cheia, e so sem Ctrl: com Ctrl o
+    // navegador faz o zoom dele, e nao e papel nosso atrapalhar.
+    document.addEventListener('keydown', function(e){
+      if(!emTV() || e.ctrlKey || e.metaKey || e.altKey) return;
+      if(e.key === '+' || e.key === '='){ e.preventDefault(); mudaTam(1); }
+      else if(e.key === '-' || e.key === '_'){ e.preventDefault(); mudaTam(-1); }
+    });
+
+    function mostraTam(txt){
+      var el = document.getElementById('rank-tv-tam');
+      if(el) el.textContent = txt;
+    }
     function colunas(n){
       if(n <= 1) return 1;
       if(n <= 4) return 2;
@@ -1934,8 +1991,10 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         geral.style.gridColumn = '1';
         geral.style.gridRow = '1';
         var n = corta(geral, 0);                  // 0 = mostra todo mundo
-        var cols = Math.max(1, Math.min(4, Math.ceil(n / 22)));
+          colsAuto = Math.max(COL_MIN, Math.min(4, Math.ceil(n / 22)));
+        var cols = colsGeral || colsAuto;
         geral.style.setProperty('--cols', cols);
+        mostraTam(cols + (cols === 1 ? ' coluna' : ' colunas'));        
         encolhe([geral], geral);
         return;
       }
@@ -1956,6 +2015,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       grid.style.setProperty('grid-template-rows',
         'repeat(' + Math.max(1, Math.ceil(lista.length / c)) + ',1fr)', 'important');
       lista.forEach(function(box){ corta(box, LIMITE); });
+      mostraTam(LIMITE + ' nomes');
       encolhe(lista, card);
     }
     var tmr;
