@@ -1719,7 +1719,11 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
   /* ── os dois modos de tela cheia ── */
   /* ⛶ unidades: a caixa dourada sai de cena e as unidades ficam com a largura toda */
   #rank-card.tv-unidades #rank-geral-box{ display:none !important; }
-
+  /* cada caixa fica do tamanho do conteudo dela, em vez de todas iguais */
+  #rank-card.tv-unidades #ranking-grid{
+    align-items:start !important; align-content:start !important;
+    grid-auto-rows:min-content !important;
+  }
   /* 🏆 rank geral: as unidades saem e a caixa dourada ocupa a tela. Os nomes
      se espalham em colunas; o titulo e o cabecalho atravessam por cima. */
   #rank-card.tv-geral .rank-unit-box{ display:none !important; }
@@ -1795,14 +1799,15 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
   }
   #rank-card:fullscreen .rank-unit-title,
   #rank-card:-webkit-full-screen .rank-unit-title{
-    flex:0 0 auto; font-size:12px !important; padding:8px 12px !important;
+    flex:0 0 auto; font-size:calc(12px * var(--f)) !important;
+    padding:calc(7px * var(--f)) 12px !important;
   }
   #rank-card:fullscreen .rank-header-row,
   #rank-card:-webkit-full-screen .rank-header-row{
     flex:0 0 auto; padding:5px 12px !important;
   }
   #rank-card:fullscreen .rank-header-row span,
-  #rank-card:-webkit-full-screen .rank-header-row span{ font-size:9px !important; }
+  #rank-card:-webkit-full-screen .rank-header-row span{ font-size:calc(9px * var(--f)) !important; }
   #rank-card:fullscreen .rank-row,
   #rank-card:-webkit-full-screen .rank-row{
     flex:0 0 auto; padding:calc(3px * var(--f)) 12px !important;
@@ -1828,7 +1833,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
   #rank-card:fullscreen .rank-tv-f,
   #rank-card:-webkit-full-screen .rank-tv-f{
     display:block; flex:0 0 auto; margin-top:auto;
-    padding:5px 12px; font-size:10px; color:#52525b; text-align:right;
+    padding:5px 12px; font-size:calc(10px * var(--f)); color:#52525b; text-align:right;
     border-top:1px solid #1e1e23; background:rgba(255,255,255,.015);
   }
   </style>
@@ -1937,23 +1942,29 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       });
     }
 
-    // Encolhe a letra do conjunto ate a caixa mais cheia caber.
-    // O fator vai no elemento "alvo"; como ele e herdado, a caixa geral
-    // pode ter o seu proprio e nao obriga as unidades a encolher junto.
-    function encolhe(els, alvo){
-      if(!els.length) return;
-      var f = 1;
-      alvo.style.setProperty('--f', 1);
-      for(var k = 0; k < 30; k++){
-        var passou = els.some(function(b){ return b.scrollHeight > b.clientHeight + 1; });
-        if(!passou) break;
-        f -= 0.035;
-        if(f < 0.3) f = 0.3;
+    // Acha o MAIOR fator de letra que ainda cabe. Diferente do antigo encolhe(),
+    // este tambem CRESCE: numa TV grande, com poucos nomes, a letra passa de 1.
+    // Acima de 1 ele tambem olha a largura — sem isso o nome voltaria a sair
+    // cortado, como "ALESSANDRA JACQ...".
+    function ajustaFonte(medir, alvo){
+      function cabe(f){
         alvo.style.setProperty('--f', f);
-        if(f === 0.3) break;
+        if(medir.scrollHeight > medir.clientHeight + 1) return false;
+        if(f <= 1) return true;
+        var nm = medir.querySelectorAll('.rank-name');
+        for(var i = 0; i < nm.length; i++){
+          if(nm[i].scrollWidth > nm[i].clientWidth + 1) return false;
+        }
+        return true;
       }
+      var lo = 0.3, hi = 3;
+      if(cabe(hi)) return;                       // cabe tudo no tamanho maximo
+      for(var k = 0; k < 16; k++){
+        var m = (lo + hi) / 2;
+        if(cabe(m)) lo = m; else hi = m;
+      }
+      alvo.style.setProperty('--f', Math.round(lo * 1000) / 1000);
     }
-
     // Corta a caixa no top N e escreve o rodape "+N fora do top N".
     // Limite 0 = mostra todo mundo.
     function corta(box, limite){
@@ -1994,8 +2005,8 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
           colsAuto = Math.max(COL_MIN, Math.min(4, Math.ceil(n / 22)));
         var cols = colsGeral || colsAuto;
         geral.style.setProperty('--cols', cols);
-        mostraTam(cols + (cols === 1 ? ' coluna' : ' colunas'));        
-        encolhe([geral], geral);
+        mostraTam(cols + (cols === 1 ? ' coluna' : ' colunas'));
+        ajustaFonte(geral, geral);
         return;
       }
 
@@ -2012,11 +2023,13 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       var lista = outras.length ? outras : boxes;
       var c = colunas(lista.length);
       grid.style.setProperty('grid-template-columns', 'repeat(' + c + ',1fr)', 'important');
-      grid.style.setProperty('grid-template-rows',
-        'repeat(' + Math.max(1, Math.ceil(lista.length / c)) + ',1fr)', 'important');
+      // Sem altura fixa por fila: cada caixa fica do tamanho do conteudo dela.
+      // Assim a unidade com 15 nomes nao espreme as outras, e a altura que as
+      // caixas curtas nao usam sobra para a letra crescer.
+      grid.style.removeProperty('grid-template-rows');
       lista.forEach(function(box){ corta(box, LIMITE); });
       mostraTam(LIMITE + ' nomes');
-      encolhe(lista, card);
+      ajustaFonte(grid, card);
     }
     var tmr;
     function reaplica(){ clearTimeout(tmr); tmr = setTimeout(aplica, 90); }
