@@ -1674,7 +1674,10 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         <select id="rank-type"><option value="month">Mês</option></select>
         <div id="rank-day-group"><select id="rank-day"></select></div>
       </div>
-      <button class="rank-tv-bt" onclick="rankModoTV()" title="Modo TV — tela cheia">⛶</button>
+      <button class="rank-tv-bt" onclick="rankModoTV('unidades')"
+              title="Tela cheia — unidades">⛶</button>
+      <button class="rank-tv-bt" onclick="rankModoTV('geral')"
+              title="Tela cheia — Rank Geral">🏆</button>
     </div>
 
     <!-- cabecalho do modo TV (so aparece em tela cheia) -->
@@ -1708,6 +1711,23 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
   .rank-tvhead{ display:none; }
   .rank-tv-f{ display:none; }
 
+  /* ── os dois modos de tela cheia ── */
+  /* ⛶ unidades: a caixa dourada sai de cena e as unidades ficam com a largura toda */
+  #rank-card.tv-unidades #rank-geral-box{ display:none !important; }
+
+  /* 🏆 rank geral: as unidades saem e a caixa dourada ocupa a tela. Os nomes
+     se espalham em colunas; o titulo e o cabecalho atravessam por cima. */
+  #rank-card.tv-geral .rank-unit-box{ display:none !important; }
+  #rank-card.tv-geral #rank-geral-box{
+    display:block !important;
+    column-count:var(--cols,3); column-gap:26px; column-fill:auto;
+    column-rule:1px solid #1e1e23;
+  }
+  #rank-card.tv-geral #rank-geral-box .rank-unit-title,
+  #rank-card.tv-geral #rank-geral-box .rank-header-row{ column-span:all; }
+  #rank-card.tv-geral #rank-geral-box .rank-row{
+    break-inside:avoid; -webkit-column-break-inside:avoid;
+  }
   /* ── modo TV (tela cheia) ── */
   #rank-card:fullscreen,
   #rank-card:-webkit-full-screen{
@@ -1807,19 +1827,31 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
     var grid = document.getElementById('ranking-grid');
     if(!card || !grid) return;
 
+    // Qual tela cheia esta sendo pedida: as unidades ou so o Rank Geral.
+    var rankAlvo = 'unidades';
+
     function emTV(){
       return (document.fullscreenElement || document.webkitFullscreenElement) === card;
     }
 
-    window.rankModoTV = function(){
+    // O botao ⛶ manda 'unidades' e o 🏆 manda 'geral'. Apertar o mesmo botao
+    // de novo sai da tela cheia; apertar o outro so troca o modo.
+    window.rankModoTV = function(qual){
+      qual = (qual === 'geral') ? 'geral' : 'unidades';
       if(emTV()){
-        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-      } else {
-        var f = card.requestFullscreen || card.webkitRequestFullscreen;
-        if(f) f.call(card);
-        else if(typeof showToast !== 'undefined')
-          showToast('Este navegador nao permite tela cheia.','error');
+        if(qual === rankAlvo){
+          (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        } else {
+          rankAlvo = qual;
+          aplica();
+        }
+        return;
       }
+      rankAlvo = qual;
+      var f = card.requestFullscreen || card.webkitRequestFullscreen;
+      if(f) f.call(card);
+      else if(typeof showToast !== 'undefined')
+        showToast('Este navegador nao permite tela cheia.','error');
     };
 
     function colunas(n){
@@ -1830,6 +1862,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
     }
 
     function limpa(){
+      card.classList.remove('tv-unidades','tv-geral');
       card.style.removeProperty('--f');
       grid.style.removeProperty('grid-template-columns');
       grid.style.removeProperty('grid-template-rows');
@@ -1837,6 +1870,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         b.style.removeProperty('grid-column');
         b.style.removeProperty('grid-row');
         b.style.removeProperty('--f');
+        b.style.removeProperty('--cols');
       });
       [].forEach.call(grid.querySelectorAll('.rank-row'), function(r){
         r.style.removeProperty('display');
@@ -1863,7 +1897,25 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       }
     }
 
+    // Corta a caixa no top N e escreve o rodape "+N fora do top N".
+    // Limite 0 = mostra todo mundo.
+    function corta(box, limite){
+      var rows = [].slice.call(box.querySelectorAll('.rank-row'));
+      var sobra = 0;
+      rows.forEach(function(r, i){
+        if(limite && i >= limite){ r.style.display = 'none'; sobra++; }
+        else r.style.removeProperty('display');
+      });
+      var f = box.querySelector('.rank-tv-f');
+      if(sobra > 0){
+        if(!f){ f = document.createElement('div'); f.className = 'rank-tv-f'; box.appendChild(f); }
+        f.textContent = '+' + sobra + ' fora do top ' + limite;
+      } else if(f && f.parentNode){ f.parentNode.removeChild(f); }
+      return rows.length;
+    }
+
     function aplica(){
+      card.classList.remove('tv-unidades','tv-geral');
       if(!emTV()){ limpa(); return; }
 
       var boxes = [].slice.call(grid.querySelectorAll('.rank-unit-box'));
@@ -1871,44 +1923,40 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
 
       var geral  = grid.querySelector('#rank-geral-box');
       var outras = boxes.filter(function(b){ return b !== geral; });
+      var tit    = card.querySelector('.rank-tvhead .tit b');
 
-      // A caixa geral fica numa coluna estreita a esquerda, com a altura
-      // inteira da tela, mostrando todo mundo. As unidades ficam ao lado.
-      if(geral && outras.length){
-        var c = colunas(outras.length);
-        var linhas = Math.max(1, Math.ceil(outras.length / c));
-        grid.style.setProperty('grid-template-columns',
-          '0.78fr repeat(' + c + ',1fr)', 'important');
-        grid.style.setProperty('grid-template-rows',
-          'repeat(' + linhas + ',1fr)', 'important');
+      // ── tela cheia so do Rank Geral ──
+      if(rankAlvo === 'geral' && geral){
+        card.classList.add('tv-geral');
+        if(tit) tit.textContent = 'Rank Geral — todas as unidades';
+        grid.style.setProperty('grid-template-columns', '1fr', 'important');
+        grid.style.setProperty('grid-template-rows', '1fr', 'important');
         geral.style.gridColumn = '1';
-        geral.style.gridRow = '1 / span ' + linhas;
-      } else {
-        var c2 = colunas(boxes.length);
-        grid.style.setProperty('grid-template-columns',
-          'repeat(' + c2 + ',1fr)', 'important');
-        grid.style.setProperty('grid-template-rows',
-          'repeat(' + Math.ceil(boxes.length / c2) + ',1fr)', 'important');
+        geral.style.gridRow = '1';
+        var n = corta(geral, 0);                  // 0 = mostra todo mundo
+        var cols = Math.max(1, Math.min(4, Math.ceil(n / 22)));
+        geral.style.setProperty('--cols', cols);
+        encolhe([geral], geral);
+        return;
       }
 
-      // o corte no top 15 vale so para as unidades; a geral mostra todos
-      boxes.forEach(function(box){
-        var todos = (box === geral);
-        var rows = [].slice.call(box.querySelectorAll('.rank-row'));
-        var sobra = 0;
-        rows.forEach(function(r, i){
-          if(!todos && i >= LIMITE){ r.style.display = 'none'; sobra++; }
-          else r.style.removeProperty('display');
-        });
-        var f = box.querySelector('.rank-tv-f');
-        if(sobra > 0){
-          if(!f){ f = document.createElement('div'); f.className = 'rank-tv-f'; box.appendChild(f); }
-          f.textContent = '+' + sobra + ' fora do top ' + LIMITE;
-        } else if(f && f.parentNode){ f.parentNode.removeChild(f); }
-      });
-
-      encolhe(outras, card);
-      if(geral) encolhe([geral], geral);
+      // ── tela cheia das unidades ──
+      // O Rank Geral sai de cena (o CSS o esconde) e as unidades ficam com a
+      // largura inteira: sem a coluna 0.78fr que ele reservava.
+      card.classList.add('tv-unidades');
+      if(tit) tit.textContent = 'Ranking por Unidade';
+      if(geral){
+        geral.style.removeProperty('grid-column');
+        geral.style.removeProperty('grid-row');
+        geral.style.removeProperty('--cols');
+      }
+      var lista = outras.length ? outras : boxes;
+      var c = colunas(lista.length);
+      grid.style.setProperty('grid-template-columns', 'repeat(' + c + ',1fr)', 'important');
+      grid.style.setProperty('grid-template-rows',
+        'repeat(' + Math.max(1, Math.ceil(lista.length / c)) + ',1fr)', 'important');
+      lista.forEach(function(box){ corta(box, LIMITE); });
+      encolhe(lista, card);
     }
     var tmr;
     function reaplica(){ clearTimeout(tmr); tmr = setTimeout(aplica, 90); }
