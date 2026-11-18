@@ -42,7 +42,9 @@
     var b=document.getElementById("rank-col-btn");
     if(b) b.textContent = "Filtro (" + n + ")";
   }
-
+  // O modo tela cheia reduz as colunas de numeros; ao sair, ele chama isto
+  // para devolver exatamente o que o seu Filtro manda.
+  window.rankAplicaFiltro = applyFilter;
   // O botão agora mora no cabeçalho do card do ranking,
   // e não mais na barra de filtros (que foi escondida).
   function buildUI(){
@@ -1942,7 +1944,9 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         b.style.removeProperty('grid-row');
         b.style.removeProperty('--f');
         b.style.removeProperty('--cols');
+        b.style.removeProperty('order');
       });
+      colunasTV(false);                 // devolve as 7 colunas do Filtro
       [].forEach.call(grid.querySelectorAll('.rank-row'), function(r){
         r.style.removeProperty('display');
       });
@@ -1958,11 +1962,11 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
     // este tambem CRESCE: numa TV grande, com poucos nomes, a letra passa de 1.
     // Acima de 1 ele tambem olha a largura — sem isso o nome voltaria a sair
     // cortado, como "ALESSANDRA JACQ...".
-    function ajustaFonte(medir, alvo){
+    function ajustaFonte(medir, alvo, semCortar){
       function cabe(f){
         alvo.style.setProperty('--f', f);
         if(medir.scrollHeight > medir.clientHeight + 1) return false;
-        if(f <= 1) return true;
+        if(!semCortar && f <= 1) return true;
         var nm = medir.querySelectorAll('.rank-name');
         for(var i = 0; i < nm.length; i++){
           if(nm[i].scrollWidth > nm[i].clientWidth + 1) return false;
@@ -1970,12 +1974,63 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         return true;
       }
       var lo = 0.3, hi = 3;
-      if(cabe(hi)) return;                       // cabe tudo no tamanho maximo
+      if(cabe(hi)) return 3;                     // cabe tudo no tamanho maximo
       for(var k = 0; k < 16; k++){
         var m = (lo + hi) / 2;
         if(cabe(m)) lo = m; else hi = m;
       }
-      alvo.style.setProperty('--f', Math.round(lo * 1000) / 1000);
+      lo = Math.round(lo * 1000) / 1000;
+      alvo.style.setProperty('--f', lo);
+      return lo;
+    }
+        // As colunas de numeros sao fixas em pixel: numa caixa de 389px elas tomam
+    // 259px e sobram 73px para o nome — e e por isso que a letra fica minuscula
+    // e "ALESSANDRA JACQUELINE" sai cortado. Aqui elas encolhem junto com a
+    // letra e, na TV, ficam so AGD, CMP e CNV. No Resumo Geral nada muda.
+    var TV_COLS = ['rank-leads','rank-ag','rank-comp','rank-vendas',
+                   'rank-conv','rank-pun','rank-creal'];
+    var TV_LARG = { 'rank-creal': 46 };          // as outras tem 33px
+    var TV_FICA = ['rank-ag','rank-comp','rank-conv'];
+    function colunasTV(liga){
+      if(!liga){
+        if(typeof window.rankAplicaFiltro === 'function') window.rankAplicaFiltro();
+        return;
+      }
+      var tpl = '';
+      TV_COLS.forEach(function(c){
+        if(TV_FICA.indexOf(c) >= 0) tpl += ' calc(' + (TV_LARG[c] || 33) + 'px * var(--f,1))';
+      });
+      [].forEach.call(grid.querySelectorAll('.rank-row'), function(r){
+        TV_COLS.forEach(function(c){
+          var s = r.querySelector('.' + c);
+          if(s) s.style.display = (TV_FICA.indexOf(c) >= 0) ? '' : 'none';
+        });
+        r.style.setProperty('grid-template-columns',
+                            'calc(15px * var(--f,1)) 1fr' + tpl, 'important');
+      });
+      [].forEach.call(grid.querySelectorAll('.rank-header-row'), function(h){
+        for(var i = 1; i < h.children.length; i++){
+          h.children[i].style.display =
+            (TV_FICA.indexOf(TV_COLS[i-1]) >= 0) ? '' : 'none';
+        }
+        h.style.setProperty('grid-template-columns', '1fr' + tpl, 'important');
+      });
+    }
+
+    // Caixa cheia primeiro, vazia depois — com "order" do CSS, sem tocar no DOM
+    // (mexer no DOM acordaria o observer e viraria laco). Hoje PARA (15 nomes)
+    // divide a fila com PARA-BLACK FRIDAY (2): a fila tem 273px de altura e a
+    // caixa pequena usa 62px. Essa altura perdida volta para a letra.
+    function ordenaPorTamanho(lista){
+      function cheio(b){
+        var n = 0;
+        [].forEach.call(b.querySelectorAll('.rank-row'), function(r){
+          if(r.style.display !== 'none') n++;
+        });
+        return n;
+      }
+      lista.slice().sort(function(a, b){ return cheio(b) - cheio(a); })
+           .forEach(function(b, i){ b.style.order = i; });
     }
         // Uma copia do cabecalho no topo de cada coluna do Rank Geral.
     // As copias sao absolutas: ficam por cima do cabecalho invisivel e nao
@@ -2035,6 +2090,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       // ── tela cheia so do Rank Geral ──
       if(rankAlvo === 'geral' && geral){
         card.classList.add('tv-geral');
+        colunasTV(false);               // o Rank Geral mantem as colunas do Filtro
         if(tit) tit.textContent = 'Rank Geral — todas as unidades';
         grid.style.setProperty('grid-template-columns', '1fr', 'important');
         grid.style.setProperty('grid-template-rows', '1fr', 'important');
@@ -2062,16 +2118,24 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         cabecaPorColuna(geral, 0);      // 0 = so apaga as copias
       }
       var lista = outras.length ? outras : boxes;
-      var c = colunas(lista.length);
-      grid.style.setProperty('grid-template-columns', 'repeat(' + c + ',1fr)', 'important');
       // Sem altura fixa por fila: cada caixa fica do tamanho do conteudo dela.
-      // Assim a unidade com 15 nomes nao espreme as outras, e a altura que as
-      // caixas curtas nao usam sobra para a letra crescer.
       grid.style.removeProperty('grid-template-rows');
       lista.forEach(function(box){ corta(box, LIMITE); });
-      mostraTam(LIMITE + ' nomes');
-      ajustaFonte(grid, card);
-    }
+      colunasTV(true);
+      ordenaPorTamanho(lista);
+      // Testa 3, 4 e 5 colunas e fica com a que render a MAIOR letra sem
+      // cortar nenhum nome. Antes era travado em 4.
+      var melhor = null;
+      for(var nc = 3; nc <= 5; nc++){
+        if(nc > lista.length) break;
+        grid.style.setProperty('grid-template-columns', 'repeat(' + nc + ',1fr)', 'important');
+        var ff = ajustaFonte(grid, card, true);
+        if(!melhor || ff > melhor.f + 0.001) melhor = { c: nc, f: ff };
+      }
+      if(!melhor) melhor = { c: 1 };
+      grid.style.setProperty('grid-template-columns', 'repeat(' + melhor.c + ',1fr)', 'important');
+      ajustaFonte(grid, card, true);
+      mostraTam(LIMITE + ' nomes · ' + melhor.c + ' col');    }
     var tmr, mexendo = false;
     // mexendo = estamos inserindo as copias do cabecalho. Sem essa trava o
     // proprio MutationObserver abaixo veria a insercao, mandaria refazer tudo,
