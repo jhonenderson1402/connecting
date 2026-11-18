@@ -1728,16 +1728,20 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
      se espalham em colunas; o titulo e o cabecalho atravessam por cima. */
   #rank-card.tv-geral .rank-unit-box{ display:none !important; }
   #rank-card.tv-geral #rank-geral-box{
-    display:block !important;
+    display:block !important; position:relative;
     column-count:var(--cols,3); column-gap:26px; column-fill:auto;
     column-rule:1px solid #1e1e23;
   }
   #rank-card.tv-geral #rank-geral-box .rank-unit-title{ column-span:all; }
-  /* o cabecalho NAO atravessa as colunas: ele fica na 1a, com a mesma largura
-     das linhas de nome. Atravessando, as siglas espalhavam pela tela inteira
-     e nao batiam com os numeros de baixo. */
-  #rank-card.tv-geral #rank-geral-box .rank-header-row{
-    break-inside:avoid; -webkit-column-break-inside:avoid;
+  /* O cabecalho de verdade atravessa as colunas so para ABRIR O ESPACO no topo
+     de todas elas — e fica invisivel. Por cima dele o JS posiciona uma copia
+     por coluna, na largura e na posicao daquela coluna. CSS sozinho nao sabe
+     repetir um elemento no topo de cada coluna. */
+  #rank-card.tv-geral #rank-geral-box > .rank-header-row:not(.rk-hcol){
+    column-span:all; visibility:hidden;
+  }
+  #rank-card.tv-geral #rank-geral-box > .rank-header-row.rk-hcol{
+    position:absolute; margin:0;
   }
   #rank-card.tv-geral #rank-geral-box .rank-row{
     break-inside:avoid; -webkit-column-break-inside:avoid;
@@ -1945,6 +1949,9 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       [].forEach.call(grid.querySelectorAll('.rank-tv-f'), function(f){
         if(f.parentNode) f.parentNode.removeChild(f);
       });
+      [].forEach.call(grid.querySelectorAll('.rank-header-row.rk-hcol'), function(h){
+        if(h.parentNode) h.parentNode.removeChild(h);
+      });
     }
 
     // Acha o MAIOR fator de letra que ainda cabe. Diferente do antigo encolhe(),
@@ -1969,6 +1976,33 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         if(cabe(m)) lo = m; else hi = m;
       }
       alvo.style.setProperty('--f', Math.round(lo * 1000) / 1000);
+    }
+        // Uma copia do cabecalho no topo de cada coluna do Rank Geral.
+    // As copias sao absolutas: ficam por cima do cabecalho invisivel e nao
+    // mexem no layout — por isso nao disparam um novo ajuste de fonte.
+    function cabecaPorColuna(box, cols){
+      mexendo = true;
+      [].forEach.call(box.querySelectorAll('.rank-header-row.rk-hcol'), function(h){
+        if(h.parentNode) h.parentNode.removeChild(h);
+      });
+      var real = box.querySelector('.rank-header-row');
+      if(real && cols >= 1){
+        var cs   = getComputedStyle(box);
+        var gap  = parseFloat(cs.columnGap) || 0;
+        var padL = parseFloat(cs.paddingLeft) || 0;
+        var util = box.clientWidth - padL - (parseFloat(cs.paddingRight) || 0);
+        var w    = (util - (cols - 1) * gap) / cols;
+        var top  = real.offsetTop;
+        for(var i = 0; i < cols; i++){
+          var c = real.cloneNode(true);
+          c.className += ' rk-hcol';
+          c.style.left  = (padL + i * (w + gap)) + 'px';
+          c.style.top   = top + 'px';
+          c.style.width = w + 'px';
+          box.appendChild(c);
+        }
+      }
+      setTimeout(function(){ mexendo = false; }, 140);
     }
     // Corta a caixa no top N e escreve o rodape "+N fora do top N".
     // Limite 0 = mostra todo mundo.
@@ -2012,6 +2046,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         geral.style.setProperty('--cols', cols);
         mostraTam(cols + (cols === 1 ? ' coluna' : ' colunas'));
         ajustaFonte(geral, geral);
+        cabecaPorColuna(geral, cols);   // depois do ajuste: a largura ja e a final
         return;
       }
 
@@ -2024,6 +2059,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
         geral.style.removeProperty('grid-column');
         geral.style.removeProperty('grid-row');
         geral.style.removeProperty('--cols');
+        cabecaPorColuna(geral, 0);      // 0 = so apaga as copias
       }
       var lista = outras.length ? outras : boxes;
       var c = colunas(lista.length);
@@ -2036,9 +2072,14 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       mostraTam(LIMITE + ' nomes');
       ajustaFonte(grid, card);
     }
-    var tmr;
-    function reaplica(){ clearTimeout(tmr); tmr = setTimeout(aplica, 90); }
-
+    var tmr, mexendo = false;
+    // mexendo = estamos inserindo as copias do cabecalho. Sem essa trava o
+    // proprio MutationObserver abaixo veria a insercao, mandaria refazer tudo,
+    // e isso se repetiria para sempre.
+    function reaplica(){
+      if(mexendo) return;
+      clearTimeout(tmr); tmr = setTimeout(aplica, 90);
+    }
     document.addEventListener('fullscreenchange', reaplica);
     document.addEventListener('webkitfullscreenchange', reaplica);
     window.addEventListener('resize', reaplica);
