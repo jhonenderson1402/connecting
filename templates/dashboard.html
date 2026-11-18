@@ -1732,8 +1732,13 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
     column-count:var(--cols,3); column-gap:26px; column-fill:auto;
     column-rule:1px solid #1e1e23;
   }
-  #rank-card.tv-geral #rank-geral-box .rank-unit-title,
-  #rank-card.tv-geral #rank-geral-box .rank-header-row{ column-span:all; }
+  #rank-card.tv-geral #rank-geral-box .rank-unit-title{ column-span:all; }
+  /* o cabecalho NAO atravessa as colunas: ele fica na 1a, com a mesma largura
+     das linhas de nome. Atravessando, as siglas espalhavam pela tela inteira
+     e nao batiam com os numeros de baixo. */
+  #rank-card.tv-geral #rank-geral-box .rank-header-row{
+    break-inside:avoid; -webkit-column-break-inside:avoid;
+  }
   #rank-card.tv-geral #rank-geral-box .rank-row{
     break-inside:avoid; -webkit-column-break-inside:avoid;
   }
