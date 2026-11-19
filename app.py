@@ -196,15 +196,45 @@ PERM_ROTAS = (
 )
 
 
+def _casa_personalizado():
+    """Para onde mandar quem foi barrado.
+
+    Nunca devolve uma tela que a pessoa TAMBEM nao pode ver. Antes o
+    barrado ia sempre para o painel; agora que o painel virou marcavel,
+    isso seria redirecionamento em circulo e a pagina nunca carregaria.
+    """
+    if _pode_tela('resumo'):
+        return '/'
+    us = _units()
+    if us:
+        return '/unit/' + quote(us[0], safe='')
+    for prefixo, chave in PERM_ROTAS:
+        if _pode_tela(chave):
+            return prefixo
+    p = _perm_sessao()
+    if p.get('conf_geral'):
+        return '/confirmacao'
+    for a in (p.get('atendentes') or []):
+        nome = str(a).strip()
+        if nome:
+            return '/confirmacao/' + quote(nome, safe='')
+    return '/'      # nada liberado: o painel vazio, que nao redireciona
+
+
 def _guarda_personalizado(path):
     """Fecha as telas que esta pessoa nao marcou. None = pode passar.
 
     So as PAGINAS. As rotas /api/ ficam abertas porque varias delas
     alimentam telas que ela PODE ver — a lista de funcionarios monta o
-    Hora a Hora, por exemplo. Fechar as /api/ por prefixo quebraria tela
-    liberada, que e pior do que a porta dos fundos continuar destrancada.
+    Hora a Hora, por exemplo.
     """
     perm = _perm_sessao()
+
+    if path == '/' and not _pode_tela('resumo'):
+        casa = _casa_personalizado()
+        if casa == '/':
+            return None          # nao sobrou para onde ir: painel vazio
+        return redirect(casa)
 
     for prefixo, chave in PERM_ROTAS:
         if path == prefixo or path.startswith(prefixo + '/'):
@@ -212,7 +242,7 @@ def _guarda_personalizado(path):
                 return None
             if _wants_json():
                 return _err('Sem permissao para esta tela.', 403)
-            return redirect(url_for('dashboard'))
+            return redirect(_casa_personalizado())
 
     if path.startswith('/confirmacao'):
         if path in ('/confirmacao', '/confirmacao/'):
@@ -225,9 +255,11 @@ def _guarda_personalizado(path):
                 return None
         if _wants_json():
             return _err('Sem permissao para esta tela.', 403)
-        return redirect(url_for('dashboard'))
+        return redirect(_casa_personalizado())
 
-    return None
+        return None
+
+
 @app.before_request
 def _sincroniza_papel():
     """O papel vive no cookie, gravado no login. Sem isto, mudar o acesso de
