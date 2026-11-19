@@ -841,7 +841,7 @@ def count_users():
 # ---- Acesso personalizado ---------------------------------------------------
 # Guardado como JSON em users.permissoes. So vale quando role == 'personalizado'.
 # Lista vazia = nada liberado. Quem nao e 'personalizado' nao usa isto para nada.
-PERM_TELAS = ('acompanhamento', 'faltas', 'leads', 'leadshh',
+PERM_TELAS = ('resumo', 'acompanhamento', 'faltas', 'leads', 'leadshh',
               'fechamento', 'crm', 'funcionarios', 'ajustes')
 
 
