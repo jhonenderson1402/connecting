@@ -218,7 +218,12 @@
         <img src="/static/logo.png" alt="Connecting" class="logo-img"/>
       </div>
       <nav class="sidebar-nav">
-        {% if current_role in ('agendamento', 'all', 'admin') %}
+        {% if current_role in ('agendamento', 'all', 'admin', 'ambos', 'personalizado') %}
+        {# Quem nao e 'personalizado' recebe True em tudo, entao o menu
+           continua exatamente como era para os papeis de hoje. #}
+        {% set ver_acomp = pode('acompanhamento') %}
+        {% set ver_rel = ver_acomp or pode('faltas') or pode('leads') or pode('leadshh')
+                         or pode('fechamento') or pode('crm') or pode('funcionarios') %}
         <p class="nav-label">Equipe agendamento</p>
         <a href="/" class="nav-item" data-path="/">
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
@@ -226,7 +231,8 @@
         </a>
         <div id="unit-links"></div>
 
-        <p class="nav-label">Relatórios</p>
+        {% if ver_rel %}<p class="nav-label">Relatórios</p>{% endif %}
+        {% if ver_acomp %}
         <a href="#" class="nav-item" id="acp-toggle" onclick="toggleAcomp(event)">
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></span>
           Acompanhamento
@@ -246,37 +252,51 @@
         function toggleAcomp(e){
           if(e) e.preventDefault();
           var s=document.getElementById('acp-sub'), a=document.getElementById('acp-arrow');
+          if(!s) return;
           var open = s.style.display !== 'none';
           s.style.display = open ? 'none' : 'block';
           if(a) a.classList.toggle('open', !open);
         }
         if(location.pathname.indexOf('/acompanhamento') === 0){ toggleAcomp(); }
         </script>
+        {% endif %}
+        {% if pode('faltas') %}
         <a href="/faltas" class="nav-item" data-path="/faltas">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
           Faltas / Advertências
         </a>
+        {% endif %}
+        {% if pode('leads') %}
         <a href="/leads-recebidos" class="nav-item" data-path="/leads-recebidos">
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 19h16"/></svg></span>
           Leads Recebidos
         </a>
+        {% endif %}
+        {% if pode('leadshh') %}
           <a href="/leads-hxh" class="nav-item" data-path="/leads-hxh">
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
           Leads HxH
         </a>
+        {% endif %}
+        {% if pode('fechamento') %}
         <a href="/fechamento" class="nav-item" data-path="/fechamento">
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 14h5"/><path d="M8 17h8"/></svg></span>
           Fechamento
         </a>
+        {% endif %}
+        {% if pode('crm') %}
         <a href="/troca-crm" class="nav-item" data-path="/troca-crm">
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span>
           Troca CRM
           <span id="tc-badge" style="margin-left:auto;min-width:17px;height:16px;padding:0 5px;border-radius:999px;display:none;place-items:center;font-size:9px;font-weight:800;background:var(--primary);color:var(--primary-fg)">0</span>
         </a>
+        {% endif %}
+        {% if pode('funcionarios') %}
         <a href="/employees" class="nav-item" data-path="/employees">
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="3"/><path d="M22 20v-2a4 4 0 0 0-3-3.87"/></svg></span>
           Funcionários
         </a>
+        {% endif %}
         {% endif %}
         {% if current_role in ('all', 'admin') %}
         <p class="nav-label">Configuração</p>
@@ -307,6 +327,7 @@
         function toggleConfig(e){
           if(e) e.preventDefault();
           var s=document.getElementById('cfg-sub'), a=document.getElementById('cfg-arrow');
+          if(!s) return;
           var open = s.style.display !== 'none';
           s.style.display = open ? 'none' : 'block';
           if(a) a.classList.toggle('open', !open);
@@ -343,7 +364,7 @@
         <div class="user-avatar">{{ current_user[0]|upper }}</div>
         <div class="user-info">
           <div class="user-name">{{ current_user }}</div>
-          <div class="user-role">{% if current_role == "agendamento" %}Agendamento{% elif current_role == "confirmacao" %}Confirmação{% else %}Admin{% endif %}</div>
+          <div class="user-role">{% if current_role == "agendamento" %}Agendamento{% elif current_role == "confirmacao" %}Confirmação{% elif current_role == "personalizado" %}Personalizado{% elif current_role == "ambos" %}Agend. + Confirm.{% else %}Admin{% endif %}</div>
         </div>
         <a href="/logout" class="logout-btn" title="Sair">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
