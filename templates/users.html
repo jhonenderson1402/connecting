@@ -1,6 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
 <script>/*USERS-CONFIRM*/(function(){function coConfirm(msg,onOk,okLabel){var ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;display:flex;align-items:center;justify-content:center";ov.innerHTML='<div style="background:#141414;border:1px solid rgba(251,191,36,.35);border-radius:14px;padding:22px 20px;min-width:280px;max-width:360px;box-shadow:0 12px 44px rgba(0,0,0,.6)"><div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="width:26px;height:26px;border-radius:50%;background:rgba(251,191,36,.15);color:#fbbf24;display:inline-flex;align-items:center;justify-content:center;font-weight:800">!</span><span style="color:#fbbf24;font-weight:700;font-size:14px;letter-spacing:.5px">CONNECTING</span></div><div style="color:#eef1f7;font-size:13.5px;line-height:1.5;margin-bottom:20px">'+msg+'</div><div style="display:flex;gap:8px;justify-content:flex-end"><button data-cancel="1" style="background:#222;border:1px solid #333;color:#cbd5e1;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">Cancelar</button><button data-ok="1" style="background:#fbbf24;border:none;color:#18181b;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700">'+(okLabel||"Confirmar")+'</button></div></div>';ov.addEventListener("click",function(ev){var t=ev.target;if(t===ov||t.getAttribute("data-cancel")){ov.remove();return;}if(t.getAttribute("data-ok")){ov.remove();onOk();}});document.body.appendChild(ov);}window.coConfirm=coConfirm;function install(){if(typeof deleteUser!=="function"){return setTimeout(install,150);}window.deleteUser=function(id,username){coConfirm('Excluir o usuário "'+username+'"?',function(){fetch("/api/users/"+id,{method:"DELETE"}).then(function(res){return res.json().then(function(data){if(!res.ok){showToast(data.error||"Erro ao excluir.","error");return;}loadUsers();showToast("Usuário excluído.");});});},"Excluir");};}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){setTimeout(install,300);});}else{setTimeout(install,300);}})();</script>
+
+<style>
+.perm-box{margin:4px 0 16px;padding:12px;border:1px solid #2a2a2e;border-radius:10px;
+         background:#0f0f11;max-height:280px;overflow:auto}
+.perm-sec{font-size:11px;font-weight:800;letter-spacing:.6px;color:#fbbf24;
+          margin:10px 0 6px;padding-top:8px;border-top:1px solid #1f1f23}
+.perm-box .perm-sec:first-child{margin-top:0;padding-top:0;border-top:none}
+.perm-sub{font-size:10.5px;letter-spacing:.5px;color:#71717a;margin:8px 0 5px;
+          display:flex;align-items:center;gap:8px}
+.perm-todos{background:none;border:1px solid #2f2f35;color:#a1a1aa;font-size:10px;
+            padding:1px 7px;border-radius:999px;cursor:pointer}
+.perm-todos:hover{border-color:#fbbf24;color:#fbbf24}
+.perm-chips{display:flex;flex-wrap:wrap;gap:6px}
+.perm-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;
+           border:1px solid #2a2a2e;border-radius:999px;cursor:pointer;
+           font-size:12px;color:#d4d4d8;user-select:none}
+.perm-chip:hover{border-color:#3f3f46}
+.perm-chip input{accent-color:#fbbf24;margin:0;cursor:pointer}
+.perm-chip:has(input:checked){border-color:#fbbf24;background:rgba(251,191,36,.10);color:#fbbf24}
+.perm-vazio{font-size:11.5px;color:#52525b;font-style:italic}
+</style>
+
 <div class="page-content">
   <div class="page-header">
     <div>
@@ -22,7 +44,7 @@
 
 <!-- Add Modal -->
 <div class="modal-overlay" id="modal-add" onclick="closeAddModal()">
-  <div class="modal" style="max-width:380px" onclick="event.stopPropagation()">
+  <div class="modal" style="max-width:460px" onclick="event.stopPropagation()">
     <div class="modal-header">
       <span>🔐 Novo Usuário</span>
       <button class="modal-close" onclick="closeAddModal()">✕</button>
@@ -39,15 +61,17 @@
                autocomplete="new-password"
                onkeydown="if(event.key==='Enter')addUser()"/>
       </div>
-      <div class="filter-group" style="margin-bottom:16px">
+      <div class="filter-group" style="margin-bottom:12px">
         <label class="filter-label">EQUIPE</label>
-        <select class="select" id="new-role" style="width:100%">
+        <select class="select" id="new-role" style="width:100%" onchange="togglePainel('add')">
           <option value="all">👑 Admin (acesso total)</option>
           <option value="agendamento">📅 Equipe Agendamento</option>
           <option value="confirmacao">✅ Equipe Confirmação</option>
           <option value="ambos">📅✅ Agendamento + Confirmação</option>
+          <option value="personalizado">🎨 Personalizado</option>
         </select>
       </div>
+      <div class="perm-box" id="perm-add" style="display:none"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-outline" onclick="closeAddModal()">Cancelar</button>
         <button class="btn btn-primary" onclick="addUser()">Criar</button>
@@ -77,23 +101,26 @@
     </div>
   </div>
 </div>
-<!-- Role Modal -->
+
+<!-- Role / Acessos Modal -->
 <div class="modal-overlay" id="modal-role" onclick="closeRoleModal()">
-  <div class="modal" style="max-width:380px" onclick="event.stopPropagation()">
+  <div class="modal" style="max-width:460px" onclick="event.stopPropagation()">
     <div class="modal-header">
-      <span>⚙️ Alterar Equipe — <span id="role-username"></span></span>
+      <span>⚙️ Acessos — <span id="role-username"></span></span>
       <button class="modal-close" onclick="closeRoleModal()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="filter-group" style="margin-bottom:16px">
+      <div class="filter-group" style="margin-bottom:12px">
         <label class="filter-label">EQUIPE</label>
-        <select class="select" id="edit-role" style="width:100%">
+        <select class="select" id="edit-role" style="width:100%" onchange="togglePainel('edit')">
           <option value="all">👑 Admin (acesso total)</option>
           <option value="agendamento">📅 Equipe Agendamento</option>
           <option value="confirmacao">✅ Equipe Confirmação</option>
           <option value="ambos">📅✅ Agendamento + Confirmação</option>
+          <option value="personalizado">🎨 Personalizado</option>
         </select>
       </div>
+      <div class="perm-box" id="perm-edit" style="display:none"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-outline" onclick="closeRoleModal()">Cancelar</button>
         <button class="btn btn-primary" onclick="saveRole()">Salvar</button>
@@ -111,6 +138,128 @@ let allUsers = [];
 let pwdTargetId = null;
 let roleTargetId = null;
 
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---- Acesso personalizado -------------------------------------------- */
+// As chaves tem que bater EXATAMENTE com PERM_TELAS do database.py.
+// Tela desconhecida e descartada no servidor, sem erro — some calada.
+const TELAS = [
+  ['acompanhamento', 'Acompanhamento (Unid. e TMK)'],
+  ['faltas',         'Faltas / Advertências'],
+  ['leads',          'Leads Recebidos'],
+  ['leadshh',        'Leads HxH'],
+  ['fechamento',     'Fechamento'],
+  ['crm',            'Troca CRM'],
+  ['funcionarios',   'Funcionários'],
+  ['ajustes',        'Ajustes'],
+];
+let LISTA_UNIDADES = [];
+let LISTA_ATENDENTES = [];
+
+async function carregaListas(){
+  if(LISTA_UNIDADES.length || LISTA_ATENDENTES.length) return;
+  try{
+    const [ru, ra] = await Promise.all([
+      fetch('/api/unidades'), fetch('/api/atendentes')
+    ]);
+    if(ru.ok) LISTA_UNIDADES   = (await ru.json()).map(x => x.nome);
+    if(ra.ok) LISTA_ATENDENTES = (await ra.json()).map(x => x.nome);
+  }catch(e){ console.warn('Nao consegui carregar unidades/atendentes:', e); }
+}
+
+function chip(pref, grupo, valor, rotulo, marcado){
+  const id = 'pm-' + pref + '-' + grupo + '-' +
+             String(valor).replace(/[^a-zA-Z0-9]/g, '');
+  return '<label class="perm-chip" for="' + id + '">' +
+           '<input type="checkbox" id="' + id + '" data-g="' + grupo +
+           '" value="' + esc(valor) + '"' + (marcado ? ' checked' : '') + '>' +
+           '<span>' + esc(rotulo) + '</span></label>';
+}
+
+async function montaPainel(pref, perm){
+  await carregaListas();
+  perm = perm || {};
+  const tem = (lst, v) => (lst || []).some(
+    x => String(x).toUpperCase() === String(v).toUpperCase());
+  const vazio = '<span class="perm-vazio">nada cadastrado</span>';
+  const box = document.getElementById('perm-' + pref);
+
+  box.innerHTML =
+    '<div class="perm-sec">📅 AGENDAMENTOS</div>' +
+    '<div class="perm-sub">UNIDADES <button type="button" class="perm-todos" data-alvo="u">todas</button></div>' +
+    '<div class="perm-chips" data-bloco="u">' +
+      (LISTA_UNIDADES.length
+        ? LISTA_UNIDADES.map(n => chip(pref,'unidades',n,n,tem(perm.unidades,n))).join('')
+        : vazio) +
+    '</div>' +
+    '<div class="perm-sub">TELAS <button type="button" class="perm-todos" data-alvo="t">todas</button></div>' +
+    '<div class="perm-chips" data-bloco="t">' +
+      TELAS.map(t => chip(pref,'telas',t[0],t[1],tem(perm.telas,t[0]))).join('') +
+    '</div>' +
+    '<div class="perm-sec">✅ CONFIRMAÇÃO</div>' +
+    '<div class="perm-sub">ATENDENTES <button type="button" class="perm-todos" data-alvo="a">todas</button></div>' +
+    '<div class="perm-chips" data-bloco="a">' +
+      (LISTA_ATENDENTES.length
+        ? LISTA_ATENDENTES.map(n => chip(pref,'atendentes',n,n,tem(perm.atendentes,n))).join('')
+        : vazio) +
+    '</div>' +
+    '<div class="perm-sub">OUTRAS</div>' +
+    '<div class="perm-chips">' +
+      chip(pref,'conf_geral','1','Análise Geral', !!perm.conf_geral) +
+      chip(pref,'conf_equipe','1','Equipe', !!perm.conf_equipe) +
+    '</div>';
+
+  box.querySelectorAll('.perm-todos').forEach(b => {
+    b.onclick = function(){
+      const bloco = box.querySelector('[data-bloco="' + b.dataset.alvo + '"]');
+      if(!bloco) return;
+      const ins = bloco.querySelectorAll('input[type=checkbox]');
+      // se faltar algum desmarcado, marca tudo; se ja estava tudo marcado, limpa
+      let marcar = false;
+      ins.forEach(i => { if(!i.checked) marcar = true; });
+      ins.forEach(i => { i.checked = marcar; });
+    };
+  });
+}
+
+function lePainel(pref){
+  const out = {unidades: [], telas: [], atendentes: [],
+               conf_geral: false, conf_equipe: false};
+  const box = document.getElementById('perm-' + pref);
+  if(!box) return out;
+  box.querySelectorAll('input[type=checkbox]').forEach(i => {
+    if(!i.checked) return;
+    const g = i.dataset.g;
+    if(g === 'conf_geral' || g === 'conf_equipe') out[g] = true;
+    else if(out[g]) out[g].push(i.value);
+  });
+  return out;
+}
+
+async function togglePainel(pref){
+  const sel = document.getElementById(pref === 'add' ? 'new-role' : 'edit-role');
+  const box = document.getElementById('perm-' + pref);
+  const custom = sel.value === 'personalizado';
+  box.style.display = custom ? 'block' : 'none';
+  if(custom && !box.innerHTML.trim()) await montaPainel(pref, box._perm);
+}
+
+async function salvaPermissoes(id, perm){
+  const r = await fetch('/api/users/' + id + '/permissoes', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({permissoes: perm})
+  });
+  if(!r.ok){
+    const d = await r.json().catch(() => ({}));
+    throw new Error(d.error || 'Erro ao salvar os acessos.');
+  }
+}
+
+/* ---- Tela -------------------------------------------------------------- */
 function onConstantsLoaded() {
   loadUsers();
 }
@@ -130,19 +279,31 @@ function render() {
   }
   grid.innerHTML = allUsers.map(u => {
     const isMe = u.id === CURRENT_USER_ID;
-    const roleLabel = u.role === 'agendamento' ? '📅 Agendamento' : u.role === 'confirmacao' ? '✅ Confirmação' : u.role === 'ambos' ? '📅✅ Agend. + Confirm.' : '👑 Admin';
-    const roleBadgeColor = u.role === 'agendamento' ? '#3b82f6' : u.role === 'confirmacao' ? '#22c55e' : u.role === 'ambos' ? '#a855f7' : '#fbbf24';
+    const roleLabel =
+      u.role === 'agendamento'   ? '📅 Agendamento' :
+      u.role === 'confirmacao'   ? '✅ Confirmação' :
+      u.role === 'ambos'         ? '📅✅ Agend. + Confirm.' :
+      u.role === 'personalizado' ? '🎨 Personalizado' : '👑 Admin';
+    const roleBadgeColor =
+      u.role === 'agendamento'   ? '#3b82f6' :
+      u.role === 'confirmacao'   ? '#22c55e' :
+      u.role === 'ambos'         ? '#a855f7' :
+      u.role === 'personalizado' ? '#f472b6' : '#fbbf24';
+    const nomeSeguro = String(u.username).replace(/'/g, "\\'");
     return `
     <div class="emp-card">
-      <div class="emp-avatar">${u.username[0]?.toUpperCase()||'?'}</div>
+      <div class="emp-avatar">${esc(u.username[0] ? u.username[0].toUpperCase() : '?')}</div>
       <div class="emp-info">
-        <div class="emp-name">${u.username}${isMe?' <span style="color:#fbbf24;font-size:11px;font-weight:600">(você)</span>':''}</div>
+        <div class="emp-name">${esc(u.username)}${isMe?' <span style="color:#fbbf24;font-size:11px;font-weight:600">(você)</span>':''}</div>
         <div class="emp-unit" style="color:${roleBadgeColor}">${roleLabel}</div>
       </div>
+      ${isMe ? '' : `<button class="del-btn emp-del" title="Acessos"
+              onclick="openRoleModal(${u.id})"
+              style="color:#a1a1aa;margin-right:4px">⚙</button>`}
       <button class="del-btn emp-del" title="Trocar senha"
-              onclick="openPwdModal(${u.id}, '${u.username.replace(/'/g,"\\'")}')"
+              onclick="openPwdModal(${u.id}, '${nomeSeguro}')"
               style="color:#fbbf24;margin-right:4px">🔑</button>
-      ${isMe ? '' : `<button class="del-btn emp-del" title="Excluir usuário" onclick="deleteUser(${u.id}, '${u.username.replace(/'/g,"\\'")}')">🗑</button>`}
+      ${isMe ? '' : `<button class="del-btn emp-del" title="Excluir usuário" onclick="deleteUser(${u.id}, '${nomeSeguro}')">🗑</button>`}
     </div>`;
   }).join('');
 }
@@ -151,6 +312,11 @@ function openAddModal() {
   document.getElementById('modal-add').classList.add('show');
   document.getElementById('new-username').value = '';
   document.getElementById('new-password').value = '';
+  document.getElementById('new-role').value = 'all';
+  const box = document.getElementById('perm-add');
+  box.innerHTML = '';
+  box._perm = null;
+  box.style.display = 'none';
   document.getElementById('new-username').focus();
 }
 function closeAddModal() { document.getElementById('modal-add').classList.remove('show'); }
@@ -170,6 +336,28 @@ async function addUser() {
   if(!res.ok) {
     showToast(data.error || 'Erro ao criar usuário.', 'error');
     return;
+  }
+  // O usuario nasce primeiro; os acessos vao logo em seguida. Se este
+  // segundo passo falhar, a pessoa existe mas sem nenhum acesso marcado —
+  // e o aviso diz isso, em vez de fingir que deu tudo certo.
+  if(role === 'personalizado'){
+    try{
+      // Nem toda rota devolve o id do usuario novo. Se nao vier, acho
+      // pelo nome na lista recarregada — que acabou de ser criado.
+      let novoId = data.id;
+      if(!novoId){
+        await loadUsers();
+        const achado = allUsers.find(x => x.username === username);
+        novoId = achado ? achado.id : null;
+      }
+      if(!novoId) throw new Error('Não consegui identificar o usuário criado.');
+      await salvaPermissoes(novoId, lePainel('add'));
+    }catch(e){
+      closeAddModal();
+      await loadUsers();
+      showToast('Usuário criado, mas os acessos não foram salvos. Abra o ⚙ e marque de novo.', 'error');
+      return;
+    }
   }
   closeAddModal();
   await loadUsers();
@@ -197,26 +385,43 @@ function openPwdModal(id, username) {
 }
 function closePwdModal() { document.getElementById('modal-pwd').classList.remove('show'); pwdTargetId = null; }
 
-function openRoleModal(id, username, currentRole) {
+async function openRoleModal(id) {
+  const u = allUsers.find(x => x.id === id);
+  if(!u) return;
   roleTargetId = id;
-  document.getElementById('role-username').textContent = username;
-  document.getElementById('edit-role').value = currentRole || 'all';
+  document.getElementById('role-username').textContent = u.username;
+  document.getElementById('edit-role').value = u.role || 'all';
+  const box = document.getElementById('perm-edit');
+  box.innerHTML = '';
+  box._perm = u.permissoes || null;
+  box.style.display = 'none';
   document.getElementById('modal-role').classList.add('show');
+  await togglePainel('edit');
 }
 function closeRoleModal() { document.getElementById('modal-role').classList.remove('show'); roleTargetId = null; }
 
 async function saveRole() {
   const role = document.getElementById('edit-role').value;
-  const res = await fetch(`/api/users/${roleTargetId}/role`, {
+  const alvo = roleTargetId;
+  const res = await fetch(`/api/users/${alvo}/role`, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({role})
   });
   const data = await res.json();
   if(!res.ok) { showToast(data.error || 'Erro ao alterar equipe.', 'error'); return; }
+  if(role === 'personalizado'){
+    try{
+      await salvaPermissoes(alvo, lePainel('edit'));
+    }catch(e){
+      await loadUsers();
+      showToast(e.message, 'error');
+      return;
+    }
+  }
   closeRoleModal();
   await loadUsers();
-  showToast('Equipe atualizada com sucesso!');
+  showToast('Acessos atualizados!');
 }
 
 async function savePassword() {
