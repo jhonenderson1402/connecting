@@ -571,9 +571,11 @@ async function marcarDiasComDados() {
   const sel = document.getElementById('sel-day');
   if(!sel) return;
   [].forEach.call(sel.options, opt => {
-    if(dias.has(parseInt(opt.value))) { opt.style.color = '#22c55e'; opt.style.fontWeight = '700'; }
-    else { opt.style.color = ''; opt.style.fontWeight = ''; }
+    if(dias.has(parseInt(opt.value))) opt.dataset.tem = '1';
+    else delete opt.dataset.tem;
   });
+  // sem isto o dourado so apareceria na proxima vez que a lista fosse aberta
+  atualizaDropdown('sel-day');
 }
 function applyFilter() {
   const search = document.getElementById('filter-search').value.toLowerCase();
@@ -1696,6 +1698,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   loadDay();
+  // Dropdown da casa. Vem DEPOIS de preencher as opcoes e de acertar os
+  // valores — ele desenha o botao a partir do que o <select> ja tem.
+  ligaDropdown('sel-month',   'DIGITE O MÊS');
+  ligaDropdown('sel-year',    'DIGITE O ANO');
+  ligaDropdown('sel-day',     'DIGITE O DIA');
+  ligaDropdown('filter-flag', 'DIGITE A FLAG');
 });
 // Detecta Ctrl+V na página e abre modal de paste
 document.addEventListener('paste', (e) => {
