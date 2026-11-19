@@ -63,6 +63,7 @@ function render(){
     <td style="padding:10px;color:#71717a">${p.ordem}</td>
     <td style="padding:10px;color:#e4e4e7;font-weight:600">${esc(p.nome)}</td>
     <td style="padding:10px;text-align:right">
+      <button class="btn" style="padding:4px 10px;font-size:12px;margin-right:6px" onclick="renPessoa(${p.id})">Renomear</button>
       <button class="btn btn-danger" style="padding:4px 10px;font-size:12px" onclick="delPessoa(${p.id})">Remover</button>
     </td>
   </tr>`).join('');
@@ -76,6 +77,19 @@ async function addPessoa(){
   if(!r.ok){ showToast(d.error||'Erro ao adicionar.','error'); return; }
   el.value='';
   showToast('Pessoa adicionada! Recarregue a Confirmação para ver a aba.');
+  loadEquipe();
+}
+async function renPessoa(id){
+  const p = equipe.find(x=>x.id===id); if(!p) return;
+  const novo = (prompt('Novo nome para "'+p.nome+'":', p.nome)||'').trim();
+  if(!novo) return;
+  if(novo.toUpperCase() === p.nome.toUpperCase()) return;
+  const r = await fetch('/api/atendentes/'+id+'/nome',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome:novo})});
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ showToast(d.error||'Erro ao renomear.','error'); return; }
+  showToast(d.confirmacoes
+    ? `Agora é ${d.nome}. ${d.confirmacoes} confirmação(ões) foram junto.`
+    : `Agora é ${d.nome}.`);
   loadEquipe();
 }
 async function delPessoa(id){
