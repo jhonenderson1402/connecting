@@ -2,25 +2,98 @@
 {% block content %}
 <script>/*USERS-CONFIRM*/(function(){function coConfirm(msg,onOk,okLabel){var ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;display:flex;align-items:center;justify-content:center";ov.innerHTML='<div style="background:#141414;border:1px solid rgba(251,191,36,.35);border-radius:14px;padding:22px 20px;min-width:280px;max-width:360px;box-shadow:0 12px 44px rgba(0,0,0,.6)"><div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="width:26px;height:26px;border-radius:50%;background:rgba(251,191,36,.15);color:#fbbf24;display:inline-flex;align-items:center;justify-content:center;font-weight:800">!</span><span style="color:#fbbf24;font-weight:700;font-size:14px;letter-spacing:.5px">CONNECTING</span></div><div style="color:#eef1f7;font-size:13.5px;line-height:1.5;margin-bottom:20px">'+msg+'</div><div style="display:flex;gap:8px;justify-content:flex-end"><button data-cancel="1" style="background:#222;border:1px solid #333;color:#cbd5e1;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">Cancelar</button><button data-ok="1" style="background:#fbbf24;border:none;color:#18181b;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700">'+(okLabel||"Confirmar")+'</button></div></div>';ov.addEventListener("click",function(ev){var t=ev.target;if(t===ov||t.getAttribute("data-cancel")){ov.remove();return;}if(t.getAttribute("data-ok")){ov.remove();onOk();}});document.body.appendChild(ov);}window.coConfirm=coConfirm;function install(){if(typeof deleteUser!=="function"){return setTimeout(install,150);}window.deleteUser=function(id,username){coConfirm('Excluir o usuário "'+username+'"?',function(){fetch("/api/users/"+id,{method:"DELETE"}).then(function(res){return res.json().then(function(data){if(!res.ok){showToast(data.error||"Erro ao excluir.","error");return;}loadUsers();showToast("Usuário excluído.");});});},"Excluir");};}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){setTimeout(install,300);});}else{setTimeout(install,300);}})();</script>
 
+<!-- Icones: um traco so, mesma espessura. Ficam aqui como <defs> e sao
+     chamados com <use>, entao o desenho existe uma vez so na pagina. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="i-busca"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5 17 17"/></g>
+    <g id="i-mais"><path d="M12 5v14M5 12h14"/></g>
+    <g id="i-acessos"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/>
+      <circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></g>
+    <g id="i-chave"><circle cx="8" cy="12" r="3.6"/><path d="M11.6 12H21M18 12v3.2M15 12v2.4"/></g>
+    <g id="i-lixo"><path d="M4 7h16M9.5 7V5.2A1.2 1.2 0 0 1 10.7 4h2.6a1.2 1.2 0 0 1 1.2 1.2V7"/>
+      <path d="M6.5 7v12.3A1.7 1.7 0 0 0 8.2 21h7.6a1.7 1.7 0 0 0 1.7-1.7V7"/>
+      <path d="M10.5 11v6M13.5 11v6"/></g>
+    <g id="i-escudo"><path d="M12 3.2 5 6v6.1c0 4.3 2.9 7.6 7 8.7 4.1-1.1 7-4.4 7-8.7V6l-7-2.8Z"/>
+      <path d="m9.2 12.2 2 2 3.6-3.9"/></g>
+    <g id="i-agenda"><rect x="4" y="5.5" width="16" height="15" rx="2.2"/>
+      <path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></g>
+    <g id="i-check"><circle cx="12" cy="12" r="8.4"/><path d="m8.4 12.2 2.4 2.4 4.8-5"/></g>
+    <g id="i-duplo"><rect x="3" y="6" width="8.5" height="12" rx="2"/>
+      <rect x="12.5" y="6" width="8.5" height="12" rx="2"/></g>
+    <g id="i-pessoa"><circle cx="12" cy="8.2" r="3.6"/>
+      <path d="M5.5 20c.6-3.6 3.3-5.6 6.5-5.6s5.9 2 6.5 5.6"/></g>
+  </defs>
+</svg>
+
 <style>
-.perm-box{margin:4px 0 16px;padding:12px;border:1px solid #2a2a2e;border-radius:10px;
-         background:#0f0f11;max-height:280px;overflow:auto}
-.perm-sec{font-size:11px;font-weight:800;letter-spacing:.6px;color:#fbbf24;
-          margin:10px 0 6px;padding-top:8px;border-top:1px solid #1f1f23}
+/* Tudo aqui usa cinza transparente em vez de cor fixa, para a tela
+   continuar legivel nos dois temas (claro e escuro) do sistema. */
+.us-topo{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.us-busca{position:relative}
+.us-busca .input{padding-left:32px;width:220px}
+.us-busca .ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  color:#8a8a93;pointer-events:none}
+
+.us-quadro{border:1px solid rgba(128,128,128,.20);border-radius:12px;overflow:hidden}
+.us-rolar{overflow-x:auto}
+.us-tab{width:100%;border-collapse:collapse;min-width:720px}
+.us-tab thead th{text-align:left;font-size:11.5px;font-weight:600;color:#8a8a93;
+  padding:11px 16px;background:rgba(128,128,128,.07);
+  border-bottom:1px solid rgba(128,128,128,.20);white-space:nowrap}
+.us-tab tbody tr{border-bottom:1px solid rgba(128,128,128,.12)}
+.us-tab tbody tr:last-child{border-bottom:none}
+.us-tab tbody tr:hover{background:rgba(128,128,128,.07)}
+.us-tab td{padding:10px 16px;vertical-align:middle}
+
+.us-pessoa{display:flex;align-items:center;gap:11px;min-width:0}
+.us-mono{width:32px;height:32px;border-radius:9px;flex:none;display:grid;
+  place-items:center;font-size:12.5px;font-weight:700;color:var(--c);
+  background:color-mix(in srgb,var(--c) 14%,transparent);
+  border:1px solid color-mix(in srgb,var(--c) 28%,transparent)}
+.us-nome{font-size:14px;font-weight:600;letter-spacing:-.01em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.us-voce{color:#fbbf24;font-size:10.5px;font-weight:650;margin-left:5px}
+
+.us-selo{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;
+  font-weight:600;color:var(--c);white-space:nowrap}
+.us-detalhe{font-size:12.5px;color:#8a8a93;line-height:1.45}
+.us-detalhe .forte{color:var(--c);font-weight:600}
+.us-detalhe .alerta{color:#f87171;font-weight:600}
+
+.us-acs{display:flex;gap:2px;justify-content:flex-end}
+.us-ac{width:30px;height:30px;border-radius:7px;border:1px solid transparent;
+  background:none;color:#8a8a93;cursor:pointer;display:grid;place-items:center;padding:0}
+.us-ac:hover{background:rgba(128,128,128,.14);border-color:rgba(128,128,128,.28);
+  color:inherit}
+.us-ac.k:hover{color:#fbbf24;border-color:rgba(251,191,36,.35)}
+.us-ac.x:hover{color:#f87171;border-color:rgba(248,113,113,.35)}
+.us-ac.off{visibility:hidden}
+.us-ac:focus-visible{outline:2px solid #fbbf24;outline-offset:1px}
+
+.us-nada{padding:30px 16px;text-align:center;color:#8a8a93;font-size:13px}
+
+/* ---- painel de acesso personalizado, dentro dos modais ---- */
+.perm-box{margin:4px 0 16px;padding:12px;border:1px solid rgba(128,128,128,.22);
+  border-radius:10px;background:rgba(128,128,128,.06);max-height:280px;overflow:auto}
+.perm-sec{font-size:11.5px;font-weight:700;color:#fbbf24;margin:12px 0 6px;
+  padding-top:9px;border-top:1px solid rgba(128,128,128,.16);
+  display:flex;align-items:center;gap:6px}
 .perm-box .perm-sec:first-child{margin-top:0;padding-top:0;border-top:none}
-.perm-sub{font-size:10.5px;letter-spacing:.5px;color:#71717a;margin:8px 0 5px;
-          display:flex;align-items:center;gap:8px}
-.perm-todos{background:none;border:1px solid #2f2f35;color:#a1a1aa;font-size:10px;
-            padding:1px 7px;border-radius:999px;cursor:pointer}
+.perm-sub{font-size:11px;color:#8a8a93;margin:9px 0 5px;
+  display:flex;align-items:center;gap:8px}
+.perm-todos{background:none;border:1px solid rgba(128,128,128,.28);color:#8a8a93;
+  font-size:10.5px;padding:1px 7px;border-radius:999px;cursor:pointer}
 .perm-todos:hover{border-color:#fbbf24;color:#fbbf24}
 .perm-chips{display:flex;flex-wrap:wrap;gap:6px}
 .perm-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;
-           border:1px solid #2a2a2e;border-radius:999px;cursor:pointer;
-           font-size:12px;color:#d4d4d8;user-select:none}
-.perm-chip:hover{border-color:#3f3f46}
+  border:1px solid rgba(128,128,128,.24);border-radius:999px;cursor:pointer;
+  font-size:12px;user-select:none}
+.perm-chip:hover{border-color:rgba(128,128,128,.45)}
 .perm-chip input{accent-color:#fbbf24;margin:0;cursor:pointer}
-.perm-chip:has(input:checked){border-color:#fbbf24;background:rgba(251,191,36,.10);color:#fbbf24}
-.perm-vazio{font-size:11.5px;color:#52525b;font-style:italic}
+.perm-chip:has(input:checked){border-color:#fbbf24;color:#fbbf24;
+  background:rgba(251,191,36,.10)}
+.perm-vazio{font-size:11.5px;color:#8a8a93;font-style:italic}
 </style>
 
 <div class="page-content">
@@ -30,15 +103,40 @@
         <div class="title-accent"></div>
         <h1 class="page-title">Usuários</h1>
       </div>
-      <p class="page-subtitle" style="margin-left:20px">Gerencie quem tem acesso ao sistema</p>
+      <p class="page-subtitle" style="margin-left:20px" id="us-sub">Quem tem acesso ao sistema</p>
     </div>
-    <div class="filter-bar">
-      <button class="btn btn-primary" onclick="openAddModal()">+ Novo usuário</button>
+    <div class="us-topo">
+      <div class="us-busca">
+        <svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><use href="#i-busca"/></svg>
+        <input class="input" id="us-filtro" placeholder="Buscar" autocomplete="off"
+               oninput="render()"/>
+      </div>
+      <button class="btn btn-primary" onclick="openAddModal()"
+              style="display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.2" stroke-linecap="round"><use href="#i-mais"/></svg>
+        Novo usuário
+      </button>
     </div>
   </div>
 
-  <div class="emp-grid" id="users-grid">
-    <div class="loading">Carregando...</div>
+  <div class="us-quadro">
+    <div class="us-rolar">
+      <table class="us-tab">
+        <thead>
+          <tr>
+            <th style="width:28%">Pessoa</th>
+            <th style="width:22%">Equipe</th>
+            <th>O que acessa</th>
+            <th style="width:112px"></th>
+          </tr>
+        </thead>
+        <tbody id="users-grid">
+          <tr><td colspan="4" class="us-nada">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -46,7 +144,7 @@
 <div class="modal-overlay" id="modal-add" onclick="closeAddModal()">
   <div class="modal" style="max-width:460px" onclick="event.stopPropagation()">
     <div class="modal-header">
-      <span>🔐 Novo Usuário</span>
+      <span>Novo usuário</span>
       <button class="modal-close" onclick="closeAddModal()">✕</button>
     </div>
     <div class="modal-body">
@@ -64,17 +162,17 @@
       <div class="filter-group" style="margin-bottom:12px">
         <label class="filter-label">EQUIPE</label>
         <select class="select" id="new-role" style="width:100%" onchange="togglePainel('add')">
-          <option value="all">👑 Admin (acesso total)</option>
-          <option value="agendamento">📅 Equipe Agendamento</option>
-          <option value="confirmacao">✅ Equipe Confirmação</option>
-          <option value="ambos">📅✅ Agendamento + Confirmação</option>
-          <option value="personalizado">🎨 Personalizado</option>
+          <option value="all">Acesso total</option>
+          <option value="agendamento">Agendamento</option>
+          <option value="confirmacao">Confirmação</option>
+          <option value="ambos">Agendamento e Confirmação</option>
+          <option value="personalizado">Personalizado</option>
         </select>
       </div>
       <div class="perm-box" id="perm-add" style="display:none"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-outline" onclick="closeAddModal()">Cancelar</button>
-        <button class="btn btn-primary" onclick="addUser()">Criar</button>
+        <button class="btn btn-primary" onclick="addUser()">Criar usuário</button>
       </div>
     </div>
   </div>
@@ -84,7 +182,7 @@
 <div class="modal-overlay" id="modal-pwd" onclick="closePwdModal()">
   <div class="modal" style="max-width:380px" onclick="event.stopPropagation()">
     <div class="modal-header">
-      <span>🔑 Trocar senha — <span id="pwd-username"></span></span>
+      <span>Trocar senha — <span id="pwd-username"></span></span>
       <button class="modal-close" onclick="closePwdModal()">✕</button>
     </div>
     <div class="modal-body">
@@ -96,7 +194,7 @@
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-outline" onclick="closePwdModal()">Cancelar</button>
-        <button class="btn btn-primary" onclick="savePassword()">Salvar</button>
+        <button class="btn btn-primary" onclick="savePassword()">Salvar senha</button>
       </div>
     </div>
   </div>
@@ -106,24 +204,24 @@
 <div class="modal-overlay" id="modal-role" onclick="closeRoleModal()">
   <div class="modal" style="max-width:460px" onclick="event.stopPropagation()">
     <div class="modal-header">
-      <span>⚙️ Acessos — <span id="role-username"></span></span>
+      <span>Acessos — <span id="role-username"></span></span>
       <button class="modal-close" onclick="closeRoleModal()">✕</button>
     </div>
     <div class="modal-body">
       <div class="filter-group" style="margin-bottom:12px">
         <label class="filter-label">EQUIPE</label>
         <select class="select" id="edit-role" style="width:100%" onchange="togglePainel('edit')">
-          <option value="all">👑 Admin (acesso total)</option>
-          <option value="agendamento">📅 Equipe Agendamento</option>
-          <option value="confirmacao">✅ Equipe Confirmação</option>
-          <option value="ambos">📅✅ Agendamento + Confirmação</option>
-          <option value="personalizado">🎨 Personalizado</option>
+          <option value="all">Acesso total</option>
+          <option value="agendamento">Agendamento</option>
+          <option value="confirmacao">Confirmação</option>
+          <option value="ambos">Agendamento e Confirmação</option>
+          <option value="personalizado">Personalizado</option>
         </select>
       </div>
       <div class="perm-box" id="perm-edit" style="display:none"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-outline" onclick="closeRoleModal()">Cancelar</button>
-        <button class="btn btn-primary" onclick="saveRole()">Salvar</button>
+        <button class="btn btn-primary" onclick="saveRole()">Salvar acessos</button>
       </div>
     </div>
   </div>
@@ -142,12 +240,17 @@ function esc(s){
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
     {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+function ico(nome, tam){
+  return '<svg width="' + (tam||16) + '" height="' + (tam||16) + '" viewBox="0 0 24 24"' +
+         ' fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"' +
+         ' stroke-linejoin="round" aria-hidden="true"><use href="#i-' + nome + '"/></svg>';
+}
 
 /* ---- Acesso personalizado -------------------------------------------- */
 // As chaves tem que bater EXATAMENTE com PERM_TELAS do database.py.
 // Tela desconhecida e descartada no servidor, sem erro — some calada.
 const TELAS = [
-  ['acompanhamento', 'Acompanhamento (Unid. e TMK)'],
+  ['acompanhamento', 'Acompanhamento'],
   ['faltas',         'Faltas / Advertências'],
   ['leads',          'Leads Recebidos'],
   ['leadshh',        'Leads HxH'],
@@ -156,6 +259,20 @@ const TELAS = [
   ['funcionarios',   'Funcionários'],
   ['ajustes',        'Ajustes'],
 ];
+const NOME_TELA = {};
+TELAS.forEach(t => { NOME_TELA[t[0]] = t[1]; });
+
+// papel -> rotulo, icone e cor. Uma fonte so para a tabela inteira.
+const PAPEIS = {
+  all:           {txt:'Acesso total',  ic:'escudo',  cor:'#fbbf24'},
+  admin:         {txt:'Acesso total',  ic:'escudo',  cor:'#fbbf24'},
+  agendamento:   {txt:'Agendamento',   ic:'agenda',  cor:'#60a5fa'},
+  confirmacao:   {txt:'Confirmação',   ic:'check',   cor:'#4ade80'},
+  ambos:         {txt:'Agend. e Confirm.', ic:'duplo', cor:'#c084fc'},
+  personalizado: {txt:'Personalizado', ic:'pessoa',  cor:'#fb7185'},
+};
+function papelDe(r){ return PAPEIS[r] || PAPEIS.all; }
+
 let LISTA_UNIDADES = [];
 let LISTA_ATENDENTES = [];
 
@@ -188,25 +305,25 @@ async function montaPainel(pref, perm){
   const box = document.getElementById('perm-' + pref);
 
   box.innerHTML =
-    '<div class="perm-sec">📅 AGENDAMENTOS</div>' +
-    '<div class="perm-sub">UNIDADES <button type="button" class="perm-todos" data-alvo="u">todas</button></div>' +
+    '<div class="perm-sec">' + ico('agenda', 13) + 'Agendamentos</div>' +
+    '<div class="perm-sub">Unidades <button type="button" class="perm-todos" data-alvo="u">todas</button></div>' +
     '<div class="perm-chips" data-bloco="u">' +
       (LISTA_UNIDADES.length
         ? LISTA_UNIDADES.map(n => chip(pref,'unidades',n,n,tem(perm.unidades,n))).join('')
         : vazio) +
     '</div>' +
-    '<div class="perm-sub">TELAS <button type="button" class="perm-todos" data-alvo="t">todas</button></div>' +
+    '<div class="perm-sub">Telas <button type="button" class="perm-todos" data-alvo="t">todas</button></div>' +
     '<div class="perm-chips" data-bloco="t">' +
       TELAS.map(t => chip(pref,'telas',t[0],t[1],tem(perm.telas,t[0]))).join('') +
     '</div>' +
-    '<div class="perm-sec">✅ CONFIRMAÇÃO</div>' +
-    '<div class="perm-sub">ATENDENTES <button type="button" class="perm-todos" data-alvo="a">todas</button></div>' +
+    '<div class="perm-sec">' + ico('check', 13) + 'Confirmação</div>' +
+    '<div class="perm-sub">Atendentes <button type="button" class="perm-todos" data-alvo="a">todas</button></div>' +
     '<div class="perm-chips" data-bloco="a">' +
       (LISTA_ATENDENTES.length
         ? LISTA_ATENDENTES.map(n => chip(pref,'atendentes',n,n,tem(perm.atendentes,n))).join('')
         : vazio) +
     '</div>' +
-    '<div class="perm-sub">OUTRAS</div>' +
+    '<div class="perm-sub">Outras</div>' +
     '<div class="perm-chips">' +
       chip(pref,'conf_geral','1','Análise Geral', !!perm.conf_geral) +
       chip(pref,'conf_equipe','1','Equipe', !!perm.conf_equipe) +
@@ -259,6 +376,31 @@ async function salvaPermissoes(id, perm){
   }
 }
 
+// A frase da coluna "O que acessa". E o unico lugar da tela que conta,
+// em palavras, o que foi marcado nos checkboxes.
+function resumoAcesso(u){
+  if(u.role === 'agendamento') return 'Todas as unidades';
+  if(u.role === 'confirmacao') return 'Todas as atendentes';
+  if(u.role === 'ambos')       return 'As duas áreas, sem os ajustes';
+  if(u.role !== 'personalizado') return 'Tudo, inclusive os ajustes';
+
+  const p = u.permissoes || {};
+  const partes = [];
+  if((p.unidades || []).length)
+    partes.push('<span class="forte">' + p.unidades.map(esc).join(', ') + '</span>');
+  if((p.telas || []).length)
+    partes.push(p.telas.map(t => esc(NOME_TELA[t] || t)).join(', '));
+  if((p.atendentes || []).length)
+    partes.push('<span class="forte">' + p.atendentes.map(esc).join(', ') + '</span>');
+  const extra = [];
+  if(p.conf_geral)  extra.push('Análise Geral');
+  if(p.conf_equipe) extra.push('Equipe');
+  if(extra.length) partes.push(extra.join(', '));
+
+  if(!partes.length) return '<span class="alerta">Nada liberado</span>';
+  return partes.join(' · ');
+}
+
 /* ---- Tela -------------------------------------------------------------- */
 function onConstantsLoaded() {
   loadUsers();
@@ -272,39 +414,58 @@ async function loadUsers() {
 }
 
 function render() {
-  const grid = document.getElementById('users-grid');
-  if(allUsers.length === 0) {
-    grid.innerHTML = '<div class="empty-state"><p>Nenhum usuário cadastrado.</p></div>';
+  const corpo = document.getElementById('users-grid');
+  const sub   = document.getElementById('us-sub');
+  const campo = document.getElementById('us-filtro');
+  const busca = (campo ? campo.value : '').trim().toLowerCase();
+
+  if(sub) sub.textContent = allUsers.length === 1
+    ? '1 pessoa com acesso ao sistema'
+    : allUsers.length + ' pessoas com acesso ao sistema';
+
+  if(allUsers.length === 0){
+    corpo.innerHTML = '<tr><td colspan="4" class="us-nada">' +
+      'Ninguém cadastrado ainda. Use “Novo usuário” para começar.</td></tr>';
     return;
   }
-  grid.innerHTML = allUsers.map(u => {
+
+  const lista = busca
+    ? allUsers.filter(u => String(u.username).toLowerCase().includes(busca))
+    : allUsers;
+
+  if(lista.length === 0){
+    corpo.innerHTML = '<tr><td colspan="4" class="us-nada">' +
+      'Nenhum usuário com “' + esc(busca) + '” no nome.</td></tr>';
+    return;
+  }
+
+  corpo.innerHTML = lista.map(u => {
     const isMe = u.id === CURRENT_USER_ID;
-    const roleLabel =
-      u.role === 'agendamento'   ? '📅 Agendamento' :
-      u.role === 'confirmacao'   ? '✅ Confirmação' :
-      u.role === 'ambos'         ? '📅✅ Agend. + Confirm.' :
-      u.role === 'personalizado' ? '🎨 Personalizado' : '👑 Admin';
-    const roleBadgeColor =
-      u.role === 'agendamento'   ? '#3b82f6' :
-      u.role === 'confirmacao'   ? '#22c55e' :
-      u.role === 'ambos'         ? '#a855f7' :
-      u.role === 'personalizado' ? '#f472b6' : '#fbbf24';
+    const pa   = papelDe(u.role);
+    const letra = String(u.username || '?').charAt(0).toUpperCase();
     const nomeSeguro = String(u.username).replace(/'/g, "\\'");
-    return `
-    <div class="emp-card">
-      <div class="emp-avatar">${esc(u.username[0] ? u.username[0].toUpperCase() : '?')}</div>
-      <div class="emp-info">
-        <div class="emp-name">${esc(u.username)}${isMe?' <span style="color:#fbbf24;font-size:11px;font-weight:600">(você)</span>':''}</div>
-        <div class="emp-unit" style="color:${roleBadgeColor}">${roleLabel}</div>
-      </div>
-      ${isMe ? '' : `<button class="del-btn emp-del" title="Acessos"
-              onclick="openRoleModal(${u.id})"
-              style="color:#a1a1aa;margin-right:4px">⚙</button>`}
-      <button class="del-btn emp-del" title="Trocar senha"
-              onclick="openPwdModal(${u.id}, '${nomeSeguro}')"
-              style="color:#fbbf24;margin-right:4px">🔑</button>
-      ${isMe ? '' : `<button class="del-btn emp-del" title="Excluir usuário" onclick="deleteUser(${u.id}, '${nomeSeguro}')">🗑</button>`}
-    </div>`;
+    // Em si mesmo, so a chave: ninguem se rebaixa nem se exclui sem querer.
+    const btAcessos = isMe
+      ? '<button class="us-ac off" tabindex="-1" aria-hidden="true"></button>'
+      : '<button class="us-ac" title="Acessos" aria-label="Acessos de ' + esc(u.username) +
+        '" onclick="openRoleModal(' + u.id + ')">' + ico('acessos') + '</button>';
+    const btExcluir = isMe
+      ? '<button class="us-ac off" tabindex="-1" aria-hidden="true"></button>'
+      : '<button class="us-ac x" title="Excluir" aria-label="Excluir ' + esc(u.username) +
+        '" onclick="deleteUser(' + u.id + ", '" + nomeSeguro + "')\">" + ico('lixo') + '</button>';
+
+    return '<tr style="--c:' + pa.cor + '">' +
+      '<td><div class="us-pessoa"><div class="us-mono">' + esc(letra) + '</div>' +
+        '<span class="us-nome">' + esc(u.username) +
+        (isMe ? '<span class="us-voce">você</span>' : '') + '</span></div></td>' +
+      '<td><span class="us-selo">' + ico(pa.ic, 13) + esc(pa.txt) + '</span></td>' +
+      '<td class="us-detalhe">' + resumoAcesso(u) + '</td>' +
+      '<td><div class="us-acs">' + btAcessos +
+        '<button class="us-ac k" title="Trocar senha" aria-label="Trocar a senha de ' +
+          esc(u.username) + '" onclick="openPwdModal(' + u.id + ", '" + nomeSeguro +
+          "')\">" + ico('chave') + '</button>' +
+        btExcluir + '</div></td>' +
+    '</tr>';
   }).join('');
 }
 
@@ -355,13 +516,13 @@ async function addUser() {
     }catch(e){
       closeAddModal();
       await loadUsers();
-      showToast('Usuário criado, mas os acessos não foram salvos. Abra o ⚙ e marque de novo.', 'error');
+      showToast('Usuário criado, mas os acessos não foram salvos. Abra os acessos e marque de novo.', 'error');
       return;
     }
   }
   closeAddModal();
   await loadUsers();
-  showToast('Usuário criado com sucesso!');
+  showToast('Usuário criado.');
 }
 
 async function deleteUser(id, username) {
@@ -421,7 +582,7 @@ async function saveRole() {
   }
   closeRoleModal();
   await loadUsers();
-  showToast('Acessos atualizados!');
+  showToast('Acessos atualizados.');
 }
 
 async function savePassword() {
@@ -438,7 +599,7 @@ async function savePassword() {
     return;
   }
   closePwdModal();
-  showToast('Senha alterada com sucesso!');
+  showToast('Senha alterada.');
 }
 </script>
 {% endblock %}
