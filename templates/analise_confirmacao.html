@@ -250,6 +250,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('sel-year').value  = now.getFullYear();
   document.getElementById('sel-day').value   = now.getDate();
   loadAnalise();
+  // Dropdown da casa. Vem DEPOIS de acertar os valores — ele desenha o
+  // botao a partir do que o <select> ja tem.
+  ligaDropdown('sel-month',   'DIGITE O MÊS');
+  ligaDropdown('sel-year',    'DIGITE O ANO');
+  ligaDropdown('sel-day',     'DIGITE O DIA');
+  ligaDropdown('sel-periodo', 'DIGITE O PERÍODO');
 });
 function onPeriodoChange() {
   const p = document.getElementById('sel-periodo').value;
@@ -341,14 +347,11 @@ async function marcarDiasComDados() {
   const sel = document.getElementById('sel-day');
   if(!sel) return;
   [].forEach.call(sel.options, opt => {
-    if(dias.has(parseInt(opt.value))) {
-      opt.style.color = '#22c55e';
-      opt.style.fontWeight = '700';
-    } else {
-      opt.style.color = '';
-      opt.style.fontWeight = '';
-    }
+    if(dias.has(parseInt(opt.value))) opt.dataset.tem = '1';
+    else delete opt.dataset.tem;
   });
+  // sem isto o dourado so apareceria na proxima vez que a lista fosse aberta
+  atualizaDropdown('sel-day');
 }
 function renderAnalise() {
   const data = analiseData;
