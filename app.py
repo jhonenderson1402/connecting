@@ -1752,6 +1752,14 @@ def api_create_atendente():
         return jsonify(db.create_atendente(data.get('nome'))), 201
     except ValueError as e:
         return _err(str(e))
+@app.route('/api/atendentes/<int:aid>/nome', methods=['POST'])
+@admin_required
+def api_rename_atendente(aid):
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(db.renomear_atendente(aid, data.get('nome')))
+    except ValueError as e:
+        return _err(str(e))
 @app.route('/api/atendentes/<int:aid>', methods=['DELETE'])
 @admin_required
 def api_delete_atendente(aid):
