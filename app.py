@@ -228,6 +228,27 @@ def _guarda_personalizado(path):
         return redirect(url_for('dashboard'))
 
     return None
+@app.before_request
+def _sincroniza_papel():
+    """O papel vive no cookie, gravado no login. Sem isto, mudar o acesso de
+    alguem que ja esta logado so valeria quando ela saisse e entrasse — e
+    ninguem avisa a pessoa disso. Confere no banco no maximo 1x por minuto,
+    entao nao pesa."""
+    if 'user_id' not in session:
+        return
+    agora = int(time.time())
+    try:
+        if agora - int(session.get('papel_em') or 0) < 60:
+            return
+    except (TypeError, ValueError):
+        pass
+    try:
+        u = db.get_user_by_username(session.get('username'))
+        if u:
+            session['role'] = u.get('role', 'all')
+        session['papel_em'] = agora
+    except Exception:
+        pass
 # ── Controle de acesso por equipe (agendamento x confirmacao) ────────────────
 @app.before_request
 def _team_access_guard():
