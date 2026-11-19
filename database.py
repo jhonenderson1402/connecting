@@ -80,6 +80,7 @@ class User(Base):
     username      = Column(String(150), nullable=False, unique=True)
     password_hash = Column(String(300), nullable=False)
     role          = Column(String(50), default='all')  # 'agendamento', 'confirmacao', 'all', 'admin'
+    permissoes    = Column(Text, default='')   # JSON do acesso personalizado
     created_at    = Column(String(40),  default=lambda: datetime.utcnow().isoformat())
     __table_args__ = (
         Index('idx_users_username', 'username'),
@@ -288,6 +289,13 @@ def _run_migrations():
             print("[migration] Coluna 'role' adicionada à tabela users.")
         except Exception:
             conn.rollback()  # Coluna já existe, ignora
+        # Migração: coluna 'permissoes' em users (acesso personalizado)
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN permissoes TEXT DEFAULT ''"))
+            conn.commit()
+            print("[migration] Coluna 'permissoes' adicionada à tabela users.")
+        except Exception:
+            conn.rollback()  # Coluna já existe, ignora
         # Migração 2: adiciona coluna 'atendente' na tabela confirmacoes se não existir
         try:
             conn.execute(text("ALTER TABLE confirmacoes ADD COLUMN atendente VARCHAR(200) DEFAULT ''"))
@@ -421,6 +429,14 @@ def renomear_atendente(aid, novo_nome):
             Confirmacao.atendente == antigo)) or 0
         s.execute(update(Confirmacao).where(Confirmacao.atendente == antigo)
                   .values(atendente=novo))
+        # quem so tinha acesso a aba dela continua tendo, com o nome novo
+        for u in s.scalars(select(User).where(User.role == 'personalizado')).all():
+            p = _safe_json_loads(u.permissoes, {})
+            lst = p.get('atendentes')
+            if isinstance(lst, list) and any(str(x).strip().upper() == antigo for x in lst):
+                p['atendentes'] = [novo if str(x).strip().upper() == antigo else x
+                                   for x in lst]
+                u.permissoes = json.dumps(p, ensure_ascii=False)
         a.nome = novo
         s.commit()
     return {'id': aid, 'nome': novo, 'antigo': antigo, 'confirmacoes': n}
@@ -785,8 +801,10 @@ def verify_password(username, password):
 def list_users():
     with SessionLocal() as s:
         users = s.scalars(select(User).order_by(User.username)).all()
-        return [{'id': u.id, 'username': u.username, 'created_at': u.created_at, 'role': u.role or 'all'} for u in users]
-def create_user(username, password, role='agendamento'):
+    return [{'id': u.id, 'username': u.username, 'created_at': u.created_at,
+             'role': u.role or 'all',
+             'permissoes': _perm_limpa(_safe_json_loads(u.permissoes, {}))} for u in users]
+def create_user(username, password, role='agendamento', permissoes=None):
     username = (username or '').strip()
     if not username:
         raise ValueError("Nome de usuario nao pode ser vazio.")
@@ -795,9 +813,11 @@ def create_user(username, password, role='agendamento'):
     if get_user_by_username(username):
         raise ValueError("Esse nome de usuario ja existe.")
     with SessionLocal() as s:
-        if role not in ('agendamento', 'confirmacao', 'ambos', 'all', 'admin'):
+        if role not in ('agendamento', 'confirmacao', 'ambos', 'all', 'admin', 'personalizado'):
             role = 'agendamento'
-        u = User(username=username, password_hash=generate_password_hash(password), role=role)
+        perm = json.dumps(_perm_limpa(permissoes), ensure_ascii=False) if role == 'personalizado' else ''
+        u = User(username=username, password_hash=generate_password_hash(password),
+                 role=role, permissoes=perm)
         s.add(u)
         s.commit()
         s.refresh(u)
@@ -818,6 +838,55 @@ def delete_user(user_id):
 def count_users():
     with SessionLocal() as s:
         return s.scalar(select(func.count(User.id)))
+# ---- Acesso personalizado ---------------------------------------------------
+# Guardado como JSON em users.permissoes. So vale quando role == 'personalizado'.
+# Lista vazia = nada liberado. Quem nao e 'personalizado' nao usa isto para nada.
+PERM_TELAS = ('acompanhamento', 'faltas', 'leads', 'leadshh',
+              'fechamento', 'crm', 'funcionarios', 'ajustes')
+
+
+def _perm_limpa(dados):
+    """Deixa so o que a gente reconhece. O que vem da tela nunca entra cru no
+    banco: nome de tela desconhecido e descartado, repetido vira um so."""
+    d = dados if isinstance(dados, dict) else {}
+
+    def _lista(v):
+        out, vistos = [], set()
+        if isinstance(v, (list, tuple)):
+            for x in v:
+                t = str(x or '').strip()
+                if t and t.upper() not in vistos:
+                    vistos.add(t.upper())
+                    out.append(t)
+        return out
+
+    return {
+        'unidades':    _lista(d.get('unidades')),
+        'telas':       [t for t in _lista(d.get('telas')) if t in PERM_TELAS],
+        'atendentes':  _lista(d.get('atendentes')),
+        'conf_geral':  bool(d.get('conf_geral')),
+        'conf_equipe': bool(d.get('conf_equipe')),
+    }
+
+
+def get_user_permissoes(user_id):
+    with SessionLocal() as s:
+        u = s.scalar(select(User).where(User.id == user_id))
+        if not u:
+            return None
+        return _perm_limpa(_safe_json_loads(u.permissoes, {}))
+
+
+def set_user_permissoes(user_id, dados):
+    """Regrava o acesso da pessoa. Devolve o que ficou gravado de verdade."""
+    limpo = _perm_limpa(dados)
+    with SessionLocal() as s:
+        u = s.scalar(select(User).where(User.id == user_id))
+        if not u:
+            raise ValueError("Usuario nao encontrado.")
+        u.permissoes = json.dumps(limpo, ensure_ascii=False)
+        s.commit()
+    return limpo
 # ---- Employees --------------------------------------------------------------
 def get_employees(unit=None, active=None):
     with SessionLocal() as s:
@@ -1182,7 +1251,7 @@ def clear_appointment(unit, date):
         s.commit()
 # ---- Role management --------------------------------------------------------
 def set_user_role(user_id, role):
-    allowed = ('agendamento', 'confirmacao', 'ambos', 'all', 'admin')
+    allowed = ('agendamento', 'confirmacao', 'ambos', 'all', 'admin', 'personalizado')
     if role not in allowed:
         raise ValueError(f'Role invalido. Use: {allowed}')
     with SessionLocal() as s:
