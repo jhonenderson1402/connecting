@@ -225,10 +225,12 @@
         {% set ver_rel = ver_acomp or pode('faltas') or pode('leads') or pode('leadshh')
                          or pode('fechamento') or pode('crm') or pode('funcionarios') %}
         <p class="nav-label">Equipe agendamento</p>
+        {% if pode('resumo') %}
         <a href="/" class="nav-item" data-path="/">
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
           Resumo Geral
         </a>
+        {% endif %}
         <div id="unit-links"></div>
 
         {% if ver_rel %}<p class="nav-label">Relatórios</p>{% endif %}
