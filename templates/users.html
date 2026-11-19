@@ -403,6 +403,11 @@ function resumoAcesso(u){
 
 /* ---- Tela -------------------------------------------------------------- */
 function onConstantsLoaded() {
+  // O <select> continua sendo o dono do valor — o dropdown so troca a aparencia.
+  if(typeof ligaDropdown === 'function'){
+    ligaDropdown('new-role',  'Buscar equipe');
+    ligaDropdown('edit-role', 'Buscar equipe');
+  }
   loadUsers();
 }
 
@@ -474,6 +479,7 @@ function openAddModal() {
   document.getElementById('new-username').value = '';
   document.getElementById('new-password').value = '';
   document.getElementById('new-role').value = 'all';
+  if(typeof atualizaDropdown === 'function') atualizaDropdown('new-role');
   const box = document.getElementById('perm-add');
   box.innerHTML = '';
   box._perm = null;
@@ -552,6 +558,7 @@ async function openRoleModal(id) {
   roleTargetId = id;
   document.getElementById('role-username').textContent = u.username;
   document.getElementById('edit-role').value = u.role || 'all';
+  if(typeof atualizaDropdown === 'function') atualizaDropdown('edit-role');
   const box = document.getElementById('perm-edit');
   box.innerHTML = '';
   box._perm = u.permissoes || null;
