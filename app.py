@@ -4,7 +4,7 @@ from functools import wraps
 from urllib.parse import unquote
 from flask import (
     Flask, render_template, jsonify, request,
-    redirect, url_for, session
+    redirect, url_for, session, g
 )
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -63,11 +63,24 @@ def _force_https():
             return redirect(url, code=301)
 UNITS_FALLBACK = ["PARÁ", "MANAUS", "MANOA", "SÃO LUIZ", "FORTALEZA", "AÇÃO"]
 def _units():
-    """Lista de unidades vinda do banco (Configuração > Unidades)."""
+    """Unidades que ESTA pessoa pode ver.
+
+    Sem sessao (API externa, boot do servidor) ou para qualquer papel que
+    nao seja 'personalizado', devolve a lista inteira — o comportamento de
+    sempre. Por isso filtrar aqui nao afeta o Power BI nem o Fechamento.
+    """
     try:
-        return [u['nome'] for u in db.get_unidades()] or UNITS_FALLBACK
+        todas = [u['nome'] for u in db.get_unidades()] or UNITS_FALLBACK
     except Exception:
-        return UNITS_FALLBACK
+        todas = UNITS_FALLBACK
+    try:
+        if session.get('role') != 'personalizado':
+            return todas
+        livres = {str(x).strip().upper()
+                  for x in (_perm_sessao().get('unidades') or [])}
+        return [u for u in todas if u.strip().upper() in livres]
+    except Exception:
+        return todas
 # Prefixo de "unidade" reservada para Leads Recebidos (uma por unidade real).
 # Reusa a tabela appointments (rows é JSON), então não precisa de migração.
 # Ex.: os leads de PARÁ ficam armazenados sob a unit "LEADS::PARÁ".
@@ -139,7 +152,82 @@ def inject_user():
         'current_user': session.get('username'),
         'current_user_id': session.get('user_id'),
         'current_role': session.get('role', 'all'),
+        'pode': _pode_tela,
     }
+# ── Acesso personalizado ─────────────────────────────────────────────────────
+def _perm_sessao():
+    """O acesso personalizado desta pessoa, lido uma vez por requisicao.
+
+    Fica em 'g' e nao na sessao de proposito: assim, mudar o acesso de
+    alguem vale no proximo clique dela, sem precisar sair e entrar.
+    """
+    if not hasattr(g, '_perm_cache'):
+        try:
+            g._perm_cache = db.get_user_permissoes(session.get('user_id')) or {}
+        except Exception:
+            g._perm_cache = {}
+    return g._perm_cache
+
+
+def _pode_tela(chave):
+    """Para o menu do base.html: True se esta pessoa pode ver aquela tela.
+    Quem nao e 'personalizado' ve o menu de sempre."""
+    try:
+        if session.get('role') != 'personalizado':
+            return True
+        return str(chave).strip().lower() in {
+            str(t).strip().lower() for t in (_perm_sessao().get('telas') or [])}
+    except Exception:
+        return True
+
+
+# Endereco da tela -> chave marcada no cadastro. A ordem importa:
+# '/acompanhamento-tmk' tem de vir ANTES de '/acompanhamento'.
+PERM_ROTAS = (
+    ('/acompanhamento-tmk', 'acompanhamento'),
+    ('/acompanhamento',     'acompanhamento'),
+    ('/faltas',             'faltas'),
+    ('/leads-recebidos',    'leads'),
+    ('/leads-hxh',          'leadshh'),
+    ('/fechamento',         'fechamento'),
+    ('/troca-crm',          'crm'),
+    ('/employees',          'funcionarios'),
+    ('/configuracao',       'ajustes'),
+)
+
+
+def _guarda_personalizado(path):
+    """Fecha as telas que esta pessoa nao marcou. None = pode passar.
+
+    So as PAGINAS. As rotas /api/ ficam abertas porque varias delas
+    alimentam telas que ela PODE ver — a lista de funcionarios monta o
+    Hora a Hora, por exemplo. Fechar as /api/ por prefixo quebraria tela
+    liberada, que e pior do que a porta dos fundos continuar destrancada.
+    """
+    perm = _perm_sessao()
+
+    for prefixo, chave in PERM_ROTAS:
+        if path == prefixo or path.startswith(prefixo + '/'):
+            if _pode_tela(chave):
+                return None
+            if _wants_json():
+                return _err('Sem permissao para esta tela.', 403)
+            return redirect(url_for('dashboard'))
+
+    if path.startswith('/confirmacao'):
+        if path in ('/confirmacao', '/confirmacao/'):
+            if perm.get('conf_geral'):
+                return None
+        else:
+            nome = unquote(path[len('/confirmacao/'):]).strip().upper()
+            livres = {str(a).strip().upper() for a in (perm.get('atendentes') or [])}
+            if nome in livres:
+                return None
+        if _wants_json():
+            return _err('Sem permissao para esta tela.', 403)
+        return redirect(url_for('dashboard'))
+
+    return None
 # ── Controle de acesso por equipe (agendamento x confirmacao) ────────────────
 @app.before_request
 def _team_access_guard():
@@ -162,6 +250,8 @@ def _team_access_guard():
             if _wants_json():
                 return _err('Sem permissao para esta area.', 403)
             return redirect(url_for('dashboard'))
+    elif role == 'personalizado':
+        return _guarda_personalizado(path)
 # ── Handlers globais de erro ──────────────────────────────────────────────────
 @app.errorhandler(404)
 def _not_found(_):
@@ -800,14 +890,34 @@ def api_leads_por_tmk():
     return jsonify(por_tmk)
 def _role_allowed(*roles):
     user_role = session.get('role', 'all')
-    return user_role in ('all', 'admin', 'ambos') or user_role in roles
+    if user_role in ('all', 'admin', 'ambos'):
+        return True
+    # Personalizado entra na Confirmacao se tiver ao menos uma atendente
+    # marcada ou a Analise Geral. QUAL aba ela abre quem decide e o
+    # _guarda_personalizado; aqui so dizemos que a area nao e proibida.
+    if user_role == 'personalizado' and 'confirmacao' in roles:
+        p = _perm_sessao()
+        return bool(p.get('atendentes') or p.get('conf_geral'))
+    return user_role in roles
 ATENDENTES_FALLBACK = ['VIVIANE', 'DIELLEM', 'LIVYA', 'KEILANE', 'LUANE', 'MARIA']
 def _atendentes():
-    """Equipe de confirmacao vinda do banco (Configuracao > Equipe)."""
+    """Atendentes que ESTA pessoa pode ver.
+
+    Mesma ideia do _units(): sem sessao ou fora do papel 'personalizado',
+    devolve a equipe inteira — o comportamento de sempre.
+    """
     try:
-        return [a['nome'] for a in db.get_atendentes()] or ATENDENTES_FALLBACK
+        todas = [a['nome'] for a in db.get_atendentes()] or ATENDENTES_FALLBACK
     except Exception:
-        return ATENDENTES_FALLBACK
+        todas = ATENDENTES_FALLBACK
+    try:
+        if session.get('role') != 'personalizado':
+            return todas
+        livres = {str(x).strip().upper()
+                  for x in (_perm_sessao().get('atendentes') or [])}
+        return [a for a in todas if a.strip().upper() in livres]
+    except Exception:
+        return todas
 UNIDADES_CONF = {
     'MANAUS': ['MANAUS'],
     'MANOA': ['MANOA'],
@@ -978,7 +1088,8 @@ def unidades_page():
 @app.route('/api/unidades', methods=['GET'])
 @login_required
 def api_list_unidades():
-    return jsonify(db.get_unidades())
+    livres = set(_units())
+    return jsonify([u for u in db.get_unidades() if u.get('nome') in livres])
 @app.route('/api/unidades', methods=['POST'])
 @admin_required
 def api_create_unidade():
