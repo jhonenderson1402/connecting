@@ -396,6 +396,34 @@ def create_atendente(nome):
         s.commit()
         s.refresh(a)
         return {'id': a.id, 'nome': a.nome, 'ordem': a.ordem}
+def renomear_atendente(aid, novo_nome):
+    """Renomeia a pessoa da equipe e arrasta o historico dela.
+
+    O nome e a chave: 'confirmacoes' guarda o nome em TEXTO. Trocar so em
+    'atendentes' faria as confirmacoes dela sumirem da aba, sem erro nenhum.
+    As duas tabelas mudam na MESMA transacao.
+    """
+    novo = (novo_nome or '').strip().upper()
+    if not novo:
+        raise ValueError("Informe o novo nome.")
+    if len(novo) > 100:
+        raise ValueError("Nome muito longo.")
+    with SessionLocal() as s:
+        a = s.scalar(select(Atendente).where(Atendente.id == aid))
+        if not a:
+            raise ValueError("Pessoa nao encontrada.")
+        antigo = a.nome
+        if antigo == novo:
+            return {'id': aid, 'nome': novo, 'antigo': antigo, 'confirmacoes': 0}
+        if s.scalar(select(Atendente).where(Atendente.nome == novo)):
+            raise ValueError(f"'{novo}' ja esta na equipe.")
+        n = s.scalar(select(func.count(Confirmacao.id)).where(
+            Confirmacao.atendente == antigo)) or 0
+        s.execute(update(Confirmacao).where(Confirmacao.atendente == antigo)
+                  .values(atendente=novo))
+        a.nome = novo
+        s.commit()
+    return {'id': aid, 'nome': novo, 'antigo': antigo, 'confirmacoes': n}
 def count_confirmacoes_atendente(nome):
     with SessionLocal() as s:
         return s.scalar(select(func.count(Confirmacao.id)).where(
