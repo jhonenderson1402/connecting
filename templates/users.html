@@ -401,9 +401,13 @@ function resumoAcesso(u){
   if(!partes.length) return '<span class="alerta">Nada liberado</span>';
   return partes.join(' · ');
 }
-
 /* ---- Tela -------------------------------------------------------------- */
 function onConstantsLoaded() {
+  // O base.html chama isto depois do /api/constants; o base_confirmacao
+  // nao chama. Entao garantimos no DOMContentLoaded tambem, e esta trava
+  // impede que a tela carregue duas vezes onde os dois caminhos existem.
+  if(window.__usersPronto) return;
+  window.__usersPronto = true;
   // O <select> continua sendo o dono do valor — o dropdown so troca a aparencia.
   if(typeof ligaDropdown === 'function'){
     ligaDropdown('new-role',  'Buscar equipe');
@@ -411,7 +415,7 @@ function onConstantsLoaded() {
   }
   loadUsers();
 }
-
+document.addEventListener('DOMContentLoaded', onConstantsLoaded);
 async function loadUsers() {
   const res = await fetch('/api/users');
   if(res.status === 401) { window.location.href='/login'; return; }
