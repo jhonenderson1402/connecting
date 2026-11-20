@@ -393,6 +393,11 @@
           <label class="filter-label">Nº RELATÓRIO</label>
           <input class="input" id="rel-num" placeholder="Ex: 2º" oninput="buildRelatorio()" style="width:90px"/>
         </div>
+        <div class="filter-group">
+          <label class="filter-label">INCLUSÕES</label>
+          <input class="input" id="rel-inclusoes" inputmode="numeric" placeholder="0"
+                 oninput="buildRelatorio()" style="width:90px"/>
+        </div>
       </div>
       <!-- Campos de texto livre -->
       <div class="filter-group" style="margin-bottom:10px">
@@ -1082,6 +1087,12 @@ function ctrlLigaTeclado(){
 }
 
 // ── Relatório Fechamento ───────────────────────────────────────────────────
+// O numero digitado na caixa INCLUSOES. So digito conta; vazio vira 0.
+function _relInclusoes(){
+  const el = document.getElementById('rel-inclusoes');
+  const n = parseInt(String(el ? el.value : '').replace(/\D/g, ''), 10);
+  return isNaN(n) ? 0 : n;
+}
 function openRelatorioModal() {
   document.getElementById('modal-relatorio').classList.add('show');
   buildRelatorio();
@@ -1248,13 +1259,14 @@ async function buildRelatorioDia() {
   txt += `📋 RELATÓRIO${unidade ? ' ' + unidade : ''}\n`;
   txt += `${num ? num + ' ' : ''}RELATÓRIO ${_periodoLabel('day')}\n\n`;
   txt += `📌 INDICADORES DO PERÍODO\n`;
-  txt += `• Total: ${total}\n`;
+  txt += `• Agendados: ${total}\n`;
   txt += `• Confirmados: ${conf}\n`;
   txt += `• Cancelados: ${canc}\n`;
   txt += `• Sem retorno: ${semret}\n`;
   txt += `• Exame Realizado: ${exame}\n`;
   txt += `• Patologia: ${pato}\n`;
   txt += `• Desistência: ${desist}\n`;
+  txt += `• Inclusões: ${_relInclusoes()}\n`;
   if(atipica) {
     txt += `\n📌 SITUAÇÃO ATÍPICA DO DIA A DIA\n`;
     atipica.split('\n').forEach(l => { if(l.trim()) txt += `• ${l.trim()}\n`; });
@@ -1327,6 +1339,7 @@ async function buildRelatorioCompleto(periodo) {
   txt += `• Campanha Mabe: ${mabe}\n`;
   txt += `• Conversão: ${convPct}%\n`;
   txt += `• Desistência: ${desist}\n`;
+  txt += `• Inclusões: ${_relInclusoes()}\n`;
   if(atipica) {
     txt += `\n📌 SITUAÇÃO ATÍPICA\n`;
     atipica.split('\n').forEach(l => { if(l.trim()) txt += `• ${l.trim()}\n`; });
