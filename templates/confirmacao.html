@@ -185,6 +185,44 @@
   white-space:pre-wrap; min-height:72px; background:#0f0f0f; }
 .ctrl-out.ctrl-vazio{ color:#52525b; font-style:italic; }
 .ctrl-hr{ font-size:11px; color:#71717a; }
+
+/* ══════ Barra de ações ══════
+   O emoji muda de desenho em cada sistema e ignora a cor do texto — por isso
+   parecia colado por cima. O SVG de traco herda o currentColor, entao segue o
+   estado do botao (normal, hover, principal, destrutivo). */
+.ab{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.ab .ic{ width:15px; height:15px; flex:none; stroke:currentColor; fill:none;
+  stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; }
+.ab button{ height:34px; padding:0 13px; border-radius:8px; cursor:pointer;
+  font:500 12.5px Inter,sans-serif; letter-spacing:-.01em;
+  border:1px solid #272727; background:#171717; color:#c6c6cf;
+  display:inline-flex; align-items:center; gap:7px; transition:all .15s; }
+.ab button .ic{ color:#78788a; transition:color .15s; }
+.ab button:hover{ background:#1e1e1e; border-color:#343434; color:#f2f2f5; }
+.ab button:hover .ic{ color:#c6c6cf; }
+.ab button:focus-visible{ outline:2px solid #22c55e; outline-offset:2px; }
+
+.ab .pri{ background:rgba(34,197,94,.13); border-color:rgba(34,197,94,.45);
+  color:#4ade80; font-weight:600; }
+.ab .pri .ic{ color:#22c55e; }
+.ab .pri:hover{ background:rgba(34,197,94,.2); border-color:#22c55e; color:#86efac; }
+.ab .pri:hover .ic{ color:#4ade80; }
+
+/* O destrutivo nao tem borda ate o mouse chegar, e um risco o separa do resto:
+   ele apaga o dia inteiro, nao devia encostar em "Colar da Planilha". O risco
+   e um ::before do proprio botao — assim some junto quando ele esta escondido. */
+.ab .del{ position:relative; margin-left:13px;
+  border-color:transparent; background:transparent; color:#86666a; }
+.ab .del::before{ content:''; position:absolute; left:-7px; top:7px; bottom:7px;
+  width:1px; background:#262626; }
+.ab .del .ic{ color:#86666a; }
+.ab .del:hover{ background:rgba(248,113,113,.1);
+  border-color:rgba(248,113,113,.4); color:#f87171; }
+.ab .del:hover .ic{ color:#f87171; }
+
+.ab .cv{ width:9px; height:9px; stroke-width:2.6; opacity:.6; margin-left:1px; }
+.ab .rel-op .ic{ color:#78788a; }
+.ab .rel-op:hover .ic{ color:#d4d4d8; }
 </style>
 <div class="page-content">
   <div class="page-header">
@@ -195,19 +233,41 @@
       </div>
       <p class="page-subtitle">{% if atendente %}Confirmações de {{ atendente }}{% else %}Gestão de confirmações por contato{% endif %}</p>
     </div>
-    <div class="action-bar">
-      <button class="btn btn-primary" onclick="openResumoModal()">📋 Resumo do Dia</button>
+    <div class="action-bar ab">
+      <button class="pri" onclick="openResumoModal()">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M4 19.5V5.2A1.2 1.2 0 0 1 5.2 4h11.6A1.2 1.2 0 0 1 18 5.2v14.3"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H18"/><path d="M8 8.5h6M8 12h6M8 15.5h3.5"/></svg>
+        Resumo do Dia
+      </button>
       <div class="rel-wrap">
-        <button class="btn btn-outline" onclick="toggleRelMenu(event)">📄 Relatório ▾</button>
+        <button onclick="toggleRelMenu(event)">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M13.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5Z"/><path d="M13.5 3v5.5H19"/><path d="M8.5 13h7M8.5 16.5h4.5"/></svg>
+          Relatório
+          <svg class="ic cv" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
         <div class="rel-menu" id="rel-menu" onclick="event.stopPropagation()">
           <div class="rel-lbl">Relatórios</div>
-          <div class="rel-op" onclick="abreRelatorio('ctrl')"><span>📍</span>Controle de Agendamentos</div>
-          <div class="rel-op" onclick="abreRelatorio('fech')"><span>💬</span>Relatório Fechamento</div>
+          <div class="rel-op" onclick="abreRelatorio('ctrl')">
+            <svg class="ic" viewBox="0 0 24 24"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/></svg>
+            Controle de Agendamentos
+          </div>
+          <div class="rel-op" onclick="abreRelatorio('fech')">
+            <svg class="ic" viewBox="0 0 24 24"><path d="M20 12.5a7.5 7.5 0 0 1-10.9 6.7L4 20.5l1.4-4.8A7.5 7.5 0 1 1 20 12.5Z"/><path d="M9 11.5h6M9 14.5h3.5"/></svg>
+            Relatório Fechamento
+          </div>
         </div>
       </div>
-      <button class="btn btn-outline" onclick="openExtract()">📊 Extrair Dados</button>
-      <button class="btn btn-outline" onclick="openPasteModal()">📋 Colar da Planilha</button>
-      <button class="btn btn-danger" onclick="clearDay()" id="btn-clear" style="display:none">🗑 Limpar Dia</button>
+      <button onclick="openExtract()">
+        <svg class="ic" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M9.5 9.5V20M15 9.5V20"/></svg>
+        Extrair Dados
+      </button>
+      <button onclick="openPasteModal()">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M9 4.5H7.5a1.8 1.8 0 0 0-1.8 1.8v13.4A1.8 1.8 0 0 0 7.5 21.5h9a1.8 1.8 0 0 0 1.8-1.8V6.3A1.8 1.8 0 0 0 16.5 4.5H15"/><rect x="9" y="2.5" width="6" height="4" rx="1.3"/><path d="M9.2 13h5.6M9.2 16.3h3.4"/></svg>
+        Colar da Planilha
+      </button>
+      <button class="del" onclick="clearDay()" id="btn-clear" style="display:none">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V5.2A1.2 1.2 0 0 1 10.7 4h2.6a1.2 1.2 0 0 1 1.2 1.2V7"/><path d="M6.5 7v12.3A1.7 1.7 0 0 0 8.2 21h7.6a1.7 1.7 0 0 0 1.7-1.7V7"/><path d="M10.5 11v6M13.5 11v6"/></svg>
+        Limpar Dia
+      </button>
     </div>
   </div>
   <!-- Seletor de data -->
