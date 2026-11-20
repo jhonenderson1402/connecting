@@ -153,6 +153,7 @@ def inject_user():
         'current_user_id': session.get('user_id'),
         'current_role': session.get('role', 'all'),
         'pode': _pode_tela,
+        'pode_conf': _pode_conf,
     }
 # ── Acesso personalizado ─────────────────────────────────────────────────────
 def _perm_sessao():
@@ -180,6 +181,21 @@ def _pode_tela(chave):
     except Exception:
         return True
 
+
+def _pode_conf(chave):
+    """Para o menu da Confirmacao: 'geral' (Analise Geral) e 'equipe'.
+
+    Essas duas nao estao na lista 'telas' — sao campos proprios do cadastro,
+    entao o _pode_tela sempre diria False para elas. Daqui sai o que a barra
+    mostra; quem barra o acesso de verdade continua sendo o
+    _guarda_personalizado.
+    """
+    try:
+        if session.get('role') != 'personalizado':
+            return True
+        return bool(_perm_sessao().get('conf_' + str(chave).strip().lower()))
+    except Exception:
+        return True
 
 # Endereco da tela -> chave marcada no cadastro. A ordem importa:
 # '/acompanhamento-tmk' tem de vir ANTES de '/acompanhamento'.
