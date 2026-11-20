@@ -252,13 +252,19 @@
       </div>
       <div class="conf-team-badge">EQUIPE CONFIRMAÇÃO</div>
       <nav class="conf-nav">
+        {% if pode_conf('geral') %}
         <p class="conf-nav-label">NAVEGAÇÃO</p>
         <a href="/confirmacao" class="conf-nav-item {% if request.path == "/confirmacao" %}active{% endif %}">
           <span class="conf-nav-icon">📊</span> Análise Geral
         </a>
+        {% endif %}
 
         <p class="conf-nav-label" style="margin-top:10px">ATENDENTES</p>
-        {% set atendentes_list = atendentes or ['VIVIANE','DIELLEM','LIVYA','KEILANE','LUANE','MARIA'] %}
+        {# O "or" do Jinja dispara com lista vazia tambem. Quem tem Analise
+           Geral mas nenhuma atendente liberada veria as seis chumbadas aqui,
+           todas barradas no clique. "is none" separa "nao mandou" de "mandou
+           vazio" — a rota sempre manda, nem que seja []. #}
+        {% set atendentes_list = atendentes if atendentes is not none else ['VIVIANE','DIELLEM','LIVYA','KEILANE','LUANE','MARIA'] %}
         {% for nome in atendentes_list %}
         <a href="/confirmacao/{{ nome }}"
            class="conf-nav-item {% if atendente == nome %}active{% endif %}">
