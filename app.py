@@ -1134,6 +1134,18 @@ def api_delete_fonte(fid):
     db.delete_fonte(fid)
     return jsonify({'ok': True})
 # ── Unidades (Configuração) ──────────────────────────────────────────────────
+@app.route('/configuracao/usuarios')
+@admin_required
+def usuarios_conf_page():
+    """A MESMA tela de Usuarios, com a barra lateral da Confirmacao.
+
+    O template e o mesmo arquivo: so a moldura muda. Duas copias de
+    users.html seria o caminho curto hoje e a divergencia de amanha —
+    toda correcao teria de ser feita duas vezes, e um dia nao seria.
+    """
+    return render_template('users.html',
+                           base_tpl='base_confirmacao.html',
+                           atendentes=_atendentes())
 @app.route('/configuracao/unidades')
 @admin_required
 def unidades_page():
