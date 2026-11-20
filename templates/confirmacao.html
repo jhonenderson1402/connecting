@@ -5,9 +5,7 @@
 <script>/*CONF-TRATAR*/(function(){function isErr(c){c=(""+(c==null?"":c)).trim().toUpperCase();return c.charAt(0)==="#"&&(c.indexOf("ERRO")>=0||c.indexOf("REF")>=0||c.indexOf("VALUE")>=0||c.indexOf("NAME")>=0||c.indexOf("NUM")>=0||c.indexOf("DIV")>=0||c.indexOf("N/A")>=0);}function stripF(c){c=(""+(c==null?"":c)).trim();c=c.replace(/^["']+|["']+$/g,"").trim();if(c.charAt(0)==="="){c=c.slice(1);if(c.charAt(0)==="+")c=c.slice(1);c=c.replace(/^["']+|["']+$/g,"").trim();}return c;}function footer(){var b=document.getElementById("btn-paste-confirm");return b?b.parentNode:null;}function badge(){var f=footer();if(!f)return;var el=document.getElementById("err-count");if(!el){el=document.createElement("span");el.id="err-count";el.style.cssText="display:inline-flex;align-items:center;margin-right:auto;font-size:12px;font-weight:600;color:#fca5a5";f.insertBefore(el,f.firstChild);}var n=0;document.querySelectorAll(".contato-edit").forEach(function(inp){if(isErr(inp.value))n++;});if(n>0){el.style.display="";el.textContent="\u26A0 "+n+" contato(s) com #ERROR!";}else{el.style.display="none";}}function makeEditable(){var tbody=document.getElementById("paste-preview-body");if(!tbody)return;tbody.querySelectorAll("tr").forEach(function(tr,i){var tds=tr.querySelectorAll("td");if(!tds.length)return;var td=tds[tds.length-1];if(td.querySelector("input"))return;var val=td.textContent;var isE=isErr(val);td.innerHTML="";td.style.padding="4px 8px";var inp=document.createElement("input");inp.className="contato-edit";inp.setAttribute("data-i",i);inp.value=val;inp.style.cssText="width:135px;background:"+(isE?"rgba(248,113,113,.14)":"#141414")+";border:1px solid "+(isE?"#f87171":"#333")+";color:#fff;border-radius:5px;padding:3px 6px;font-size:11px";inp.addEventListener("input",badge);td.appendChild(inp);});badge();}function install(){var ta=document.getElementById("paste-textarea");if(!ta)return setTimeout(install,250);var tb=document.getElementById("paste-preview-body");if(tb){try{new MutationObserver(function(){makeEditable();}).observe(tb,{childList:true});}catch(e){}}window.confirmPaste=async function(){var text=document.getElementById("paste-textarea").value.trim();if(!text){showToast("Cole algum dado antes de importar.","error");return;}var rows=parsePasteText(text);if(rows.length===0){showToast("Nenhuma linha valida encontrada.","error");return;}document.querySelectorAll(".contato-edit").forEach(function(inp){var idx=parseInt(inp.getAttribute("data-i"));if(rows[idx]!==undefined)rows[idx].contato=stripF(inp.value);});var btn=document.querySelector("#modal-paste .btn-primary");if(btn){btn.disabled=true;btn.textContent="Importando...";}try{var res=await fetch("/api/confirmacoes/bulk",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rows:rows,atendente:ATENDENTE})});var data=await res.json();if(!res.ok){showToast(data.error||"Erro ao importar.","error");return;}closePasteModal();await loadDay();showToast(data.count+" registros importados!");}finally{if(btn){btn.disabled=false;btn.innerHTML='\u2705 Importar <span id="paste-count"></span>';}}};setTimeout(makeEditable,50);}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){setTimeout(install,400);});}else{setTimeout(install,400);}})();</script>
 <script>/*CONF-PASTE*/(function(){function cleanCell(c){c=(c==null?"":(""+c)).trim();c=c.replace(/^["']+|["']+$/g,"").trim();if(c.charAt(0)==="="){c=c.slice(1);if(c.charAt(0)==="+")c=c.slice(1);c=c.replace(/^["']+|["']+$/g,"").trim();}return c;}function install(){if(typeof parsePasteText!=="function"){return setTimeout(install,150);}window.parsePasteText=function(text){var lines=text.split(/\r?\n/).filter(function(l){return l.trim();});var dataStr=getDateStr();var mes=getMesStr();var yearEl=document.getElementById("sel-year");var year=yearEl?yearEl.value:"";function normalizeDate(d){if(!d)return dataStr;d=(""+d).replace(/['"]/g,"").trim();if(/^\d{2}\/\d{2}\/\d{4}$/.test(d))return d;if(/^\d{2}\/\d{2}$/.test(d))return d+"/"+year;if(/^\d{1,2}\/\d{1,2}$/.test(d)){var p=d.split("/");return p[0].padStart(2,"0")+"/"+p[1].padStart(2,"0")+"/"+year;}return dataStr;}var AT=(typeof ATENDENTE!=="undefined")?ATENDENTE:"";return lines.map(function(line){var cols=line.split("\t").map(cleanCell);if(cols.length>=7){return {mes:cols[0]||mes,data_str:normalizeDate(cols[1]),cliente:cols[2]||"",tmk:cols[3]||AT||"",unidade:cols[4]||"",horario:cols[5]||"",contato:cols[6]||"",flag:""};}return {mes:mes,data_str:dataStr,cliente:cols[0]||"",tmk:cols[1]||AT||"",unidade:cols[2]||"",horario:cols[3]||"",contato:cols[4]||"",flag:""};}).filter(function(r){return r.cliente||r.contato;});};if(typeof previewPaste==="function"){try{previewPaste();}catch(e){}}}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){setTimeout(install,300);});}else{setTimeout(install,300);}})();</script>
 <script>/*CONF-CONFIRM*/(function(){function coConfirm(msg,onOk,okLabel){var ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;display:flex;align-items:center;justify-content:center";ov.innerHTML='<div style="background:#0f1712;border:1px solid rgba(34,197,94,.4);border-radius:14px;padding:22px 20px;min-width:280px;max-width:380px;box-shadow:0 12px 44px rgba(0,0,0,.6)"><div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="width:26px;height:26px;border-radius:50%;background:rgba(34,197,94,.15);color:#22c55e;display:inline-flex;align-items:center;justify-content:center;font-weight:800">!</span><span style="color:#22c55e;font-weight:700;font-size:14px;letter-spacing:.5px">CONNECTING</span></div><div style="color:#eef1f7;font-size:13.5px;line-height:1.5;margin-bottom:20px">'+msg+'</div><div style="display:flex;gap:8px;justify-content:flex-end"><button data-cancel="1" style="background:#222;border:1px solid #333;color:#cbd5e1;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">Cancelar</button><button data-ok="1" style="background:#22c55e;border:none;color:#04210f;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700">'+(okLabel||"Confirmar")+'</button></div></div>';ov.addEventListener("click",function(ev){var t=ev.target;if(t===ov||t.getAttribute("data-cancel")){ov.remove();return;}if(t.getAttribute("data-ok")){ov.remove();onOk();}});document.body.appendChild(ov);}window.coConfirm=coConfirm;function install(){if(typeof clearDay!=="function"){return setTimeout(install,150);}window.clearDay=function(){var dataStr=(typeof getDateStr==="function")?getDateStr():"";coConfirm("Limpar todos os "+allConf.length+" registros do dia "+dataStr+"?",function(){fetch("/api/confirmacoes/clear_day?data_str="+encodeURIComponent(dataStr)+AT_QS,{method:"DELETE"}).then(function(){allConf=[];applyFilter();var bc=document.getElementById("btn-clear");if(bc)bc.style.display="none";showToast("Dia limpo com sucesso.");});},"Limpar");};}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){setTimeout(install,300);});}else{setTimeout(install,300);}})();</script>
-<style>
-/* Tabela estilo planilha */
-.conf-table { width:100%; border-collapse:collapse; font-size:12px; min-width:860px; }
+<style>/* Tabela estilo planilha */.conf-table { width:100%; border-collapse:collapse; font-size:12px; min-width:860px; }
 .conf-table thead th {
   background:#fbbf24; color:#18181b; font-weight:800;
   text-transform:uppercase; font-size:11px; padding:10px 10px;
@@ -223,6 +221,45 @@
 .ab .cv{ width:9px; height:9px; stroke-width:2.6; opacity:.6; margin-left:1px; }
 .ab .rel-op .ic{ color:#78788a; }
 .ab .rel-op:hover .ic{ color:#d4d4d8; }
+
+/* ══════ Dropdown das flags ══════
+   A etiqueta fechada continua igual. So a lista muda: fundo escuro, busca no
+   topo, um ponto na cor de cada flag e ✓ verde na escolhida. */
+.fdd-bt{ width:100%; border:none; border-radius:6px; padding:5px 24px 5px 10px;
+  font:700 11px Inter,sans-serif; cursor:pointer; text-align:left; position:relative;
+  text-transform:uppercase; letter-spacing:.03em;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:filter .13s; }
+.fdd-bt:hover{ filter:brightness(1.12); }
+.fdd-bt:focus-visible{ outline:2px solid #22c55e; outline-offset:1px; }
+.fdd-bt::after{ content:''; position:absolute; right:9px; top:50%; margin-top:-2px;
+  border-left:4px solid transparent; border-right:4px solid transparent;
+  border-top:5px solid currentColor; opacity:.85; }
+
+/* position:fixed e z-index alto porque o menu mora no <body>: o card da tabela
+   tem overflow:hidden e a coluna da flag e sticky — dentro da celula ele sairia
+   cortado. */
+.fdd-menu{ position:fixed; display:none; z-index:2147483000; width:252px; padding:4px;
+  background:#1a1a1a; border:1px solid #2a2a2a; border-radius:9px;
+  box-shadow:0 14px 34px rgba(0,0,0,.7); }
+.fdd-menu.abre{ display:block; }
+.fdd-busca{ margin:-4px -4px 4px; padding:4px 4px 6px;
+  background:#1a1a1a; border-bottom:1px solid #2a2a2a; }
+.fdd-busca input{ width:100%; background:#101010; border:1px solid #2a2a2a;
+  border-radius:6px; color:#e4e4e7; font-family:inherit; font-size:12px;
+  padding:6px 9px; outline:none; }
+.fdd-busca input::placeholder{ color:#52525b; }
+.fdd-busca input:focus{ border-color:#22c55e; }
+.fdd-ops{ max-height:290px; overflow-y:auto; }
+.fdd-ops::-webkit-scrollbar{ width:8px; }
+.fdd-ops::-webkit-scrollbar-track{ background:transparent; }
+.fdd-ops::-webkit-scrollbar-thumb{ background:#3a3a3a; border-radius:4px; }
+.fdd-op{ padding:7px 10px; font-size:12px; color:#d4d4d8; cursor:pointer;
+  border-radius:6px; display:flex; align-items:center; gap:9px; transition:background .1s; }
+.fdd-op:hover{ background:#2a2a2a; }
+.fdd-op.nada{ color:#52525b; font-style:italic; }
+.fdd-op.sel{ font-weight:700; color:#fff; }
+.fdd-op.sel::after{ content:'✓'; margin-left:auto; color:#22c55e; font-weight:700; }
+.fdd-pt{ width:9px; height:9px; border-radius:50%; flex:none; }
 </style>
 <div class="page-content">
   <div class="page-header">
@@ -659,6 +696,116 @@ function getFlagCls(flag) {
   const f = FLAGS.find(x=>x.key===flag);
   return f ? f.cls : 'flag-vazio';
 }
+/* ══════ Dropdown das flags ══════
+   UM menu para a tabela inteira. Ligar o dropdown da casa em cada linha criaria
+   um menu por registro, e o renderTable() refaz a tabela a cada filtro — num dia
+   cheio seriam centenas, recriados toda vez.
+   O <select> continua sendo o dono do valor: escolher escreve nele e dispara o
+   "change", entao o updateFlag(id, this) do onchange roda igual a antes. */
+var _fdd = null;      // o menu, criado uma vez so
+var _fddSel = null;   // o <select> que esta sendo editado agora
+
+function rotuloFlag(flag){
+  var f = FLAGS.find(function(x){ return x.key === flag; });
+  return f ? f.label : '— Selecionar —';
+}
+
+function pintaFlag(sel){
+  var bt = sel.parentNode ? sel.parentNode.querySelector('.fdd-bt') : null;
+  if(!bt) return;
+  bt.className = 'fdd-bt ' + getFlagCls(sel.value);
+  bt.textContent = rotuloFlag(sel.value);
+}
+
+function _fddCria(){
+  if(_fdd) return _fdd;
+  var m = document.createElement('div');
+  m.className = 'fdd-menu';
+  m.innerHTML = '<div class="fdd-busca"><input type="text" placeholder="DIGITE A FLAG"></div>' +
+                '<div class="fdd-ops"></div>';
+  document.body.appendChild(m);
+  var campo = m.querySelector('input');
+  var ops   = m.querySelector('.fdd-ops');
+  ops.innerHTML =
+    '<div class="fdd-op nada" data-v="">— Selecionar —</div>' +
+    FLAGS.map(function(f){
+      return '<div class="fdd-op" data-v="' + esc(f.key) + '">' +
+             '<span class="fdd-pt" style="background:' + f.bg + '"></span>' +
+             esc(f.label) + '</div>';
+    }).join('');
+  m.addEventListener('click', function(e){
+    e.stopPropagation();
+    var op = e.target.closest('.fdd-op');
+    if(op) _fddEscolhe(op.dataset.v);
+  });
+  campo.addEventListener('input', function(){
+    // busca sem acento e sem maiuscula: "horario" acha "HORÁRIO ERRADO"
+    var q = String(campo.value || '').normalize('NFD')
+              .replace(/[\u0300-\u036f]/g,'').trim().toUpperCase();
+    [].forEach.call(ops.children, function(o){
+      var t = String(o.textContent).normalize('NFD')
+                .replace(/[\u0300-\u036f]/g,'').toUpperCase();
+      o.style.display = t.indexOf(q) >= 0 ? '' : 'none';
+    });
+  });
+  campo.addEventListener('keydown', function(e){
+    e.stopPropagation();
+    if(e.key === 'Escape'){ e.preventDefault(); fechaFlag(); return; }
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      var vis = [].filter.call(ops.children, function(o){ return o.style.display !== 'none'; });
+      if(vis.length) _fddEscolhe(vis[0].dataset.v);
+    }
+  });
+  _fdd = {menu:m, campo:campo, ops:ops};
+  return _fdd;
+}
+
+function abreFlag(ev, bt){
+  ev.stopPropagation();
+  var sel = bt.parentNode.querySelector('.flag-select');
+  if(!sel) return;
+  var d = _fddCria();
+  if(_fddSel === sel && d.menu.classList.contains('abre')){ fechaFlag(); return; }
+  _fddSel = sel;
+  d.campo.value = '';
+  [].forEach.call(d.ops.children, function(o){
+    o.style.display = '';
+    o.classList.toggle('sel', o.dataset.v === sel.value);
+  });
+  // mede DEPOIS de abrir: escondido, offsetHeight seria 0 e o menu que nao
+  // coubesse embaixo nunca subiria
+  d.menu.classList.add('abre');
+  var r   = bt.getBoundingClientRect();
+  var alt = d.menu.offsetHeight;
+  var lar = d.menu.offsetWidth;
+  var sobra = (window.innerHeight || 800) - r.bottom;
+  d.menu.style.left = Math.max(6, Math.min(r.left, (window.innerWidth || 1200) - lar - 6)) + 'px';
+  d.menu.style.top  = (sobra < alt && r.top > sobra ? Math.max(6, r.top - alt - 4) : r.bottom + 4) + 'px';
+  setTimeout(function(){ d.campo.focus({preventScroll:true}); }, 0);
+}
+
+function fechaFlag(){
+  if(_fdd) _fdd.menu.classList.remove('abre');
+  _fddSel = null;
+}
+
+function _fddEscolhe(v){
+  var sel = _fddSel;
+  fechaFlag();
+  if(!sel || sel.value === v) return;   // escolheu a mesma: nao grava a toa
+  sel.value = v;
+  sel.dispatchEvent(new Event('change', {bubbles:true}));
+}
+
+document.addEventListener('click', fechaFlag);
+window.addEventListener('resize', fechaFlag);
+window.addEventListener('scroll', function(e){
+  // rolar a tabela de lado deixaria o menu solto no lugar errado
+  var t = e.target;
+  if(t && t.closest && t.closest('.fdd-menu')) return;
+  fechaFlag();
+}, true);
 function renderTable() {
   const tbody = document.getElementById('conf-tbody');
   if(filtered.length === 0) {
@@ -681,7 +828,8 @@ function renderTable() {
       <td>${esc(r.horario)}</td>
       <td>${esc(r.contato)}</td>
       <td class="td-flag">
-        <select class="flag-select ${fCls}" onchange="updateFlag(${r.id},this)">
+        <button type="button" class="fdd-bt ${fCls}" onclick="abreFlag(event,this)">${esc(rotuloFlag(r.flag))}</button>
+        <select class="flag-select ${fCls}" onchange="updateFlag(${r.id},this)" style="display:none">
           <option value="" ${!r.flag?'selected':''}>— Selecionar —</option>
           ${opts}
         </select>
@@ -712,6 +860,7 @@ function saveObs(id, val){
 async function updateFlag(id, sel) {
   const flag = sel.value;
   sel.className = 'flag-select ' + getFlagCls(flag);
+  pintaFlag(sel);
   const item = allConf.find(r=>r.id===id);
   if(item) item.flag = flag;
   const filt = filtered.find(r=>r.id===id);
