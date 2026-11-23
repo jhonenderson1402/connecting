@@ -658,7 +658,12 @@ def api_appointments():
     year = request.args.get('year')
     month = request.args.get('month')
     unit = request.args.get('unit')
-    if unit and not _valid_unit(unit):
+    # LEITURA: vale a lista do Resumo. Sem o parametro "unit" esta rota ja
+    # devolve todas as unidades — recusar o recorte de UMA delas so escondia
+    # o Ranking por Unidade de quem ve o Resumo inteiro. Nao abre nada novo:
+    # e o mesmo dado, so separado por unidade.
+    # Gravar continua em /api/appointments/<unit>/<date>, que usa o _units().
+    if unit and unit not in _units_resumo():
         return _err(f'Unidade inválida: {unit}')
     if date:
         if not _valid_date(date):
