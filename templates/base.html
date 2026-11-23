@@ -405,6 +405,10 @@
     }).then(data=>{
       if(!data) return;
       UNITS.push(...data.units);
+      // A lista do Resumo fica guardada a parte. Quem usa e so o painel, e
+      // so DEPOIS do buildUnitLinks — assim a barra lateral continua
+      // listando apenas as unidades que ela pode abrir.
+      window.__unitsResumo = data.units_resumo || data.units;
       MONTHS.push(...data.months);
       TIME_SLOTS.push(...data.time_slots);
       buildUnitLinks();
