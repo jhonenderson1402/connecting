@@ -81,6 +81,26 @@ def _units():
         return [u for u in todas if u.strip().upper() in livres]
     except Exception:
         return todas
+
+
+def _units_resumo():
+    """As unidades que o Resumo Geral desenha.
+
+    Vale SO para o painel. Quem e 'personalizado' e nao marcou nenhuma
+    unidade ve o Resumo inteiro — antes via a tela vazia, porque lista em
+    branco queria dizer "nenhuma". Marcar uma unidade volta a limitar.
+    Entrar na tela de uma unidade continua decidido pelo _units(), que NAO
+    muda: em branco ali segue significando "nenhuma".
+    """
+    try:
+        if session.get('role') != 'personalizado':
+            return _units()
+        if (_perm_sessao().get('unidades') or []):
+            return _units()
+        return [u['nome'] for u in db.get_unidades()] or UNITS_FALLBACK
+    except Exception:
+        return _units()
+
 # Prefixo de "unidade" reservada para Leads Recebidos (uma por unidade real).
 # Reusa a tabela appointments (rows é JSON), então não precisa de migração.
 # Ex.: os leads de PARÁ ficam armazenados sob a unit "LEADS::PARÁ".
@@ -805,7 +825,7 @@ def api_agendamentos_dia():
         date      = ''
         periodo   = 'mes'
 
-    validas = _units()
+    validas = _units_resumo()
     conj = set(validas)
     por_unidade = {u: {} for u in validas}
 
@@ -869,7 +889,10 @@ def api_agendamentos_dia():
 @app.route('/api/constants')
 @login_required
 def api_constants():
-    return jsonify({'units': _units(), 'months': MONTHS, 'time_slots': TIME_SLOTS})
+    # units        -> onde ela pode ENTRAR: barra lateral, Funcionarios, Metas
+    # units_resumo -> o que o Resumo Geral desenha. So o painel usa.
+    return jsonify({'units': _units(), 'units_resumo': _units_resumo(),
+                    'months': MONTHS, 'time_slots': TIME_SLOTS})
 # Chaves de leads que entraram — montadas a partir das fontes cadastradas.
 # A fonte ANTIGOS continua sendo lançada e exibida, mas NÃO soma no total de leads.
 FONTES_FORA_DO_TOTAL = {'antigos'}
@@ -906,7 +929,7 @@ def api_leads_totais():
     else:
         return _err('Informe "date" (YYYY-MM-DD) ou "year"+"month".')
     # Soma os leads so das unidades reservadas LEADS::, por unidade real
-    totais = {u: 0 for u in _units()}
+    totais = {u: 0 for u in _units_resumo()}
     lead_keys = _lead_keys()
     for a in appts:
         unit = a['unit']
