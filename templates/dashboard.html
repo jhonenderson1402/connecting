@@ -2306,6 +2306,10 @@ let leadsTotais = {};
 let leadsPorTmkDash = {};   // leads por nome (TMK) — usado no ranking de líderes
 
 function onConstantsLoaded() {
+  // O painel desenha todas as unidades do Resumo; a barra lateral, so as que
+  // ela pode abrir. A troca e aqui porque o buildUnitLinks ja rodou antes.
+  const _ur = window.__unitsResumo;
+  if (_ur && _ur.length > UNITS.length) { UNITS.length = 0; UNITS.push(..._ur); }
   const now = new Date();
   // Populate month selects
   ['filter-month','rank-month'].forEach(id => {
