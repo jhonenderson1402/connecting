@@ -213,7 +213,43 @@
   .sig-tot .tn{ margin-left:auto; font-size:15px; font-weight:800; color:var(--fg);
                 font-variant-numeric:tabular-nums; }
 
-  /* ── painel da imagem ────────────────────────────────────────────────────── */
+    /* ── agendamentos para sábado ───────────────────────────────────────────── */
+  .sab-topo{ display:flex; align-items:flex-end; gap:12px; margin-bottom:11px;
+             padding-bottom:10px; border-bottom:1px dashed var(--bd); }
+  .sab-topo .campo{ width:190px; }
+  /* se o dropdown padrao nao pegar, o <select> cru ainda fica apresentavel */
+  .sab-topo select{ height:28px; padding:0 10px; border-radius:7px; width:100%;
+                    background:var(--sec); border:1px solid var(--bd2);
+                    color:var(--fg); font-family:inherit; font-size:12.5px; }
+  .sab-topo .alvo{ font-size:10.5px; color:var(--mut); padding-bottom:6px; }
+  .sab-topo .alvo b{ color:var(--pri); font-weight:750; }
+  .sab{ display:grid; grid-template-columns:repeat(7, 1fr); gap:7px; }
+  @media (max-width:1400px){ .sab{ grid-template-columns:repeat(4, 1fr); } }
+  .sab-c{ display:flex; flex-direction:column; gap:3px; }
+  .sab-c label{ font-size:8.5px; font-weight:800; letter-spacing:.09em;
+                text-transform:uppercase; color:var(--mut); text-align:center;
+                line-height:1.25; min-height:22px; display:flex;
+                align-items:center; justify-content:center; }
+  .sab-c input{ width:100%; height:28px; text-align:center; font-size:13px;
+                font-weight:700; font-variant-numeric:tabular-nums; }
+  /* o total do sabado nao se digita: e a soma dos dias da semana */
+  .sab-ac{ text-align:center; font-size:11px; font-weight:800; color:var(--gre);
+           font-variant-numeric:tabular-nums; padding:2px 0; border-radius:20px;
+           background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.25); }
+  .sab-tot{ display:flex; align-items:center; gap:10px; margin-top:9px;
+            padding-top:8px; border-top:1px dashed var(--bd); font-size:11px;
+            font-weight:650; letter-spacing:.04em; text-transform:uppercase;
+            color:var(--mut); }
+  .sab-tot .hj{ font-size:13px; font-weight:800; color:var(--fg2);
+                font-variant-numeric:tabular-nums; }
+  .sab-tot .tn{ margin-left:auto; font-size:15px; font-weight:800;
+                color:var(--gre); font-variant-numeric:tabular-nums; }
+  .sab-leg{ font-size:9.5px; color:var(--mut2); margin-top:8px; padding-top:8px;
+            border-top:1px dashed var(--bd); line-height:1.65; }
+  .sab-leg b{ color:var(--fg2); font-weight:650; }
+
+/* ── painel da imagem ────────────────────────
+*/
   /* O painel fica preso na tela e rola por dentro, como o menu da esquerda:
      as duas imagens cabem sem arrastar o formulario junto. */
   .saida{ position:sticky; top:72px; background:var(--card); border:1px solid var(--bd);
@@ -319,8 +355,30 @@
             <button class="bt-linha" onclick="criaSigla()">+ Adicionar</button>
             <span class="ajuda">vale para todos os dias · passe o mouse na sigla para remover</span>
           </div>
-          <div class="sig-tot">Total
+                    <div class="sig-tot">Total
             <span class="tn" id="sig-total">0</span></div>
+        </div>
+      </div>
+
+      <div class="bloco">
+        <div class="bloco-h"><span class="t">Agendamentos para sábado</span>
+          <span class="d" id="sab-rot">—</span></div>
+        <div class="bloco-c">
+          <div class="sab-topo">
+            <div class="campo"><label>Dia</label>
+              <select id="sab-sel" onchange="vaiProDia(this.value)"></select></div>
+            <span class="alvo">acumulando para <b id="sab-alvo">—</b></span>
+          </div>
+          <div class="sab" id="sabado"></div>
+          <div class="sab-tot">Total do dia
+            <span class="hj" id="sab-hoje">0</span>
+            Total do sábado
+            <span class="tn" id="sab-total">0</span></div>
+          <div class="sab-leg">Digite o que foi agendado <b>no dia</b> para o sábado.
+            O número verde embaixo de cada unidade é o <b>total do sábado</b> — a soma
+            de todos os dias da semana que apontam para ele. No dropdown, dourado =
+            dia que já tem lançamento. Passado o sábado, a contagem começa sozinha
+            no próximo.</div>
         </div>
       </div>
 
@@ -346,6 +404,15 @@
       <div class="saida-f">
         <button class="bt-ouro" onclick="baixarTira()">⬇ Baixar PNG da tira</button>
         <button class="bt-linha" onclick="copiarTira(this)">📋 Copiar tira</button>
+      </div>
+
+      <div class="saida-h" style="border-top:1px solid var(--bd)">
+        <span class="t">Agendamentos para sábado</span>
+        <span id="medida3" style="margin-left:auto;font-size:10px;color:#52525b">—</span></div>
+      <div class="saida-c"><canvas class="folha" id="sabado-img" width="1240" height="478"></canvas></div>
+      <div class="saida-f">
+        <button class="bt-ouro" onclick="baixarSabado()">⬇ Baixar PNG do sábado</button>
+        <button class="bt-linha" onclick="copiarSabado(this)">📋 Copiar</button>
       </div>
     </div>
   </div>
@@ -526,6 +593,292 @@ function setS(i, v){
   agendaSalvar();
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   AGENDAMENTOS PARA SÁBADO
+   Cada dia guarda o numero DAQUELE dia, nao o acumulado: a soma acontece na
+   hora de mostrar. Assim da para ver quanto entrou em cada dia, e corrigir
+   um dia errado nao estraga o total.
+   ══════════════════════════════════════════════════════════════════════════ */
+var UNI_SAB = ['PARÁ','MANAUS','MANAUS CENTRO','MANOA','SÃO LUIS',
+               'FORTALEZA','RONDONIA'];
+var SAB = {};          /* unidade -> o que foi lancado NESTE dia */
+var SAB_OUTROS = {};   /* unidade -> soma dos outros dias da mesma semana */
+var MES_SAB = {};      /* dia -> lancamentos, do mes todo (so para o dourado) */
+var _sabReq = 0;       /* trocar de dia rapido nao deixa resposta velha vencer */
+var _mesReq = 0;
+
+var DIA_SEM = ['dom','seg','ter','qua','qui','sex','sáb'];
+/* "qui 26/11" na linha do dia, "sáb 28/11" na do sabado: a imagem se
+   explica sozinha para quem receber, sem precisar contar no calendario. */
+function dSemana(iso){
+  var p = String(iso || '').split('-');
+  if(p.length !== 3) return '';
+  return DIA_SEM[new Date(+p[0], +p[1] - 1, +p[2]).getDay()];
+}
+
+/* O sabado que esta data alimenta. Domingo a sexta: o sabado que vem.
+   Sabado: ele mesmo — quem lanca no sabado esta lancando para o dia. */
+function sabadoDe(iso){
+  var p = String(iso || '').split('-');
+  if(p.length !== 3) return '';
+  var d = new Date(+p[0], +p[1] - 1, +p[2]);
+  d.setDate(d.getDate() + ((6 - d.getDay()) % 7));
+  return hoje(d);
+}
+
+/* Os sete dias que caem no mesmo sabado: do domingo ate o proprio sabado. */
+function diasDaSemana(isoSab){
+  var p = String(isoSab || '').split('-');
+  if(p.length !== 3) return [];
+  var r = [];
+  for(var i = 6; i >= 0; i--){
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    d.setDate(d.getDate() - i);
+    r.push(hoje(d));
+  }
+  return r;
+}
+
+function temLancamento(m){
+  return !!m && typeof m === 'object' &&
+         Object.keys(m).some(function(k){ return (Number(m[k]) || 0) > 0; });
+}
+function acumSab(u){
+  return (Number(SAB[u]) || 0) + (Number(SAB_OUTROS[u]) || 0);
+}
+function totalSab(){
+  return UNI_SAB.reduce(function(s, u){ return s + acumSab(u); }, 0);
+}
+function totalDiaSab(){
+  return UNI_SAB.reduce(function(s, u){ return s + (Number(SAB[u]) || 0); }, 0);
+}
+
+/* ── o dropdown dos dias ───────────────────────────────────────────────────
+   Segue o padrao do sistema (ligaDropdown/atualizaDropdown, no base.html):
+   dourado = dia com lancamento, ✓ verde = dia aberto. Se por algum motivo as
+   funcoes nao existirem, o <select> continua funcionando sozinho — ele e
+   quem guarda o valor de qualquer jeito. */
+function montaSelDia(){
+  var sel = document.getElementById('sab-sel');
+  if(!sel) return;
+  var dia = val('dt-fech');
+  var p = String(dia).split('-');
+  if(p.length !== 3) return;
+  var mes = p[0] + '-' + p[1];
+  if(sel.dataset.mes !== mes){
+    var ult = new Date(+p[0], +p[1], 0).getDate();
+    var h = '';
+    for(var d = 1; d <= ult; d++){
+      var dd = String(d).padStart(2, '0');
+      var k = mes + '-' + dd;
+      h += '<option value="' + k + '">' + dSemana(k) + ' ' + dd + '/' + p[1] +
+           '</option>';
+    }
+    sel.innerHTML = h;
+    sel.dataset.mes = mes;
+  }
+  sel.value = dia;
+  marcaSelDia();
+  if(typeof ligaDropdown === 'function') ligaDropdown('sab-sel', 'DIGITE O DIA');
+}
+
+function marcaSelDia(){
+  var sel = document.getElementById('sab-sel');
+  if(!sel) return;
+  Array.prototype.forEach.call(sel.options, function(o){
+    if(temLancamento(MES_SAB[o.value])) o.dataset.tem = '1';
+    else delete o.dataset.tem;
+  });
+  if(typeof atualizaDropdown === 'function') atualizaDropdown('sab-sel');
+}
+
+/* Mesma coisa que mexer no campo de data la em cima: um dia so para a tela. */
+function vaiProDia(d){
+  if(!d || d === val('dt-fech')) return;
+  document.getElementById('dt-fech').value = d;
+  carregaDia(d);
+}
+
+/* ── as duas buscas ────────────────────────────────────────────────────────
+   A semana manda no acumulado; o mes manda so no dourado do dropdown. Sao
+   separadas de proposito: a semana precisa estar certa mesmo quando cai em
+   dois meses (domingo 29/11 e sabado 05/12), e o mes pode demorar sem
+   atrapalhar nada. */
+async function carregaSabado(dataFech){
+  var meu = ++_sabReq;
+  var dias = diasDaSemana(sabadoDe(dataFech))
+             .filter(function(x){ return x !== dataFech; });
+  var soma = {};
+  var rs = await Promise.all(dias.map(function(x){
+    return fetch('/api/fechamento/' + x)
+      .then(function(r){ return r.ok ? r.json() : {}; })
+      .catch(function(){ return {}; });      /* dia sem registro ou sem rede */
+  }));
+  if(meu !== _sabReq) return;                /* ja trocou de dia: descarta */
+  rs.forEach(function(d, i){
+    var m = d && d.agendamentos_sabado;
+    if(!m || typeof m !== 'object') return;
+    MES_SAB[dias[i]] = m;
+    Object.keys(m).forEach(function(k){
+      soma[k] = (Number(soma[k]) || 0) + (Number(m[k]) || 0);
+    });
+  });
+  SAB_OUTROS = soma;
+  marcaSelDia();
+  atualizaSabado();
+  pintaSabado();
+}
+
+async function carregaMesSabado(dataFech){
+  var p = String(dataFech).split('-');
+  if(p.length !== 3) return;
+  var mes = p[0] + '-' + p[1];
+  if(carregaMesSabado._mes === mes) return;  /* mes ja lido */
+  var meu = ++_mesReq;
+  var ult = new Date(+p[0], +p[1], 0).getDate();
+  var dias = [];
+  for(var d = 1; d <= ult; d++) dias.push(mes + '-' + String(d).padStart(2, '0'));
+  var rs = await Promise.all(dias.map(function(x){
+    return fetch('/api/fechamento/' + x)
+      .then(function(r){ return r.ok ? r.json() : {}; })
+      .catch(function(){ return {}; });
+  }));
+  if(meu !== _mesReq) return;
+  rs.forEach(function(dd, i){
+    var m = dd && dd.agendamentos_sabado;
+    if(m && typeof m === 'object') MES_SAB[dias[i]] = m;
+  });
+  carregaMesSabado._mes = mes;
+  marcaSelDia();
+}
+
+/* ── a caixa ───────────────────────────────────────────────────────────── */
+function desenhaSabado(){
+  var sab = sabadoDe(val('dt-fech'));
+  var r = document.getElementById('sab-rot');
+  if(r) r.textContent = sab ? 'sábado ' + dBR(sab) : '—';
+  var a = document.getElementById('sab-alvo');
+  if(a) a.textContent = sab ? dSemana(sab) + ' ' + dBR(sab) : '—';
+  montaSelDia();
+  var e = document.getElementById('sabado');
+  if(!e) return;
+  e.innerHTML = UNI_SAB.map(function(u, i){
+    return '<div class="sab-c"><label>' + esc(u) + '</label>' +
+      '<input type="number" value="' + (SAB[u] || '') + '" placeholder="0"' +
+      ' oninput="setSab(' + i + ',this.value)">' +
+      '<span class="sab-ac" id="sab-ac-' + i + '" title="total do sábado">' +
+      n(acumSab(u)) + '</span></div>';
+  }).join('');
+  atualizaSabado();
+}
+
+/* So os numeros calculados. Refazer o HTML aqui mataria o campo em uso. */
+function atualizaSabado(){
+  UNI_SAB.forEach(function(u, i){
+    var e = document.getElementById('sab-ac-' + i);
+    if(e) e.textContent = n(acumSab(u));
+  });
+  var t = document.getElementById('sab-total');
+  if(t) t.textContent = n(totalSab());
+  var h = document.getElementById('sab-hoje');
+  if(h) h.textContent = n(totalDiaSab());
+}
+
+function setSab(i, v){
+  SAB[UNI_SAB[i]] = Number(v) || 0;
+  MES_SAB[val('dt-fech')] = SAB;      /* o dourado do dia acende na hora */
+  atualizaSabado();
+  marcaSelDia();
+  if(!setSab._ag){ setSab._ag = true;
+    requestAnimationFrame(function(){ setSab._ag = false; pintaSabado(); }); }
+  agendaSalvar();
+}
+
+/* ── a imagem ──────────────────────────────────────────────────────────── */
+function pintaSabado(){
+  var cv = document.getElementById('sabado-img');
+  if(!cv) return;
+  carregaLogo(function(){ desenhaSabadoImg(cv); });
+}
+
+/* Nome da coluna: quebra em duas linhas no espaco e encolhe a letra ate
+   caber. "MANAUS CENTRO" cortado em "MANAUS CEN" nao serve. */
+function rotuloCol(ct, txt, x, y, larg, h, cor){
+  var ls = String(txt).split(' ');
+  if(ls.length > 2) ls = [ls[0], ls.slice(1).join(' ')];
+  var tam = 16;
+  while(tam > 9){
+    ct.font = fnt(700, tam);
+    if(ls.every(function(s){ return ct.measureText(s).width <= larg - 10; })) break;
+    tam -= 1;
+  }
+  var lh = Math.round(tam * ESCALA_TXT) + 3;
+  var y0 = y + (h - ls.length * lh) / 2;
+  for(var i = 0; i < ls.length; i++)
+    T(ct, x + larg / 2, y0 + i * lh, ls[i], fnt(700, tam), cor, 'c');
+}
+
+function desenhaSabadoImg(cv){
+  var ALT = 224, MT = 48, colR = 206;      /* colR = coluna dos rotulos */
+  var larg = (IW - 2 * MT - colR) / UNI_SAB.length;
+  var hCab = 56, hLin = 62;
+  var H2 = ALT + 34 + hCab + 2 * hLin + 40;
+  if(cv.height !== H2){ cv.height = H2; }
+  var ct = cv.getContext('2d');
+  var i, cx;
+  RET(ct, 0, 0, IW, H2, C.papel);
+
+  /* mesma faixa de titulo das outras duas imagens */
+  RET(ct, 0, 0, IW, ALT, C.faixa);
+  RET(ct, 0, ALT - 6, IW, 6, C.ouro);
+  var lh = 98;
+  if(_logo){
+    var cx0 = _corte ? _corte.x : 0, cy0 = _corte ? _corte.y : 0;
+    var cw0 = _corte ? _corte.w : _logo.width, ch0 = _corte ? _corte.h : _logo.height;
+    lh = Math.round(ch0 * 228 / cw0);
+    ct.drawImage(_logo, cx0, cy0, cw0, ch0, Math.round(IMEIO - 114), 30, 228, lh);
+  }
+  var y = 30 + lh + 14;
+  CAP(ct, IMEIO, y, 'AGENDAMENTOS PARA SÁBADO', fnt(700, 22), '#ffffff', 4.2, 'c');
+  y += 34;
+  T(ct, IMEIO, y, dBR(sabadoDe(val('dt-fech')), true), fnt(400, 20), C.claro, 'c');
+
+  /* Duas linhas: o que entrou NO DIA e o acumulado DO SABADO. Assim da para
+     ver o sabado crescendo a cada dia preenchido, sem abrir outro dia. */
+  var dia = val('dt-fech'), sab = sabadoDe(dia);
+  var linhas = [
+    {rot:'TOTAL DO DIA', dt:dSemana(dia) + ' ' + dCurta(dia), dest:false,
+     v:function(u){ return Number(SAB[u]) || 0; }},
+    {rot:'TOTAL DO SÁBADO', dt:dSemana(sab) + ' ' + dCurta(sab), dest:true,
+     v:acumSab}
+  ];
+
+  y = ALT + 34;
+  PAINEL(ct, MT, y, colR, hCab, C.painel);          /* canto em branco */
+  for(i = 0; i < UNI_SAB.length; i++){
+    cx = MT + colR + i * larg;
+    PAINEL(ct, cx, y, larg, hCab, C.painel);
+    rotuloCol(ct, UNI_SAB[i], cx, y, larg, hCab, C.corpo);
+  }
+
+  for(var L = 0; L < 2; L++){
+    var lin = linhas[L];
+    var yl = y + hCab + L * hLin;
+    PAINEL(ct, MT, yl, colR, hLin, lin.dest ? '#faf5e8' : '#fcfbf9');
+    CAP(ct, MT + 16, yl + 13, lin.rot, fnt(700, 12.5),
+        lin.dest ? C.ouroE : C.corpo, 1.5);
+    T(ct, MT + 16, yl + 34, lin.dt, fnt(400, 15), C.fraco);
+    for(i = 0; i < UNI_SAB.length; i++){
+      cx = MT + colR + i * larg;
+      PAINEL(ct, cx, yl, larg, hLin, lin.dest ? '#faf5e8' : '#fcfbf9');
+      T(ct, cx + larg / 2, yl + (lin.dest ? 16 : 18), nBRf(lin.v(UNI_SAB[i])),
+        fnt(900, lin.dest ? 26 : 23), lin.dest ? C.ouroE : C.tinta, 'c');
+    }
+  }
+  var md = document.getElementById('medida3');
+  if(md) md.textContent = IW + ' × ' + H2;
+}
+
 function unisVazias(){
   return BLOCOS_PADRAO.map(function(nome){
     return {nome:nome, obs:'', data:'', canais:CANAIS.map(function(r){
@@ -583,6 +936,10 @@ async function carregaDia(data){
 
   document.getElementById('indic').value = Number(d.indicacao) || 0;
   VALORES = (d.siglas && typeof d.siglas === 'object') ? d.siglas : {};
+  SAB = (d.agendamentos_sabado && typeof d.agendamentos_sabado === 'object')
+        ? d.agendamentos_sabado : {};
+  SAB_OUTROS = {};        /* zera antes de buscar a semana nova */
+  MES_SAB[data] = SAB;
 
   document.getElementById('dt-alvo').value = alvoDe(data);
 
@@ -591,8 +948,11 @@ async function carregaDia(data){
   desenhaUnidades();
   desenhaDestaques();
   desenhaSiglas();
+  desenhaSabado();
   monta();
   pintaTira();
+  carregaSabado(data);      /* a semana: manda no total do sábado */
+  carregaMesSabado(data);   /* o mês: manda no dourado do dropdown */
 }
 
 function trocaDia(){ carregaDia(document.getElementById('dt-fech').value); }
@@ -607,7 +967,9 @@ function dados(){
     unidades:    UNIS,
     ranks:       RANKS,
     titulo_rank: val('tit-rank'),
-    siglas:      VALORES
+    siglas:      VALORES,
+    agendamentos_sabado: SAB,
+    sabado_alvo: sabadoDe(val('dt-fech'))
   };
 }
 
@@ -1309,6 +1671,15 @@ function baixarTira(){
   a.click();
 }
 function copiarTira(b){ copiaCanvas(document.getElementById('tira'), b); }
+
+function baixarSabado(){
+  var cv = document.getElementById('sabado-img');
+  var a = document.createElement('a');
+  a.download = 'sabado_' + (sabadoDe(val('dt-fech')) || 'dia') + '.png';
+  a.href = cv.toDataURL('image/png');
+  a.click();
+}
+function copiarSabado(b){ copiaCanvas(document.getElementById('sabado-img'), b); }
 
 function baixarPNG(){
   var cv = document.getElementById('folha');
