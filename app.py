@@ -135,39 +135,26 @@ def _eh_agend_dia(nome, mapa=None):
     return bool(m.get(nome or ''))
 
 def _redistribui_sabado(appts):
-    """Troca o registro do sabado por um registro de cada unidade de destino.
+    """Tira da soma os lancamentos das unidades de dia fixo.
 
-    A unidade de destino pode aparecer duas vezes na lista — o registro dela
-    mesma e o que veio do sabado. Quem consome agrupa por unidade e soma,
-    entao isso esta certo: sao lancamentos diferentes do mesmo dia.
+    Decisao de 24/11: o que e lancado numa unidade que agenda para um dia fixo
+    (o "AGENDAMENTO SABADO") NAO soma com os agendamentos das outras unidades.
+    Antes esta funcao dissolvia o registro do sabado dentro de PARA, MANAUS e
+    companhia; agora ela deixa esse registro de fora de tudo que soma — cartao
+    "Agendamentos do dia", Ranking de Lideres, Acompanhamento TMK e Power BI.
 
-    Linha sem unidade escolhida fica de fora, de proposito: melhor faltar no
-    painel do que somar na unidade errada. Na tela ela aparece com o campo
-    vazio, entao da para corrigir.
+    A coluna UNIDADE continua gravada em cada linha e continua alimentando a
+    caixa do sabado no Fechamento, que le a tela direto. Ela so nao entra mais
+    na conta das outras unidades.
+
+    O nome da funcao ficou como estava de proposito: ela e chamada em quatro
+    lugares do app.py, e mexer em quatro lugares e quatro chances de derrubar
+    o sistema. O que mudou foi o que ela faz, nao quem a chama.
     """
     if not appts:
         return appts
     dias = _dias_agend()          # uma leitura so, nao uma por registro
-    saida, novos = [], {}
-    for a in appts:
-        if not dias.get(a.get('unit') or ''):
-            saida.append(a)
-            continue
-        data = a.get('date') or ''
-        for r in (a.get('rows') or []):
-            if not isinstance(r, dict):
-                continue
-            destino = (r.get('uni') or '').strip()
-            if not destino:
-                continue
-            chave = (destino, data)
-            if chave not in novos:
-                novos[chave] = {'unit': destino, 'date': data,
-                                'leader': a.get('leader') or '', 'rows': []}
-                saida.append(novos[chave])
-            novos[chave]['rows'].append(r)
-    return saida
-
+    return [a for a in appts if not dias.get(a.get('unit') or '')]
 MONTHS = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO",
           "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"]
 TIME_SLOTS = [
