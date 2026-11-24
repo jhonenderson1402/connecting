@@ -137,6 +137,11 @@ class Unidade(Base):
     nome   = Column(String(100), nullable=False, unique=True)
     regiao = Column(String(100), default='')   # estado/localidade: Pará, Amazonas...
     ordem  = Column(Integer, default=0)
+    # Unidade que agenda para um dia fixo da semana (o "AGENDAMENTO SÁBADO").
+    # Guarda o dia como numero: '0' domingo ... '6' sabado. Em branco = unidade
+    # comum. E numero, e nao o nome do dia, para nao depender de acento nem de
+    # como alguem escreveu "sabado" — foi assim que a tela quebrou uma vez.
+    agend_dia = Column(String(10), default='')
 class Atendente(Base):
     __tablename__ = 'atendentes'
     id    = Column(Integer, primary_key=True, autoincrement=True)
@@ -289,7 +294,6 @@ def _run_migrations():
             print("[migration] Coluna 'role' adicionada à tabela users.")
         except Exception:
             conn.rollback()  # Coluna já existe, ignora
-        # Migração: coluna 'permissoes' em users (acesso personalizado)
         try:
             conn.execute(text("ALTER TABLE users ADD COLUMN permissoes TEXT DEFAULT ''"))
             conn.commit()
@@ -317,7 +321,13 @@ def _run_migrations():
             print("[migration] Coluna 'regiao' adicionada à tabela unidades.")
         except Exception:
             conn.rollback()  # Coluna já existe, ignora
-        # Migração: coluna 'data_fim' em ocorrencias (atestado de varios dias)
+        # Migração: 'agend_dia' marca a unidade que agenda para um dia fixo
+        try:
+            conn.execute(text("ALTER TABLE unidades ADD COLUMN agend_dia VARCHAR(10) DEFAULT ''"))
+            conn.commit()
+            print("[migration] Coluna 'agend_dia' adicionada à tabela unidades.")
+        except Exception:
+            conn.rollback()  # Coluna já existe, ignora        # Migração: coluna 'data_fim' em ocorrencias (atestado de varios dias)
         try:
             conn.execute(text("ALTER TABLE ocorrencias ADD COLUMN data_fim VARCHAR(10) DEFAULT ''"))
             conn.commit()
@@ -520,11 +530,38 @@ def ensure_default_unidades():
                     print("[init] Regioes das unidades existentes preenchidas.")
     except Exception as e:
         print("ERRO AO CRIAR UNIDADES PADRAO:", e)
+DIAS_SEMANA = ('0', '1', '2', '3', '4', '5', '6')   # 0=domingo ... 6=sabado
+
+
+def _dia_valido(v):
+    """Aceita so '' ou um dia de 0 a 6. Recusar aqui evita o lixo chegar no
+    banco e so aparecer meses depois, numa tela que nao liga mais."""
+    v = str(v or '').strip()
+    if v and v not in DIAS_SEMANA:
+        raise ValueError("Dia da semana invalido.")
+    return v
+
+
 def get_unidades():
     with SessionLocal() as s:
         rows = s.scalars(select(Unidade).order_by(Unidade.ordem, Unidade.id)).all()
         return [{'id': r.id, 'nome': r.nome, 'regiao': r.regiao or '',
-                 'ordem': r.ordem or 0} for r in rows]
+                 'ordem': r.ordem or 0, 'agend_dia': r.agend_dia or ''}
+                for r in rows]
+
+
+def set_agend_dia_unidade(uid, agend_dia):
+    """Marca (ou desmarca) a unidade como "agenda para um dia fixo".
+
+    So um rotulo na unidade — nao mexe em nenhum lancamento. O que ja foi
+    gravado continua onde esta; muda o que o painel faz com ele daqui para
+    frente.
+    """
+    dia = _dia_valido(agend_dia)
+    with SessionLocal() as s:
+        s.execute(update(Unidade).where(Unidade.id == uid).values(agend_dia=dia))
+        s.commit()
+    return {'id': uid, 'agend_dia': dia}
 def get_regioes():
     """Lista das regioes em uso, sem repetir."""
     vistas, out = set(), []
@@ -534,9 +571,10 @@ def get_regioes():
             vistas.add(r.lower())
             out.append(r)
     return sorted(out, key=lambda x: x.lower())
-def create_unidade(nome, regiao=''):
+def create_unidade(nome, regiao='', agend_dia=''):
     nome = (nome or '').strip().upper()
     regiao = (regiao or '').strip()
+    agend_dia = _dia_valido(agend_dia)
     if not nome:
         raise ValueError("Informe o nome da unidade.")
     if len(nome) > 100:
@@ -547,11 +585,12 @@ def create_unidade(nome, regiao=''):
         if s.scalar(select(Unidade).where(Unidade.nome == nome)):
             raise ValueError(f"A unidade '{nome}' ja existe.")
         prox = (s.scalar(select(func.max(Unidade.ordem))) or 0) + 1
-        u = Unidade(nome=nome, regiao=regiao, ordem=prox)
+        u = Unidade(nome=nome, regiao=regiao, ordem=prox, agend_dia=agend_dia)
         s.add(u)
         s.commit()
         s.refresh(u)
-        return {'id': u.id, 'nome': u.nome, 'regiao': u.regiao or '', 'ordem': u.ordem}
+        return {'id': u.id, 'nome': u.nome, 'regiao': u.regiao or '',
+                'ordem': u.ordem, 'agend_dia': u.agend_dia or ''}
 def set_regiao_unidade(uid, regiao):
     """Renomeia/define a regiao de uma unidade. E so um rotulo — nao mexe em dados."""
     regiao = (regiao or '').strip()
