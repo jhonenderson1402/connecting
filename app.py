@@ -109,6 +109,48 @@ LEADS_PREFIX = "LEADS::"
 ACOMP_UNIT = "ACOMP::GERAL"
 # O fechamento do dia guarda o preenchimento aqui, no mesmo esquema.
 FECH_UNIT  = "FECH::GERAL"
+
+# ── A tela "AGENDAMENTOS P SÁBADO" ──────────────────────────────────────────
+# Ela e uma unidade de verdade no cadastro — e assim que a tela abre, salva e
+# le, e por isso NAO entra na lista de reservadas acima. Mas para o painel ela
+# nao existe: cada linha dela diz, no campo "uni", a qual unidade aquele
+# agendamento pertence, e e la que o numero tem que aparecer. A traducao
+# acontece so na LEITURA; no banco nada muda.
+AGSAB_UNIT = "AGENDAMENTOS P SÁBADO"
+
+def _redistribui_sabado(appts):
+    """Troca o registro do sabado por um registro de cada unidade de destino.
+
+    A unidade de destino pode aparecer duas vezes na lista — o registro dela
+    mesma e o que veio do sabado. Quem consome agrupa por unidade e soma,
+    entao isso esta certo: sao lancamentos diferentes do mesmo dia.
+
+    Linha sem unidade escolhida fica de fora, de proposito: melhor faltar no
+    painel do que somar na unidade errada. Na tela ela aparece com o campo
+    vazio, entao da para corrigir.
+    """
+    if not appts:
+        return appts
+    saida, novos = [], {}
+    for a in appts:
+        if (a.get('unit') or '') != AGSAB_UNIT:
+            saida.append(a)
+            continue
+        data = a.get('date') or ''
+        for r in (a.get('rows') or []):
+            if not isinstance(r, dict):
+                continue
+            destino = (r.get('uni') or '').strip()
+            if not destino:
+                continue
+            chave = (destino, data)
+            if chave not in novos:
+                novos[chave] = {'unit': destino, 'date': data,
+                                'leader': a.get('leader') or '', 'rows': []}
+                saida.append(novos[chave])
+            novos[chave]['rows'].append(r)
+    return saida
+
 MONTHS = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO",
           "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"]
 TIME_SLOTS = [
@@ -685,6 +727,11 @@ def api_appointments():
              if not a['unit'].startswith(LEADS_PREFIX)
              and a['unit'] != ACOMP_UNIT and a['unit'] != LEADSAG_UNIT
              and a['unit'] != FECH_UNIT and a['unit'] != LEADSHH_UNIT]
+    # A tela do sabado se dissolve nas unidades de destino — menos quando e ela
+    # mesma que esta sendo pedida, que e o caso da propria tela se lendo.
+    # Sem essa excecao, a tela nao conseguiria ler o que ela acabou de salvar.
+    if unit != AGSAB_UNIT:
+        appts = _redistribui_sabado(appts)
     if unit:
         appts = [a for a in appts if a['unit'] == unit]
     return jsonify(appts)
@@ -896,7 +943,12 @@ def api_agendamentos_dia():
 def api_constants():
     # units        -> onde ela pode ENTRAR: barra lateral, Funcionarios, Metas
     # units_resumo -> o que o Resumo Geral desenha. So o painel usa.
-    return jsonify({'units': _units(), 'units_resumo': _units_resumo(),
+    # O sabado continua na barra lateral (units) — e preciso poder entrar nele.
+    # Mas ele nao e um cartao do painel (units_resumo): os numeros dele ja vao
+    # aparecer dentro de PARA, MANAUS e companhia.
+    return jsonify({'units': _units(),
+                    'units_resumo': [u for u in _units_resumo()
+                                     if u != AGSAB_UNIT],
                     'months': MONTHS, 'time_slots': TIME_SLOTS})
 # Chaves de leads que entraram — montadas a partir das fontes cadastradas.
 # A fonte ANTIGOS continua sendo lançada e exibida, mas NÃO soma no total de leads.
@@ -1479,7 +1531,9 @@ def api_acomp_tmk():
         except (TypeError, ValueError):
             return 0
 
-    for a in (db.get_appointments_by_month(ano, mes) or []):
+    # o sabado chega aqui ja dentro da unidade de destino; as linhas LEADS::
+    # passam intactas, como antes
+    for a in _redistribui_sabado(db.get_appointments_by_month(ano, mes) or []):
         data = a.get('date') or ''
         if alvo and data != alvo:
             continue
@@ -2129,7 +2183,8 @@ def api_ext_dados():
 
     acomp, leads, hora = [], [], []
 
-    for a in (db.get_appointments_all() or []):
+      # o sabado chega aqui ja dentro da unidade de destino
+    for a in _redistribui_sabado(db.get_appointments_all() or []):
         unit = a.get('unit') or ''
         data = a.get('date')
 
