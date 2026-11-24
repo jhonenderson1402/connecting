@@ -367,8 +367,9 @@
           <input class="input" id="inp-leader" placeholder="Nome do líder"
                  oninput="updateLeaderCells(); scheduleSave()" style="width:200px"/>
         </div>
-        {% if unit == 'AGENDAMENTOS P SÁBADO' %}
-        {# Para qual dia vao os agendamentos deste dia. So existe nesta tela. #}
+        {% if agend_dia %}
+        {# Para qual dia vao os agendamentos deste dia. So nas unidades que
+           tem "agendamento para" marcado no cadastro. #}
         <div class="filter-group">
           <label class="filter-label">DATA DE AGENDAMENTO</label>
           <input class="input" type="date" id="dt-agend" onchange="dtAgendChange()"
@@ -641,17 +642,26 @@
    na primeira coluna. Os dois campos moram DENTRO da linha porque o
    /api/appointments/<unit>/<date> so grava "leader" e "rows" — campo solto
    no topo seria descartado em silencio pelo servidor. */
-  const EH_SABADO = (UNIT === 'AGENDAMENTOS P SÁBADO');
-  const UNI_DEST  = ['PARÁ','MANAUS','MANAUS CENTRO','MANOA','SÃO LUIS',
-                     'FORTALEZA','RONDONIA'];
+  /* '' = unidade comum; '0'..'6' = o dia para o qual esta unidade agenda.
+     Vem do cadastro, nao do nome — renomear a unidade nao desliga mais nada. */
+  const AGEND_DIA = '{{ agend_dia }}';
+  const EH_SABADO = (AGEND_DIA !== '');   // nome antigo: hoje vale para qualquer dia
+  /* As unidades de destino sao as CADASTRADAS, nao uma lista escrita aqui.
+     Assim o nome gravado na linha bate sempre com o que o painel espera. E
+     funcao, e nao constante, porque o UNITS so existe depois do /api/constants. */
+  function uniDest(){
+    return (typeof UNITS !== 'undefined' ? UNITS : []).filter(u => u !== UNIT);
+  }
   const DIA_SEM   = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
 
-  /* Domingo a sexta aponta para o sabado que vem; no sabado, o proprio dia. */
+  /* O proximo dia alvo a partir desta data. Caindo no proprio dia, e ele
+     mesmo — quem lanca no sabado esta lancando para aquele sabado. */
   function proxSabado(iso){
+    const alvo = parseInt(AGEND_DIA, 10);
     const p = String(iso || '').split('-');
-    if(p.length !== 3) return '';
+    if(p.length !== 3 || isNaN(alvo)) return '';
     const d = new Date(+p[0], +p[1] - 1, +p[2]);
-    d.setDate(d.getDate() + ((6 - d.getDay()) % 7));
+    d.setDate(d.getDate() + ((alvo - d.getDay() + 7) % 7));
     return formatDateKey(d.getFullYear(), d.getMonth(), d.getDate());
   }
   function dtAgendAtual(){
@@ -1049,7 +1059,7 @@
       if(EH_SABADO){
         const udisp = row.uni ? escapeHtml(row.uni) : 'Selecionar...';
         const uempty = row.uni ? '' : ' empty';
-        const uopts = UNI_DEST.map(u => {
+        const uopts = uniDest().map(u => {
           const sel = u === row.uni ? ' selected' : '';
           return `<div class="name-dd-option${sel}" onclick="selectUni(${i}, '${escapeJs(u)}', event)">${escapeHtml(u)}</div>`;
         }).join('');
