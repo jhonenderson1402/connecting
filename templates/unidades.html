@@ -64,6 +64,16 @@
   .uni-reg.vazia{background:transparent;border-color:var(--u-bd2);color:var(--u-muted);
                  font-weight:500;font-style:italic}
   .uni-reg .pin{opacity:.8;font-size:9px}
+  /* A etiqueta do dia: mesma forma da regiao, cor diferente. Duas etiquetas
+     da mesma cor na mesma linha viram borrao. */
+  .uni-dia{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 4px 0 11px;
+           background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.10);
+           border-radius:14px;font-size:11.5px;font-weight:600;color:#22c55e;
+           transition:border-color .15s}
+  .uni-dia:hover{border-color:#22c55e}
+  .uni-dia.vazia{background:transparent;border-color:var(--u-bd2);color:var(--u-muted);
+                 font-weight:500;font-style:italic}
+  .uni-dia .pin{opacity:.8;font-size:9px}
   .uni-lapis{width:20px;height:20px;border:none;background:transparent;color:inherit;cursor:pointer;
              border-radius:50%;font-size:10.5px;display:inline-flex;align-items:center;justify-content:center;
              opacity:.55;transition:opacity .15s,background .15s}
@@ -126,12 +136,28 @@
                onkeydown="if(event.key==='Enter')addUnidade()"/>
         <datalist id="lista-regioes"></datalist>
       </div>
+      <div class="uni-fg">
+        <span class="uni-fl">Agendamento para</span>
+        <select class="uni-in" id="novo-dia" style="width:180px">
+          <option value="">— dia a dia —</option>
+          <option value="0">Domingo</option>
+          <option value="1">Segunda</option>
+          <option value="2">Terça</option>
+          <option value="3">Quarta</option>
+          <option value="4">Quinta</option>
+          <option value="5">Sexta</option>
+          <option value="6">Sábado</option>
+        </select>
+      </div>
       <button class="uni-btn uni-btn-p" onclick="addUnidade()">Adicionar unidade</button>
     </div>
     <p class="uni-hint">
       A unidade nova já nasce com tudo: Hora a Hora, Leads Recebidos, Resumo do Dia, Comparecimento,
       Metas e os rankings. A <b>região</b> é o estado ou localidade que agrupa as unidades no
-      Acompanhamento — o campo sugere as que já existem.
+      Acompanhamento — o campo sugere as que já existem.<br/>
+      <b>Agendamento para</b>: deixe em “dia a dia” para uma unidade comum. Escolhendo um dia,
+      a unidade vira uma tela de lançamento — ganha a coluna UNIDADE, a data de agendamento e o
+      acumulado, e os números dela somam na unidade marcada em cada linha, não nela mesma.
     </p>
   </div>
 
@@ -160,6 +186,27 @@
     <div class="uni-dlg-ft">
       <button class="uni-btn uni-btn-s" style="height:34px" onclick="fechaNome()">Cancelar</button>
       <button class="uni-btn uni-btn-p" style="height:34px" onclick="salvaNome()">Renomear</button>
+    </div>
+  </div>
+</div>
+<div class="uni-ov" id="dia-ov" onclick="if(event.target===this)fechaDia()">
+  <div class="uni-dlg">
+    <h3 id="dia-tit">Agendamento para</h3>
+    <p>Unidade comum lança o dia a dia. Escolhendo um dia da semana, ela vira uma tela
+       de lançamento e os números somam na unidade marcada em cada linha.</p>
+    <select class="uni-in" id="dia-in">
+      <option value="">— dia a dia (unidade comum) —</option>
+      <option value="0">Domingo</option>
+      <option value="1">Segunda</option>
+      <option value="2">Terça</option>
+      <option value="3">Quarta</option>
+      <option value="4">Quinta</option>
+      <option value="5">Sexta</option>
+      <option value="6">Sábado</option>
+    </select>
+    <div class="uni-dlg-ft">
+      <button class="uni-btn uni-btn-s" style="height:34px" onclick="fechaDia()">Cancelar</button>
+      <button class="uni-btn uni-btn-p" style="height:34px" onclick="salvaDia()">Salvar</button>
     </div>
   </div>
 </div>
@@ -203,6 +250,11 @@ function render(){
            <button class="uni-lapis" title="Renomear região" onclick="abreReg(${u.id})">✎</button></span>`
       : `<span class="uni-reg vazia">sem região
            <button class="uni-lapis" title="Definir região" onclick="abreReg(${u.id})">✎</button></span>`;
+    const dia = u.agend_dia !== undefined && u.agend_dia !== ''
+      ? `<span class="uni-dia"><span class="pin">◷</span>agenda para ${DIAS[+u.agend_dia]}
+           <button class="uni-lapis" title="Mudar o dia" onclick="abreDia(${u.id})">✎</button></span>`
+      : `<span class="uni-dia vazia">dia a dia
+           <button class="uni-lapis" title="Definir o dia" onclick="abreDia(${u.id})">✎</button></span>`;
     return `<div class="uni-card" data-id="${u.id}">
       <div class="uni-head">
         <span class="uni-drag" title="Arraste para reordenar">⠿</span>
@@ -210,6 +262,7 @@ function render(){
         <span class="uni-nome">${esc(u.nome)}</span>
         <button class="uni-lapis" title="Renomear unidade" onclick="abreNome(${u.id})">✎</button>
         ${reg}
+        ${dia}
         <div class="uni-meta">
           <span class="uni-cnt"><b>${meus.length}</b> bairro${meus.length===1?'':'s'}</span>
           <button class="uni-rm" title="Remover unidade" onclick="delUnidade(${u.id})">✕</button>
@@ -227,6 +280,7 @@ function render(){
   }).join('');
   document.getElementById('lista-regioes').innerHTML =
     regioes().map(r=>`<option>${esc(r)}</option>`).join('');
+  marcaDiasUsados();
 }
 
 // ── Região ──────────────────────────────────────────────────────────────────
@@ -286,11 +340,14 @@ async function addUnidade(){
   const nome = (eu.value||'').trim();
   const regiao = (er.value||'').trim();
   if(!nome){ showToast('Digite o nome da unidade.','error'); return; }
+  const ed = document.getElementById('novo-dia');
+  const agend_dia = ed ? (ed.value || '') : '';
   const r = await fetch('/api/unidades',{method:'POST',headers:{'Content-Type':'application/json'},
-                                         body:JSON.stringify({nome, regiao})});
+                                         body:JSON.stringify({nome, regiao, agend_dia})});
   const d = await r.json().catch(()=>({}));
   if(!r.ok){ showToast(d.error||'Erro ao adicionar.','error'); return; }
   eu.value=''; er.value='';
+  if(ed){ ed.value=''; atualizaDropdown('novo-dia'); }
   showToast('Unidade adicionada! Recarregue para vê-la no menu.');
   loadTudo();
 }
@@ -407,6 +464,59 @@ async function salvarOrdem(){
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => { loadTudo(); ligaArrasto(); });
+// ── Agendamento para um dia da semana ───────────────────────────────────────
+// 0=domingo ... 6=sabado, igual ao getDay() do navegador. Guardar o numero, e
+// nao o nome do dia, evita depender de acento e de como alguem escreveu.
+const DIAS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+let diaEditando = null;
+
+function abreDia(id){
+  const u = unidades.find(x=>x.id===id); if(!u) return;
+  diaEditando = id;
+  document.getElementById('dia-tit').textContent = 'Agendamento para — ' + u.nome;
+  document.getElementById('dia-in').value = u.agend_dia || '';
+  atualizaDropdown('dia-in');
+  document.getElementById('dia-ov').classList.add('show');
+}
+function fechaDia(){ document.getElementById('dia-ov').classList.remove('show'); diaEditando = null; }
+
+async function salvaDia(){
+  if(diaEditando === null) return fechaDia();
+  const agend_dia = document.getElementById('dia-in').value;
+  const r = await fetch('/api/unidades/'+diaEditando+'/agend_dia', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({agend_dia})
+  });
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ showToast(d.error||'Erro ao salvar.','error'); return; }
+  fechaDia();
+  showToast(agend_dia === '' ? 'Unidade voltou a ser dia a dia.'
+                             : 'Passa a agendar para ' + DIAS[+agend_dia] + '.');
+  loadTudo();
+}
+
+// Dourado nos dias que ja tem unidade: duas unidades no mesmo dia nao quebram
+// nada, mas quase sempre sao engano — assim da para ver antes de salvar.
+function marcaDiasUsados(){
+  const usados = {};
+  unidades.forEach(u => { if(u.agend_dia) usados[u.agend_dia] = 1; });
+  ['novo-dia','dia-in'].forEach(id => {
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    [...sel.options].forEach(o => {
+      if(o.value && usados[o.value]) o.dataset.tem = '1';
+      else delete o.dataset.tem;
+    });
+    atualizaDropdown(id);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadTudo();
+  ligaArrasto();
+  // o dropdown bonito do sistema, o mesmo dos filtros de mes/ano/dia
+  ligaDropdown('novo-dia', 'DIGITE O DIA');
+  ligaDropdown('dia-in',   'DIGITE O DIA');
+});
 </script>
 {% endblock %}
