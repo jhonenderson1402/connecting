@@ -61,7 +61,12 @@
   .schedule-table tfoot td.foot-num{ color:#2e2e33; }
   body.tema-claro .schedule-table tfoot td.foot-num{ color:#9a9a9f; }
   body.tema-claro .schedule-table tfoot td.foot-num.on{ color:#111; }
-  .schedule-table tfoot td.foot-num.on{ color:var(--primary); }
+   .schedule-table tfoot td.foot-num.on{ color:var(--primary); }
+  /* a linha do acumulado do sábado: mesma tabela, só que separada por um fio */
+  .schedule-table tfoot tr.linha-sab td{ border-top:1px solid rgba(251,191,36,.35); }
+  .schedule-table tfoot td.foot-lbl.sab{ color:var(--primary); }
+  .schedule-table tfoot td.foot-num.sab{ color:#5c5c62; }
+  .schedule-table tfoot td.foot-num.sab.on{ color:var(--primary); font-weight:800; }
   
   /* Linhas — só filete horizontal, sem alternância */
   .schedule-table tbody td{
@@ -75,6 +80,8 @@
   .schedule-table tbody tr:last-child td{ border-bottom:none; }
   .schedule-table tbody td:nth-child(1),
   .schedule-table tbody td:nth-child(2){ text-align:left; padding-left:8px; }
+  /* com a coluna UNIDADE na frente, o NOME virou a terceira */
+  .schedule-table.tem-uni tbody td:nth-child(3){ text-align:left; padding-left:8px; }
   
   /* Células de texto (líder / nome avulso) */
   .cell-select,.cell-input{
@@ -360,8 +367,15 @@
           <input class="input" id="inp-leader" placeholder="Nome do líder"
                  oninput="updateLeaderCells(); scheduleSave()" style="width:200px"/>
         </div>
-       <span class="meta-box" id="meta-box" style="display:none">Faltam p/ meta <b id="meta-falta">0</b></span>
-      </div>
+        {% if unit == 'AGENDAMENTOS P SÁBADO' %}
+        {# Para qual dia vao os agendamentos deste dia. So existe nesta tela. #}
+        <div class="filter-group">
+          <label class="filter-label">DATA DE AGENDAMENTO</label>
+          <input class="input" type="date" id="dt-agend" onchange="dtAgendChange()"
+                 style="width:175px;color-scheme:dark"/>
+        </div>
+        {% endif %}
+       <span class="meta-box" id="meta-box" style="display:none">Faltam p/ meta <b id="meta-falta">0</b></span>      </div>
     </div>
   
     <!-- Aviso quando a data ficar inválida -->
@@ -622,14 +636,150 @@
     carregaMetaDoDia();
   }
   
+/* ── Agendamentos p/ sábado: coluna UNIDADE e data de agendamento ───────────
+   Essa tela parece uma unidade, mas cada linha pertence a unidade escolhida
+   na primeira coluna. Os dois campos moram DENTRO da linha porque o
+   /api/appointments/<unit>/<date> so grava "leader" e "rows" — campo solto
+   no topo seria descartado em silencio pelo servidor. */
+  const EH_SABADO = (UNIT === 'AGENDAMENTOS P SÁBADO');
+  const UNI_DEST  = ['PARÁ','MANAUS','MANAUS CENTRO','MANOA','SÃO LUIS',
+                     'FORTALEZA','RONDONIA'];
+  const DIA_SEM   = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
+
+  /* Domingo a sexta aponta para o sabado que vem; no sabado, o proprio dia. */
+  function proxSabado(iso){
+    const p = String(iso || '').split('-');
+    if(p.length !== 3) return '';
+    const d = new Date(+p[0], +p[1] - 1, +p[2]);
+    d.setDate(d.getDate() + ((6 - d.getDay()) % 7));
+    return formatDateKey(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  function dtAgendAtual(){
+    const e = document.getElementById('dt-agend');
+    return e ? (e.value || '') : '';
+  }
+  function rotuloAlvo(){
+    const p = String(dtAgendAtual()).split('-');
+    if(p.length !== 3) return '—';
+    return DIA_SEM[new Date(+p[0], +p[1] - 1, +p[2]).getDay()] + ' ' + p[2] + '/' + p[1];
+  }
+
+  /* Uma data por dia: ao trocar, todas as linhas daquele dia acompanham. */
+  function dtAgendChange(){
+    const v = dtAgendAtual();
+    rows.forEach(r => { if(r) r.dtag = v; });
+    scheduleSave();
+    renderFoot();
+    carregaAcumulado();
+  }
+  /* Ao abrir o dia: vale a data ja gravada nas linhas; sem ela, o proximo sabado. */
+  function ajustaDtAgend(){
+    const e = document.getElementById('dt-agend');
+    if(!e) return;
+    const gravada = (rows.find(r => r && r.dtag) || {}).dtag || '';
+    e.value = gravada || proxSabado(getDateKey() || '');
+  }
+
+  /* ── O acumulado ─────────────────────────────────────────────────────────
+     Soma tudo que aponta para a data escolhida, venha do dia que vier. Usa a
+     mesma rota que ja marca de amarelo os dias com dados. A semana pode cair
+     em dois meses (domingo 29/11 alimentando sabado 05/12), entao busca o mes
+     do alvo e o mes de seis dias antes — quase sempre e o mesmo, e vira uma
+     chamada so. */
+  let acumulado = null;
+  let _accReq = 0;
+
+  async function carregaAcumulado(){
+    if(!EH_SABADO) return;
+    const alvo = dtAgendAtual();
+    if(!alvo){ acumulado = null; renderFoot(); return; }
+    const meu = ++_accReq;
+
+    const p = alvo.split('-');
+    const antes = new Date(+p[0], +p[1] - 1, +p[2]);
+    antes.setDate(antes.getDate() - 6);
+    const meses = new Set([
+      p[0] + '-' + p[1],
+      antes.getFullYear() + '-' + String(antes.getMonth() + 1).padStart(2, '0')
+    ]);
+
+    try{
+      const listas = await Promise.all([...meses].map(function(ym){
+        const [y, m] = ym.split('-');
+        return fetch(`/api/appointments?year=${y}&month=${Number(m)}&unit=${encodeURIComponent(UNIT)}`)
+          .then(r => r.ok ? r.json() : [])
+          .catch(() => []);
+      }));
+      if(meu !== _accReq) return;           // ja trocaram a data: descarta
+
+      const acc = {slots:{}, inc:0, tot:0, dias:0};
+      listas.forEach(function(appts){
+        (Array.isArray(appts) ? appts : []).forEach(function(a){
+          let contou = false;
+          (a.rows || []).forEach(function(r){
+            if(!r || (r.dtag || '') !== alvo) return;
+            contou = true;
+            TIME_SLOTS.forEach(function(s){
+              acc.slots[s.key] = (acc.slots[s.key] || 0) +
+                                 (Number((r.slots || {})[s.key]) || 0);
+            });
+            acc.inc += Number(r.inclusao) || 0;
+            acc.tot += rowTotal(r);
+          });
+          if(contou) acc.dias++;
+        });
+      });
+      acumulado = acc;
+      renderFoot();
+    }catch(e){ }
+  }
+
+  /* ── O dropdown da coluna, no mesmo molde do de LÍDER ─────────────────── */
+  function toggleUniDropdown(i, event){
+    event.stopPropagation();
+    const dd = document.querySelector(`.uni-dd[data-row="${i}"]`);
+    if(!dd) return;
+    const menu = _ddMenuDe(dd);
+    if(!menu) return;
+    const wasOpen = menu.classList.contains('open');
+    closeAllNameDropdowns();
+    if(!wasOpen){
+      const trigger = dd.querySelector('.name-dd-trigger');
+      const rect = trigger.getBoundingClientRect();
+      menu.style.top   = (rect.bottom + 4) + 'px';
+      menu.style.left  = rect.left + 'px';
+      menu.style.width = Math.max(rect.width, 180) + 'px';
+      _ddAbrir(menu);
+      trigger.classList.add('open');
+    }
+  }
+  function selectUni(i, nome, event){
+    event.stopPropagation();
+    rows[i].uni = nome;
+    closeAllNameDropdowns();
+    const dd = document.querySelector(`.uni-dd[data-row="${i}"]`);
+    if(dd){
+      const trig = dd.querySelector('.name-dd-trigger');
+      trig.textContent = nome || 'Selecionar...';
+      trig.classList.toggle('empty', !nome);
+      dd.querySelectorAll('.name-dd-option').forEach(function(opt){
+        opt.classList.toggle('selected',
+          opt.textContent.trim() === nome && !opt.classList.contains('placeholder'));
+      });
+    }
+    scheduleSave();
+  }
+
   function buildTableHead() {
     const table = document.getElementById('schedule-table');
+    table.classList.toggle('tem-uni', EH_SABADO);
     table.querySelectorAll('colgroup').forEach(c => c.remove());
   
     // Colunas: LÍDER, NOME, slots, INCLUSÃO, TOTAL
     // MÊS/ANO/DATA saíram: repetiam o mesmo valor em toda linha e já estão nos seletores acima.
     const colgroup = document.createElement('colgroup');
     const widths = ['11%', '14%'];
+    if(EH_SABADO) widths.unshift('12%');   // UNIDADE entra na frente
     TIME_SLOTS.forEach(() => widths.push('4.6%'));
     widths.push('5%');   // INCLUSÃO
     widths.push('8%');   // TOTAL + lixeira
@@ -641,7 +791,9 @@
     table.insertBefore(colgroup, table.firstChild);
   
     const head = document.getElementById('table-head');
-    let html = '<tr><th class="th-l">LÍDER</th><th class="th-l">NOME</th>';
+    let html = '<tr>';
+    if(EH_SABADO) html += '<th class="th-l">UNIDADE</th>';
+    html += '<th class="th-l">LÍDER</th><th class="th-l">NOME</th>';
     TIME_SLOTS.forEach(s => {
       html += `<th>${String(s.label).replace('H-','–').replace('H','')}</th>`;
     });
@@ -655,6 +807,11 @@
   let ordemAtual = null;   // {col, dir}
 
   function _valorDaColuna(r, col){
+    // Com a coluna UNIDADE na frente, todas as outras andaram uma casa.
+    if(EH_SABADO){
+      if(col === 0) return (r.uni || '').toString();
+      col -= 1;
+    }
     if(col === 0) return (r.leader || '').toString();
     if(col === 1) return (r.name   || '').toString();
     const nSlots = TIME_SLOTS.length;
@@ -778,19 +935,21 @@
     if(!appt || typeof appt !== 'object' || appt.error) return;
     document.getElementById('inp-leader').value = appt.leader || '';
     rows = Array.isArray(appt.rows) ? appt.rows : [];
+    ajustaDtAgend();        // antes do renderTable: o rodape ja sai certo
     renderTable();
+    carregaAcumulado();
   }
   
   function onDateChange() {
     // Re-popula os dias do select conforme o mês/ano selecionados
     updateDayOptions();
-    loadAppointment();
+    loadAppointment();    // ele ja ajusta a data de agendamento e o acumulado
     loadMonthSummary();   // atualiza a marcação amarela dos dias do mês
     carregaMetaDoDia();
   }
   
   // Meta por hora = 5. Números abaixo de 5 ficam vermelhos (só o número).
-  function slotCls(v){
+  function slotCls(v){  
     v=(v==null?'':(''+v)).trim();
     if(v==='') return 'slot-input';
     var n=Number(v);
@@ -813,7 +972,7 @@
   }
   function renderTable() {
     const tbody = document.getElementById('table-body');
-    const colspan = 2 + TIME_SLOTS.length + 2; // LÍDER + NOME + slots + INCLUSÃO + TOTAL
+    const colspan = (EH_SABADO ? 3 : 2) + TIME_SLOTS.length + 2; // (UNIDADE) + LÍDER + NOME + slots + INCLUSÃO + TOTAL
   
     if(rows.length === 0) {
       tbody.innerHTML = `<tr><td colspan="${colspan}" class="empty-row">
@@ -884,11 +1043,31 @@
       } else {
         leaderCell = `<input class="cell-input" value="${escapeHtml(row.leader||'')}" placeholder="—" onchange="rowLeaderChange(${i}, this.value)" title="Líder desta linha"/>`;
       }
+      // A unidade de destino. Linha sem unidade nao conta no Resumo Geral,
+      // por isso ela fica visivelmente vazia em vez de chutar uma unidade.
+      let uniCell = '';
+      if(EH_SABADO){
+        const udisp = row.uni ? escapeHtml(row.uni) : 'Selecionar...';
+        const uempty = row.uni ? '' : ' empty';
+        const uopts = UNI_DEST.map(u => {
+          const sel = u === row.uni ? ' selected' : '';
+          return `<div class="name-dd-option${sel}" onclick="selectUni(${i}, '${escapeJs(u)}', event)">${escapeHtml(u)}</div>`;
+        }).join('');
+        uniCell = `<td>
+          <div class="uni-dd" data-row="${i}">
+            <button type="button" class="name-dd-trigger${uempty}" onclick="toggleUniDropdown(${i}, event)">${udisp}</button>
+            <div class="name-dd-menu">
+              <div class="name-dd-option placeholder" onclick="selectUni(${i}, '', event)">Selecionar...</div>
+              ${uopts}
+            </div>
+          </div></td>`;
+      }
       const slotCells = TIME_SLOTS.map(s=>{
         const val=row.slots?.[s.key]||'';
         return `<td><input class="${slotCls(val)}" maxlength="5" value="${val}" oninput="slotChange(${i},'${s.key}',this.value);this.className=slotCls(this.value)"/></td>`;
       }).join('');
       return `<tr>
+        ${uniCell}
         <td>${leaderCell}</td>
         <td>${nameCell}</td>
         ${slotCells}
@@ -905,23 +1084,41 @@
    
   // ── Rodapé com o total de cada coluna ──────────────────────────────────────
   // Soma só na tela: não grava nada e não vai para a API.
+  /* A linha do acumulado, separada para servir tambem ao dia sem lancamento. */
+  function linhaAcumulada(){
+    if(!(EH_SABADO && acumulado)) return '';
+    const celA = v => `<td class="foot-num sab${v>0?' on':''}">${v}</td>`;
+    return `<tr class="linha-sab">
+      <td class="foot-lbl sab" colspan="3">TOTAL PARA ${rotuloAlvo()}</td>
+      ${TIME_SLOTS.map(s => celA(acumulado.slots[s.key] || 0)).join('')}
+      ${celA(acumulado.inc)}
+      ${celA(acumulado.tot)}
+    </tr>`;
+  }
+
   function renderFoot() {
     atualizaFaltaMeta();
     const foot = document.getElementById('table-foot');
     if(!foot) return;
-    if(!rows.length){ foot.innerHTML = ''; return; }
+    if(!rows.length){
+      // Dia ainda sem linhas mostra o acumulado assim mesmo: e justamente o
+      // numero que a pessoa abre a tela para olhar.
+      foot.innerHTML = linhaAcumulada();
+      return;
+    }
 
     const somaSlot = k => rows.reduce((s,r) => s + (Number((r.slots||{})[k]) || 0), 0);
     const somaInc  = rows.reduce((s,r) => s + (Number(r.inclusao) || 0), 0);
     const somaTudo = rows.reduce((s,r) => s + rowTotal(r), 0);
     const cel = v => `<td class="foot-num${v>0?' on':''}">${v}</td>`;
 
+    const nLbl = EH_SABADO ? 3 : 2;      // a coluna UNIDADE entra no rotulo
     foot.innerHTML = `<tr>
-      <td class="foot-lbl" colspan="2">TOTAL DO DIA</td>
+      <td class="foot-lbl" colspan="${nLbl}">TOTAL DO DIA</td>
       ${TIME_SLOTS.map(s => cel(somaSlot(s.key))).join('')}
       ${cel(somaInc)}
       ${cel(somaTudo)}
-    </tr>`;
+    </tr>` + linhaAcumulada();
   }
     // ── Faltam para a meta ─────────────────────────────────────────────────────
   // Meta do dia = campo META DIA da unidade (modal de Metas, linha sem bairro).
@@ -1141,7 +1338,8 @@ function toggleNameDropdown(i, event) {
     scheduleSave();
   }
   document.addEventListener('click', (e) => {
-    if(!e.target.closest('.name-dd') && !e.target.closest('.leader-dd')) closeAllNameDropdowns();
+    if(!e.target.closest('.name-dd') && !e.target.closest('.leader-dd')
+       && !e.target.closest('.uni-dd')) closeAllNameDropdowns();
   });
   
   function slotChange(i, key, val) {
@@ -1167,7 +1365,8 @@ function toggleNameDropdown(i, event) {
       return;
     }
     const newLeader = document.getElementById('inp-leader').value;
-    rows.push({name:'',slots:{},leader:newLeader});
+    rows.push({name:'',slots:{},leader:newLeader,
+               uni:'', dtag: EH_SABADO ? dtAgendAtual() : undefined});
     renderTable();
     scheduleSave();
   }
@@ -1205,7 +1404,12 @@ function toggleNameDropdown(i, event) {
       if(!comNome.length) continue;
 
       rows = comNome.map(function(r){
-        return { name: r.name, leader: r.leader || appt.leader || '', slots: {}, inclusao: '' };
+        // A unidade acompanha a pessoa: quem agendou para PARA ontem quase
+        // sempre agenda para PARA hoje. A data de agendamento NAO se copia —
+        // ela e deste dia, nao do dia que serviu de modelo.
+        return { name: r.name, leader: r.leader || appt.leader || '',
+                 slots: {}, inclusao: '',
+                 uni: r.uni || '', dtag: EH_SABADO ? dtAgendAtual() : undefined };
       });
       renderTable();
       scheduleSave();
@@ -1249,6 +1453,7 @@ function toggleNameDropdown(i, event) {
       document.getElementById('saving-badge').style.display='none';
       document.getElementById('saved-badge').style.display='';
       loadMonthSummary();
+      carregaAcumulado();   // o total do sabado inclui este dia: refaz a conta
     } catch(e) {
       saveRetry++;
       clearTimeout(saveTimer);
