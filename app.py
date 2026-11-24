@@ -116,7 +116,23 @@ FECH_UNIT  = "FECH::GERAL"
 # nao existe: cada linha dela diz, no campo "uni", a qual unidade aquele
 # agendamento pertence, e e la que o numero tem que aparecer. A traducao
 # acontece so na LEITURA; no banco nada muda.
-AGSAB_UNIT = "AGENDAMENTOS P SÁBADO"
+# Quem decide quais unidades agendam para um dia fixo e o CADASTRO, pelo campo
+# "agendamento para". Antes era o nome escrito a mao aqui — bastou renomear a
+# unidade para tudo desligar calado. Agora a unidade carrega a propria marca.
+def _dias_agend():
+    """nome da unidade -> dia da semana que ela agenda. '' = unidade comum."""
+    try:
+        return {u['nome']: str(u.get('agend_dia') or '')
+                for u in (db.get_unidades() or [])}
+    except Exception:
+        return {}
+
+
+def _eh_agend_dia(nome, mapa=None):
+    """A unidade agenda para um dia fixo? Passe o 'mapa' quando for perguntar
+    varias vezes seguidas, para nao ir ao banco a cada pergunta."""
+    m = mapa if mapa is not None else _dias_agend()
+    return bool(m.get(nome or ''))
 
 def _redistribui_sabado(appts):
     """Troca o registro do sabado por um registro de cada unidade de destino.
@@ -131,9 +147,10 @@ def _redistribui_sabado(appts):
     """
     if not appts:
         return appts
+    dias = _dias_agend()          # uma leitura so, nao uma por registro
     saida, novos = [], {}
     for a in appts:
-        if (a.get('unit') or '') != AGSAB_UNIT:
+        if not dias.get(a.get('unit') or ''):
             saida.append(a)
             continue
         data = a.get('date') or ''
@@ -479,7 +496,10 @@ def unit_schedule(unit_name):
     unit_name = unquote(unit_name)
     if not _valid_unit(unit_name):
         return _err(f'Unidade inválida: {unit_name}', 404)
-    return render_template('unit.html', unit=unit_name)
+    # O dia vai para a tela: e ele que liga a coluna UNIDADE, a caixa
+    # DATA DE AGENDAMENTO e o acumulado do rodape.
+    return render_template('unit.html', unit=unit_name,
+                           agend_dia=_dias_agend().get(unit_name, ''))
 @app.route('/unit/<path:unit_name>/leads')
 @login_required
 def leads_page(unit_name):
@@ -730,7 +750,7 @@ def api_appointments():
     # A tela do sabado se dissolve nas unidades de destino — menos quando e ela
     # mesma que esta sendo pedida, que e o caso da propria tela se lendo.
     # Sem essa excecao, a tela nao conseguiria ler o que ela acabou de salvar.
-    if unit != AGSAB_UNIT:
+    if not _eh_agend_dia(unit):
         appts = _redistribui_sabado(appts)
     if unit:
         appts = [a for a in appts if a['unit'] == unit]
@@ -877,7 +897,12 @@ def api_agendamentos_dia():
         date      = ''
         periodo   = 'mes'
 
-    validas = _units_resumo()
+    # O sabado entra ja dentro da unidade de destino, antes de qualquer soma.
+    registros = _redistribui_sabado(registros)
+
+    # E some da lista de cartoes: ele nao e uma unidade, e um jeito de lancar.
+    _dias = _dias_agend()
+    validas = [u for u in _units_resumo() if not _eh_agend_dia(u, _dias)]
     conj = set(validas)
     por_unidade = {u: {} for u in validas}
 
@@ -946,9 +971,10 @@ def api_constants():
     # O sabado continua na barra lateral (units) — e preciso poder entrar nele.
     # Mas ele nao e um cartao do painel (units_resumo): os numeros dele ja vao
     # aparecer dentro de PARA, MANAUS e companhia.
+    _dias = _dias_agend()
     return jsonify({'units': _units(),
                     'units_resumo': [u for u in _units_resumo()
-                                     if u != AGSAB_UNIT],
+                                     if not _eh_agend_dia(u, _dias)],
                     'months': MONTHS, 'time_slots': TIME_SLOTS})
 # Chaves de leads que entraram — montadas a partir das fontes cadastradas.
 # A fonte ANTIGOS continua sendo lançada e exibida, mas NÃO soma no total de leads.
@@ -1256,7 +1282,17 @@ def api_list_unidades():
 def api_create_unidade():
     data = request.get_json(silent=True) or {}
     try:
-        return jsonify(db.create_unidade(data.get('nome'), data.get('regiao'))), 201
+        return jsonify(db.create_unidade(data.get('nome'), data.get('regiao'),
+                                         data.get('agend_dia'))), 201
+    except ValueError as e:
+        return _err(str(e))
+@app.route('/api/unidades/<int:uid>/agend_dia', methods=['POST'])
+@admin_required
+def api_set_agend_dia(uid):
+    """Liga ou desliga o "agendamento para um dia" de uma unidade ja criada."""
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(db.set_agend_dia_unidade(uid, data.get('agend_dia')))
     except ValueError as e:
         return _err(str(e))
 @app.route('/api/unidades/<int:uid>/regiao', methods=['POST'])
