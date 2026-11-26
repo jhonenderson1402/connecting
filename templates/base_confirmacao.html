@@ -63,13 +63,20 @@
       border-bottom:1px solid #1f1f1f;
       text-align:center;
     }
-    .conf-sidebar-logo img { display:block; margin:0 auto; }
-    .conf-logo-cheia { width:100%; max-width:150px; height:auto; }
-    .conf-logo-mini  { display:none; width:42px; height:42px; border-radius:50%;
-      box-shadow:0 4px 16px rgba(0,0,0,.6); }
+    .conf-sidebar-logo img { margin:0 auto; }
+    /* "img.classe" e tao especifico quanto ".conf-sidebar-logo img", e vem
+       depois — por isso ganha. Sem isso o display:block da regra de cima
+       acendia as DUAS imagens ao mesmo tempo. */
+    .conf-sidebar-logo img.conf-logo-cheia {
+      display:block; width:100%; max-width:150px; height:auto;
+    }
+    .conf-sidebar-logo img.conf-logo-mini {
+      display:none; width:42px; height:42px; border-radius:50%;
+      box-shadow:0 4px 16px rgba(0,0,0,.6);
+    }
     body.sb-fina .conf-sidebar-logo { padding:18px 0; }
-    body.sb-fina .conf-logo-cheia { display:none; }
-    body.sb-fina .conf-logo-mini  { display:block; }
+    body.sb-fina .conf-sidebar-logo img.conf-logo-cheia { display:none; }
+    body.sb-fina .conf-sidebar-logo img.conf-logo-mini  { display:block; }
 
     /* cracha em contorno: deixa de disputar com o item ativo */
     .conf-team-badge {
@@ -317,8 +324,8 @@
          com os nomes — mesmo que o navegador tenha guardado "encolhida" de
          quando a pessoa estava no computador. */
       body.sb-fina .conf-sidebar-logo { padding:18px 16px; }
-      body.sb-fina .conf-logo-cheia { display:block; }
-      body.sb-fina .conf-logo-mini { display:none; }
+      body.sb-fina .conf-sidebar-logo img.conf-logo-cheia { display:block; }
+      body.sb-fina .conf-sidebar-logo img.conf-logo-mini { display:none; }
       body.sb-fina .conf-team-badge { margin:11px 12px; padding:7px 10px; gap:6px; }
       body.sb-fina .conf-team-badge .conf-rot { display:inline; }
       body.sb-fina .conf-nav { padding:4px 10px 10px; }
