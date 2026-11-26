@@ -1256,6 +1256,46 @@ def api_save_inclusoes(date):
                        'horario': str(r.get('horario') or '').strip()[:20]})
     db.upsert_appointment(unidade, date, '', limpas)
     return jsonify({'ok': True, 'count': len(limpas)})
+
+
+@app.route('/api/inclusoes_rank', methods=['GET'])
+@login_required
+def api_inclusoes_rank():
+    """Quantas inclusoes cada atendente fez, dia a dia, no mes pedido.
+
+    Devolve o detalhe por DATA, e nao o total ja somado: a Analise Geral tem
+    tres periodos (dia, semana e mes) e a semana atravessa dois meses. Somar
+    aqui obrigaria a tela a pedir de um jeito diferente para cada periodo;
+    assim ela pede o mes e soma o recorte que esta mostrando.
+
+    Uma leitura do banco por mes — nao uma por atendente.
+    """
+    if not _role_allowed('confirmacao'):
+        return _err('Sem permissão.', 403)
+    try:
+        ano = int(request.args.get('ano'))
+        mes = int(request.args.get('mes'))
+    except (TypeError, ValueError):
+        return _err('Informe "ano" e "mes".')
+    if not (1 <= mes <= 12) or not (1900 <= ano <= 2999):
+        return _err('Ano ou mes fora do intervalo.')
+    livres = {str(a).strip().upper() for a in _atendentes()}
+    saida = []
+    for a in (db.get_appointments_by_month(ano, mes) or []):
+        unit = a.get('unit') or ''
+        if not unit.startswith(INCL_PREFIX):
+            continue
+        nome = unit[len(INCL_PREFIX):]
+        if nome.strip().upper() not in livres:
+            continue          # atendente fora do cadastro nao entra no rank
+        n = 0
+        for r in (a.get('rows') or []):
+            if isinstance(r, dict) and str(r.get('nome') or '').strip():
+                n += 1
+        if n:
+            saida.append({'atendente': nome, 'data': a.get('date') or '',
+                          'total': n})
+    return jsonify(saida)
 # ── API: Metas ────────────────────────────────────────────────────────────────
 @app.route('/api/metas', methods=['GET'])
 @login_required
