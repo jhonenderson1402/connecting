@@ -173,7 +173,17 @@
 .csv-box { display:flex; align-items:center; gap:11px; margin-top:11px; flex-wrap:wrap; }
 .csv-box .btn { white-space:nowrap; }
 .csv-dica { font-size:10.5px; color:#52525b; line-height:1.55; flex:1; min-width:200px; }
-.paste-area {
+/* a faixa do dia vazio: convida em vez de so avisar */
+.conf-table tbody td.td-vazio,
+.conf-table tbody tr:hover td.td-vazio {
+  text-align:center; padding:38px 20px; color:#71717a;
+  background:#141414 !important; white-space:normal;
+}
+.td-vazio-bts { display:flex; gap:9px; justify-content:center;
+  margin-top:15px; flex-wrap:wrap; }
+.td-vazio-dica { font-size:10.5px; color:#3f3f46; margin-top:11px; }
+#conf-card.arrastando { outline:2px dashed #fbbf24; outline-offset:-6px;
+  background:rgba(251,191,36,.06); }.paste-area {
   border:2px dashed #2a2a2a; border-radius:10px;
   padding:24px; color:#71717a; font-size:13px;
 }
@@ -479,7 +489,7 @@
   <!-- Stats -->
   <div class="conf-stats" id="conf-stats"></div>
   <!-- Tabela -->
-  <div class="card" style="padding:0;overflow:hidden">
+  <div class="card" id="conf-card" style="padding:0;overflow:hidden">
     <div style="overflow-x:auto">
       <table class="conf-table">
         <thead>
@@ -1220,10 +1230,19 @@ window.addEventListener('resize', fechaFcol);
 function renderTable() {
   const tbody = document.getElementById('conf-tbody');
   if(filtered.length === 0) {
-    const msg = allConf.length === 0
-      ? 'Nenhum dado para este dia. Cole dados da planilha para começar.'
-      : 'Nenhum resultado para os filtros aplicados.';
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:#71717a;background:#141414">${msg}</td></tr>`;
+    /* Dia vazio: oferece o caminho dali mesmo, em vez de so avisar.
+       Com filtro ligado e outra conversa — ali o problema e o filtro, nao a
+       falta de dado, e botao de importar no meio disso so confunde. */
+    const vazio = allConf.length === 0;
+    const acoes = vazio ? `
+      <div class="td-vazio-bts">
+        <button type="button" class="btn btn-primary" onclick="abreCsvDoVazio()">📂 Carregar CSV baixado</button>
+        <button type="button" class="btn btn-outline" onclick="openPasteModal()">📋 Colar da Planilha</button>
+      </div>
+      <div class="td-vazio-dica">Ou arraste o arquivo .csv para cá.</div>` : '';
+    tbody.innerHTML = `<tr><td colspan="10" class="td-vazio">${
+      vazio ? 'Nenhum dado para este dia.' : 'Nenhum resultado para os filtros aplicados.'
+    }${acoes}</td></tr>`;
     return;
   }
   tbody.innerHTML = filtered.map((r, i) => {
@@ -2709,6 +2728,48 @@ function _csvBaixa(linhas, nomeArq){
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
 }
 
+/* O mesmo caminho do botao que ja existe dentro do Colar da Planilha: abre o
+   modal e ja chama o seletor de arquivo. Sem setTimeout de proposito — o
+   navegador so deixa abrir a janela de arquivo durante o clique do usuario. */
+function abreCsvDoVazio(){
+  openPasteModal();
+  var i = document.getElementById('csv-file');
+  if(i) i.click();
+}
+
+/* Arrastar o arquivo para cima da tabela faz o mesmo que escolher no botao. */
+function ligaSoltaCsv(){
+  var alvo = document.getElementById('conf-card');
+  if(!alvo || alvo.dataset.solta) return;
+  alvo.dataset.solta = '1';
+
+  ['dragenter','dragover'].forEach(function(ev){
+    alvo.addEventListener(ev, function(e){
+      e.preventDefault(); e.stopPropagation();
+      alvo.classList.add('arrastando');
+    });
+  });
+  alvo.addEventListener('dragleave', function(e){
+    if(alvo.contains(e.relatedTarget)) return;   /* so saiu de um filho */
+    alvo.classList.remove('arrastando');
+  });
+  alvo.addEventListener('drop', function(e){
+    e.preventDefault(); e.stopPropagation();
+    alvo.classList.remove('arrastando');
+    var arq = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if(!arq) return;
+    if(!/\.csv$/i.test(arq.name)){ showToast('Só arquivo .csv por aqui.', 'error'); return; }
+    openPasteModal();
+    var leitor = new FileReader();
+    leitor.onerror = function(){ showToast('Não consegui ler o arquivo.', 'error'); };
+    leitor.onload  = function(){
+      try{ _csvProcessa(String(leitor.result || ''), arq.name); }
+      catch(err){ showToast('Erro ao tratar a planilha: ' + err.message, 'error'); }
+    };
+    leitor.readAsText(arq, 'utf-8');
+  });
+}
+
 function parsePasteText(text) {
   const lines = text.split(/\r?\n/).filter(l=>l.trim());
   const dataStr = getDateStr(); // DD/MM/YYYY
@@ -2788,6 +2849,7 @@ document.addEventListener('DOMContentLoaded', () => {
   ligaDropdown('sel-day',     'DIGITE O DIA');
   ligaDropdown('filter-flag', 'DIGITE A FLAG');
   montaFcolCabecalho();   // põe o funil em cada cabeçalho
+  ligaSoltaCsv();         // arrastar o CSV para cima da tabela
 });
 // Detecta Ctrl+V na página e abre modal de paste
 document.addEventListener('paste', (e) => {
