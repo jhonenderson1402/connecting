@@ -169,6 +169,10 @@
   color:#a1a1aa; font-family:inherit; }
 .ffd-pe button:hover { color:#e4e4e7; border-color:#3f3f46; }
 .ffd-pe .ok { background:rgba(34,197,94,.13); border-color:rgba(34,197,94,.45); color:#4ade80; }
+/* ══════ Carregar CSV baixado ══════ */
+.csv-box { display:flex; align-items:center; gap:11px; margin-top:11px; flex-wrap:wrap; }
+.csv-box .btn { white-space:nowrap; }
+.csv-dica { font-size:10.5px; color:#52525b; line-height:1.55; flex:1; min-width:200px; }
 .paste-area {
   border:2px dashed #2a2a2a; border-radius:10px;
   padding:24px; color:#71717a; font-size:13px;
@@ -735,6 +739,17 @@
           <span style="color:#71717a">Colunas esperadas: <strong style="color:#fbbf24">MÊS | DATA | CLIENTE | TMK | UNIDADE | HORÁRIO | CONTATO</strong></span>
         </p>
         <textarea class="paste-textarea" id="paste-textarea" placeholder="Cole aqui os dados copiados do Excel (Ctrl+V)..." oninput="previewPaste()"></textarea>
+        <div class="csv-box">
+          <button type="button" class="btn btn-outline" onclick="document.getElementById('csv-file').click()">
+            📂 Carregar CSV baixado
+          </button>
+          <input type="file" id="csv-file" accept=".csv,text/csv" style="display:none" onchange="trataCsv(this)">
+          <span class="csv-dica">
+            Escolha o arquivo que você baixou. O sistema trata sozinho — tira a 1ª linha,
+            fica com as cinco colunas, conserta acento — baixa a planilha tratada e enche
+            a prévia aqui embaixo.
+          </span>
+        </div>
       </div>
       <!-- Passo 2: preview em tabela -->
       <div id="paste-step2" style="display:none">
@@ -2543,6 +2558,157 @@ function resetPaste() {
   document.getElementById('paste-textarea').value = '';
   document.getElementById('paste-textarea').focus();
 }
+/* ══════ Tratar o CSV baixado ════════════════════════════════════════════
+   Faz, no navegador, o mesmo que o script em Python fazia na maquina:
+   pula a 1a linha, fica com as cinco colunas, conserta acento quebrado,
+   tira espaco sobrando e joga fora linha sem nome. Depois baixa a planilha
+   tratada (para voce ter o comprovante) e enche a previa do Colar.
+   O arquivo NAO sobe para o servidor: so as linhas tratadas, que ja iam
+   subir de qualquer jeito. */
+
+/* Nomes que vem errados da planilha de origem. Para acrescentar um caso,
+   cole mais uma linha aqui — nao precisa mexer em mais nada.
+   A comparacao ignora acento e maiuscula. */
+var TROCAS = {
+  // 'MANAUS - CENTRO': 'MANAUS CENTRO',
+  // 'SAO LUIS':        'SÃO LUÍS'
+};
+
+/* As colunas que interessam, na ordem em que o Colar da Planilha espera */
+var CSV_COLS = [
+  {de:'NOME',                   para:'cliente'},
+  {de:'RESPONSAVEL',            para:'tmk'},
+  {de:'UNIDADE DE AGENDAMENTO', para:'unidade'},
+  {de:'HORARIO DE AGENDAMENTO', para:'horario'},
+  {de:'TELEFONE',               para:'contato'}
+];
+
+/* sem acento, sem espaco dobrado, em maiuscula — so para COMPARAR */
+function _csvChave(t){
+  return String(t == null ? '' : t).normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
+}
+
+/* O acento que se perdeu no caminho: "JOSÃ‰" volta a ser "JOSÉ".
+   Se o texto ja estiver certo, nao mexe. */
+function _csvConserta(v){
+  v = String(v == null ? '' : v).trim();
+  if(!/[ÃÂ]|â€|ï¿½/.test(v)) return v;
+  try{
+    var bytes = Uint8Array.from(v, function(c){ return c.charCodeAt(0) & 0xff; });
+    return new TextDecoder('utf-8', {fatal:true}).decode(bytes).trim();
+  }catch(e){ return v; }   /* nao era isso: devolve como veio */
+}
+
+/* Qual caractere separa as colunas. Conta no cabecalho e usa o que tiver mais. */
+function _csvSep(linha){
+  var v = (linha.match(/,/g)  || []).length;
+  var p = (linha.match(/;/g)  || []).length;
+  var t = (linha.match(/\t/g) || []).length;
+  if(t >= v && t >= p && t > 0) return '\t';
+  return p > v ? ';' : ',';
+}
+
+/* Leitor de CSV de verdade: respeita campo entre aspas com virgula dentro. */
+function _csvLe(txt, sep){
+  var linhas = [], lin = [], campo = '', aspas = false;
+  for(var i = 0; i < txt.length; i++){
+    var ch = txt[i];
+    if(aspas){
+      if(ch === '"'){
+        if(txt[i+1] === '"'){ campo += '"'; i++; }
+        else aspas = false;
+      } else campo += ch;
+    }
+    else if(ch === '"'){ aspas = true; }
+    else if(ch === sep){ lin.push(campo); campo = ''; }
+    else if(ch === '\n'){ lin.push(campo); linhas.push(lin); lin = []; campo = ''; }
+    else if(ch !== '\r'){ campo += ch; }
+  }
+  if(campo !== '' || lin.length){ lin.push(campo); linhas.push(lin); }
+  return linhas;
+}
+
+function _csvLimpa(v, junta){
+  v = _csvConserta(v).replace(/[\t\r\n]+/g, ' ');
+  if(junta) v = v.replace(/\s+/g, ' ').trim();
+  var t = TROCAS[_csvChave(v)];
+  return t !== undefined ? t : v;
+}
+
+function trataCsv(input){
+  var arq = input && input.files && input.files[0];
+  input.value = '';                 /* permite escolher o mesmo arquivo de novo */
+  if(!arq) return;
+  var leitor = new FileReader();
+  leitor.onerror = function(){ showToast('Não consegui ler o arquivo.', 'error'); };
+  leitor.onload  = function(){
+    try{ _csvProcessa(String(leitor.result || ''), arq.name); }
+    catch(e){ showToast('Erro ao tratar a planilha: ' + e.message, 'error'); }
+  };
+  leitor.readAsText(arq, 'utf-8');
+}
+
+function _csvProcessa(txt, nomeArq){
+  if(txt.charCodeAt(0) === 0xFEFF) txt = txt.slice(1);   /* BOM do Excel */
+  var cru = _csvLe(txt, _csvSep((txt.split('\n')[1] || txt.split('\n')[0] || '')));
+  if(cru.length < 2){ showToast('O arquivo não tem linhas suficientes.', 'error'); return; }
+
+  /* pula a 1a linha: o cabecalho de verdade e a segunda (igual ao skiprows=1) */
+  var cab = (cru[1] || []).map(function(c){ return _csvChave(_csvConserta(c)); });
+  var ondeEsta = {}, faltando = [];
+  CSV_COLS.forEach(function(col){
+    var i = cab.indexOf(_csvChave(col.de));
+    if(i < 0) faltando.push(col.de); else ondeEsta[col.para] = i;
+  });
+  if(faltando.length){
+    showToast('Faltam colunas na planilha: ' + faltando.join(', '), 'error');
+    return;
+  }
+
+  var linhas = [];
+  for(var i = 2; i < cru.length; i++){
+    var l = cru[i] || [];
+    var r = {
+      cliente: _csvLimpa(l[ondeEsta.cliente], true),
+      tmk:     _csvLimpa(l[ondeEsta.tmk],     true),
+      unidade: _csvLimpa(l[ondeEsta.unidade], true),
+      horario: _csvLimpa(l[ondeEsta.horario], false),
+      contato: _csvLimpa(l[ondeEsta.contato], false)
+    };
+    if(r.cliente) linhas.push(r);     /* sem nome nao entra */
+  }
+  if(!linhas.length){ showToast('Nenhuma linha com nome foi encontrada.', 'error'); return; }
+
+  _csvBaixa(linhas, nomeArq);
+
+  /* enche a previa: cinco colunas separadas por TAB, que e o formato curto
+     que o parsePasteText ja entende (CLIENTE · TMK · UNIDADE · HORÁRIO · CONTATO) */
+  var ta = document.getElementById('paste-textarea');
+  ta.value = linhas.map(function(r){
+    return [r.cliente, r.tmk, r.unidade, r.horario, r.contato].join('\t');
+  }).join('\n');
+  previewPaste();
+  showToast(linhas.length + ' linhas tratadas. Confira e clique em Importar.');
+}
+
+/* A planilha tratada, para voce guardar. Ponto e virgula e BOM: e assim que
+   o Excel em portugues abre com acento certo e coluna separada. */
+function _csvBaixa(linhas, nomeArq){
+  var sai = 'Nome;TMK;Unidade;Horário;Telefone\n' + linhas.map(function(r){
+    return [r.cliente, r.tmk, r.unidade, r.horario, r.contato].map(function(v){
+      v = String(v == null ? '' : v);
+      return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+    }).join(';');
+  }).join('\n');
+  var base = String(nomeArq || 'planilha').replace(/\.[^.]+$/, '');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF' + sai], {type:'text/csv;charset=utf-8'}));
+  a.download = base + '_tratada.csv';
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+}
+
 function parsePasteText(text) {
   const lines = text.split(/\r?\n/).filter(l=>l.trim());
   const dataStr = getDateStr(); // DD/MM/YYYY
