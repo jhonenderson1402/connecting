@@ -115,6 +115,21 @@
                   border:1px solid var(--u-bd2);color:var(--u-fg2);font-size:11.5px;cursor:pointer;font-family:inherit}
   .uni-sug button:hover{border-color:var(--u-gold);color:var(--u-gold)}
   .uni-dlg-ft{display:flex;gap:8px;justify-content:flex-end}
+
+  /* Marcas do modo TV: mesma forma da região e do dia, em azul — a terceira
+     cor da linha. Clicar na etiqueta liga e desliga, sem abrir caixa. */
+  .uni-tv{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 11px;
+          background:rgba(59,130,246,.10);border:1px solid rgba(59,130,246,.10);
+          border-radius:14px;font-size:11.5px;font-weight:600;color:#60a5fa;
+          cursor:pointer;user-select:none;transition:border-color .15s}
+  .uni-tv:hover{border-color:#60a5fa}
+  .uni-tv.off{background:transparent;border-color:var(--u-bd2);color:var(--u-muted);
+              font-weight:500;font-style:italic}
+  .uni-tv .pin{opacity:.85;font-size:9.5px;font-style:normal}
+  .uni-tvbox{display:flex;gap:14px;align-items:center;height:36px}
+  .uni-tvbox label{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;
+                   color:var(--u-fg2);cursor:pointer}
+  .uni-tvbox input{accent-color:var(--u-gold);width:14px;height:14px;cursor:pointer}
 </style>
 
 <div class="page-content uni-page">
@@ -148,6 +163,13 @@
           <option value="5">Sexta</option>
           <option value="6">Sábado</option>
         </select>
+      </div>
+      <div class="uni-fg">
+        <span class="uni-fl">Modo tela</span>
+        <div class="uni-tvbox">
+          <label><input type="checkbox" id="nova-tv-mostrar" checked/> Mostrar</label>
+          <label><input type="checkbox" id="nova-tv-somar" checked/> Somar no total</label>
+        </div>
       </div>
       <button class="uni-btn uni-btn-p" onclick="addUnidade()">Adicionar unidade</button>
     </div>
@@ -255,6 +277,14 @@ function render(){
            <button class="uni-lapis" title="Mudar o dia" onclick="abreDia(${u.id})">✎</button></span>`
       : `<span class="uni-dia vazia">dia a dia
            <button class="uni-lapis" title="Definir o dia" onclick="abreDia(${u.id})">✎</button></span>`;
+    const tvM = u.tv_mostrar !== false;
+    const tvS = u.tv_somar   !== false;
+    const tv = `<span class="uni-tv${tvM?'':' off'}" title="Aparece no modo tela cheia?"
+           onclick="toggleTv(${u.id},'tv_mostrar',${!tvM})"
+         ><span class="pin">${tvM?'▣':'▢'}</span>${tvM?'na tela':'fora da tela'}</span>
+      <span class="uni-tv${tvS?'':' off'}" title="Entra no TOTAL DO DIA da tela cheia?"
+           onclick="toggleTv(${u.id},'tv_somar',${!tvS})"
+         ><span class="pin">${tvS?'∑':'∅'}</span>${tvS?'soma':'não soma'}</span>`;
     return `<div class="uni-card" data-id="${u.id}">
       <div class="uni-head">
         <span class="uni-drag" title="Arraste para reordenar">⠿</span>
@@ -263,6 +293,7 @@ function render(){
         <button class="uni-lapis" title="Renomear unidade" onclick="abreNome(${u.id})">✎</button>
         ${reg}
         ${dia}
+        ${tv}
         <div class="uni-meta">
           <span class="uni-cnt"><b>${meus.length}</b> bairro${meus.length===1?'':'s'}</span>
           <button class="uni-rm" title="Remover unidade" onclick="delUnidade(${u.id})">✕</button>
@@ -340,16 +371,41 @@ async function addUnidade(){
   const nome = (eu.value||'').trim();
   const regiao = (er.value||'').trim();
   if(!nome){ showToast('Digite o nome da unidade.','error'); return; }
-  const ed = document.getElementById('novo-dia');
+    const ed = document.getElementById('novo-dia');
   const agend_dia = ed ? (ed.value || '') : '';
+  const cm = document.getElementById('nova-tv-mostrar');
+  const cs = document.getElementById('nova-tv-somar');
   const r = await fetch('/api/unidades',{method:'POST',headers:{'Content-Type':'application/json'},
-                                         body:JSON.stringify({nome, regiao, agend_dia})});
+                                         body:JSON.stringify({nome, regiao, agend_dia,
+                                           tv_mostrar: cm ? cm.checked : true,
+                                           tv_somar:   cs ? cs.checked : true})});
   const d = await r.json().catch(()=>({}));
   if(!r.ok){ showToast(d.error||'Erro ao adicionar.','error'); return; }
   eu.value=''; er.value='';
   if(ed){ ed.value=''; atualizaDropdown('novo-dia'); }
+  if(cm) cm.checked = true;
+  if(cs) cs.checked = true;
   showToast('Unidade adicionada! Recarregue para vê-la no menu.');
   loadTudo();
+}
+
+/* Liga/desliga uma das marcas do modo tela. Clicar na etiqueta já salva —
+   são duas marcas independentes, então mando só a que mudou. */
+async function toggleTv(id, campo, valor){
+  const corpo = {};
+  corpo[campo] = valor;
+  const r = await fetch('/api/unidades/' + id + '/tv', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(corpo)
+  });
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok){ showToast(d.error||'Erro ao salvar.','error'); return; }
+  const u = unidades.find(x => x.id === id);
+  if(u){ u.tv_mostrar = d.tv_mostrar; u.tv_somar = d.tv_somar; }
+  render();
+  showToast(campo === 'tv_mostrar'
+    ? (d.tv_mostrar ? 'Passa a aparecer no modo tela.' : 'Não aparece mais no modo tela.')
+    : (d.tv_somar ? 'Passa a somar no total do modo tela.' : 'Não soma mais no total do modo tela.'));
 }
 async function delUnidade(id){
   const u = unidades.find(x=>x.id===id); if(!u) return;
