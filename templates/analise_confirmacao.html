@@ -170,6 +170,21 @@
       <table class="ext-table" id="rank-conf-table" style="min-width:560px"></table>
     </div>
   </div>
+  <!-- Rank de Inclusões -->
+  <div class="analise-card">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <span style="font-size:18px">🏆</span>
+      <h2 style="font-size:14px;font-weight:700">Rank de Inclusões</h2>
+      <span id="rank-incl-tot" style="font-size:11px;color:#52525b"></span>
+      <button type="button" class="btn btn-outline" onclick="copiarRankIncl()"
+              style="margin-left:auto">📋 Copiar p/ WhatsApp</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="ext-table" id="rank-incl-table" style="min-width:420px"></table>
+    </div>
+    <p style="font-size:11px;color:#52525b;margin-top:9px">
+      Clientes lançados à mão na caixa INCLUSÕES de cada atendente.</p>
+  </div>
     <!-- Rank TMK (erros) -->
   <div class="analise-card">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
@@ -368,6 +383,7 @@ function renderAnalise() {
   renderRankConfirmacao(data);
   renderRankTMK(data);
   renderUnidadesTabela(data);
+  carregaRankIncl();   /* busca própria: inclusão não vem no analiseData */
 }
 function renderFlags(data) {
   const total = data.length;
@@ -581,6 +597,125 @@ function renderRankConfirmacao(data) {
       }).join('')}
     </tr>`).join('');
   tbl.innerHTML = head + '<tbody>' + body + '</tbody>';
+}
+/* ══════════ Rank de Inclusões ══════════════════════════════════════════════
+   Inclusão é o cliente que a atendente lançou na mão, na caixa INCLUSÕES da
+   tela dela. Mora em INCL::<ATENDENTE>, fora da tabela de confirmações — por
+   isso não sai do analiseData: precisa da própria busca.
+   Busca o MÊS e soma o recorte da tela, como o resto desta página faz. A
+   semana pode cair em dois meses, então às vezes é mais de uma busca. */
+var INCL_RANK = [];
+var _inclReq = 0;
+
+/* As datas (AAAA-MM-DD) que o período cobre. [] = o mês inteiro. */
+function _inclDatasAlvo(){
+  var periodo = document.getElementById('sel-periodo').value;
+  var y  = parseInt(document.getElementById('sel-year').value, 10);
+  var mi = parseInt(document.getElementById('sel-month').value, 10);
+  var d  = parseInt(document.getElementById('sel-day').value, 10);
+  function iso(dt){
+    return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2,'0') +
+           '-' + String(dt.getDate()).padStart(2,'0');
+  }
+  if(periodo === 'day') return [iso(new Date(y, mi, d))];
+  if(periodo === 'week'){
+    var base = new Date(y, mi, d);
+    var dow  = (base.getDay() + 6) % 7;   /* 0 = segunda, igual ao resto da tela */
+    var out = [];
+    for(var i = 0; i < 7; i++) out.push(iso(new Date(y, mi, d - dow + i)));
+    return out;
+  }
+  return [];
+}
+
+async function carregaRankIncl(){
+  var req = ++_inclReq;      /* trocar o filtro rápido não pode embaralhar a tela */
+  var datas = _inclDatasAlvo();
+  var meses = {};
+  if(datas.length){
+    datas.forEach(function(s){ meses[s.slice(0,7)] = true; });
+  } else {
+    meses[document.getElementById('sel-year').value + '-' +
+          String(parseInt(document.getElementById('sel-month').value, 10) + 1)
+            .padStart(2,'0')] = true;
+  }
+  var tudo = [];
+  for(var chave in meses){
+    var p = chave.split('-');
+    try{
+      var r = await fetch('/api/inclusoes_rank?ano=' + p[0] + '&mes=' + parseInt(p[1], 10));
+      if(r.ok) tudo = tudo.concat(await r.json());
+    }catch(e){}
+  }
+  if(req !== _inclReq) return;      /* chegou atrasado: a tela já é outra */
+  var alvo = null;
+  if(datas.length){ alvo = {}; datas.forEach(function(s){ alvo[s] = true; }); }
+  INCL_RANK = tudo.filter(function(x){ return !alvo || alvo[x.data]; });
+  pintaRankIncl();
+}
+
+function _inclPorAtendente(){
+  var map = {};
+  /* a equipe toda aparece, mesmo quem fez zero — igual ao Rank Confirmação */
+  (ATENDENTES || []).forEach(function(at){ map[String(at).trim().toUpperCase()] = 0; });
+  INCL_RANK.forEach(function(x){
+    var nome = String(x.atendente || '').trim().toUpperCase();
+    if(!nome) return;
+    map[nome] = (map[nome] || 0) + (Number(x.total) || 0);
+  });
+  return Object.keys(map).map(function(nome){
+    return {nome: nome, total: map[nome]};
+  }).sort(function(a, b){
+    return b.total - a.total || a.nome.localeCompare(b.nome);
+  });
+}
+
+function pintaRankIncl(){
+  var tbl = document.getElementById('rank-incl-table');
+  if(!tbl) return;
+  var lista = _inclPorAtendente();
+  var soma = lista.reduce(function(s, r){ return s + r.total; }, 0);
+  var tot = document.getElementById('rank-incl-tot');
+  if(tot) tot.textContent = soma + (soma === 1 ? ' inclusão' : ' inclusões') + ' no período';
+  if(!lista.length){
+    tbl.innerHTML = '<tbody><tr><td style="text-align:center;color:#52525b;padding:20px">' +
+                    'Nenhuma atendente cadastrada.</td></tr></tbody>';
+    return;
+  }
+  var medals = ['🥇','🥈','🥉'];
+  tbl.innerHTML =
+    '<thead><tr><th style="text-align:left">ATENDENTE</th>' +
+    '<th style="color:#fbbf24">INCLUSÕES</th></tr></thead><tbody>' +
+    lista.map(function(r, i){
+      /* medalha só para quem fez alguma: 🥇 com zero é piada ruim */
+      var pos = (i < 3 && r.total > 0) ? medals[i] : (i + 1) + 'º';
+      return '<tr><td style="text-align:left">' + pos + ' ' + esc(r.nome) + '</td>' +
+             '<td style="color:' + (r.total > 0 ? '#fbbf24' : '#3f3f46') +
+             ';font-weight:700">' + r.total + '</td></tr>';
+    }).join('') + '</tbody>';
+}
+
+function copiarRankIncl(){
+  var lista = _inclPorAtendente();
+  var soma = lista.reduce(function(s, r){ return s + r.total; }, 0);
+  var medals = ['🥇','🥈','🥉'];
+  var L = ['🏆 RANK DE INCLUSÕES', '📅 ' + _periodoLabel(), ''];
+  lista.forEach(function(r, i){
+    var pos = (i < 3 && r.total > 0) ? medals[i] : (i + 1) + 'º';
+    L.push(pos + ' ' + r.nome + ' — ' + r.total);
+  });
+  L.push('');
+  L.push('Total: ' + soma + (soma === 1 ? ' inclusão' : ' inclusões'));
+  var txt = L.join('\n');
+  var ok = function(){
+    if(typeof showToast === 'function') showToast('Copiado! Cole no WhatsApp.');
+    else alert('Copiado! Cole no WhatsApp.');
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(ok, function(){ _fallbackCopyWA(txt, ok); });
+  } else {
+    _fallbackCopyWA(txt, ok);
+  }
 }
 const FLAGS_RANK = [
   { key: 'CANCELADO',       label: 'CANCELADO',        short: 'CANCEL.',   color: '#ef4444' },
