@@ -124,6 +124,51 @@
   font-size:11px; font-weight:700; font-family:inherit;
 }
 .flagpick .fp-limpa:hover { color:#f87171; border-color:#f87171; }
+/* ══════ Filtro por coluna ══════ */
+.stat-limpa { background:rgba(248,113,113,.1); border:1px solid rgba(248,113,113,.4);
+  color:#f87171; cursor:pointer; font-family:inherit; }
+.stat-limpa:hover { background:rgba(248,113,113,.2); }
+.conf-table thead th .cab { display:flex; align-items:center; gap:6px; }
+.funil { margin-left:auto; width:19px; height:19px; flex:none; border:none; border-radius:5px;
+  background:rgba(0,0,0,.08); color:#18181b; cursor:pointer; display:flex;
+  align-items:center; justify-content:center; transition:background .13s; padding:0; }
+.funil:hover { background:rgba(0,0,0,.22); }
+.funil svg { width:11px; height:11px; stroke:currentColor; fill:none; stroke-width:2;
+  stroke-linecap:round; stroke-linejoin:round; }
+.funil.on { background:#18181b; color:#fbbf24; }
+.conf-table thead th.filtrando { background:#e8a800; }
+.conf-table thead th.filtrando.th-flag,
+.conf-table thead th.filtrando.th-obs { background:#e8a800 !important; }
+/* fixed e z-index alto: o cabecalho e sticky e o card tem overflow */
+.ffd { position:fixed; z-index:2147483000; width:242px; padding:4px;
+  background:#1a1a1a; border:1px solid #2a2a2a; border-radius:9px;
+  box-shadow:0 14px 34px rgba(0,0,0,.7); }
+.ffd-busca { padding:4px 4px 6px; border-bottom:1px solid #2a2a2a; margin:0 -4px 4px; }
+.ffd-busca input { width:calc(100% - 8px); margin:0 4px; background:#101010;
+  border:1px solid #2a2a2a; border-radius:6px; color:#e4e4e7; font-family:inherit;
+  font-size:12px; padding:6px 9px; outline:none; }
+.ffd-busca input::placeholder { color:#52525b; }
+.ffd-busca input:focus { border-color:#22c55e; }
+.ffd-ops { max-height:250px; overflow-y:auto; }
+.ffd-ops::-webkit-scrollbar { width:8px; }
+.ffd-ops::-webkit-scrollbar-track { background:transparent; }
+.ffd-ops::-webkit-scrollbar-thumb { background:#3a3a3a; border-radius:4px; }
+.ffd-op { padding:7px 9px; font-size:12px; color:#d4d4d8; border-radius:6px;
+  display:flex; align-items:center; gap:9px; cursor:pointer; }
+.ffd-op:hover { background:#2a2a2a; }
+.ffd-op.on { background:rgba(251,191,36,.12); color:#fbbf24; font-weight:700; }
+.ffd-op.vazio { font-style:italic; color:#52525b; }
+.ffd-op input { accent-color:#fbbf24; flex:none; }
+.ffd-op .n { margin-left:auto; font-size:10.5px; color:#52525b;
+  font-variant-numeric:tabular-nums; }
+.ffd-op.on .n { color:#fbbf24; }
+.ffd-pe { display:flex; gap:6px; padding:6px 2px 2px; border-top:1px solid #2a2a2a;
+  margin-top:4px; }
+.ffd-pe button { flex:1; padding:6px; border-radius:6px; cursor:pointer;
+  font:700 11px Inter,sans-serif; background:#1f1f1f; border:1px solid #2a2a2a;
+  color:#a1a1aa; font-family:inherit; }
+.ffd-pe button:hover { color:#e4e4e7; border-color:#3f3f46; }
+.ffd-pe .ok { background:rgba(34,197,94,.13); border-color:rgba(34,197,94,.45); color:#4ade80; }
 .paste-area {
   border:2px dashed #2a2a2a; border-radius:10px;
   padding:24px; color:#71717a; font-size:13px;
@@ -779,10 +824,13 @@ function getMesStr() {
   return MONTHS[mi];
 }
 function onDateChange() {
+  /* A lista de cada funil e feita do dia que esta na tela. Trocando de dia,
+     os valores escolhidos podem nem existir mais — entao limpa. */
+  FCOL = {};
+  if(typeof pintaFcol === 'function') pintaFcol();
   updateDayOptions();
   loadDay();
-}
-// ── Carregar dados do dia ──────────────────────────────────────────────────
+}// ── Carregar dados do dia ──────────────────────────────────────────────────
 async function loadDay() {
   const dataStr = getDateStr();
   // Mostra os registros do dia. Se há atendente selecionada, filtra só por ela.
@@ -824,7 +872,7 @@ function applyFilter() {
   filtered = allConf.filter(r => {
     const matchS = !search || [r.cliente,r.tmk,r.unidade,r.contato].some(v=>(v||'').toLowerCase().includes(search));
     const matchF = !flag || r.flag === flag;
-    return matchS && matchF;
+    return matchS && matchF && passaFiltroCol(r);
   });
   renderTable();
   renderStats();
@@ -945,6 +993,215 @@ window.addEventListener('scroll', function(e){
   if(t && t.closest && t.closest('.fdd-menu')) return;
   fechaFlag();
 }, true);
+/* ══════ Filtro por coluna ═══════════════════════════════════════════════
+   Um funil no cabecalho de cada coluna. A lista traz so o que aquela coluna
+   tem NO DIA carregado (allConf), com a contagem ao lado — por isso trocar
+   de dia limpa os filtros: a lista de valores ja seria outra.
+   Guarda em FCOL: {campo: [valores escolhidos]}. Campo sem entrada, ou com
+   lista vazia, nao filtra nada. */
+var COLS_FILTRO = [
+  {c:'mes',        rot:'MÊS'},
+  {c:'data_str',   rot:'DATA'},
+  {c:'cliente',    rot:'CLIENTE'},
+  {c:'tmk',        rot:'TMK'},
+  {c:'unidade',    rot:'UNIDADE'},
+  {c:'horario',    rot:'HORÁRIO'},
+  {c:'contato',    rot:'CONTATO'},
+  {c:'flag',       rot:'FLAG'},
+  {c:'observacao', rot:'OBSERVAÇÃO'}
+];
+var FCOL  = {};     // o que esta filtrado agora
+var _fcol = null;   // o menu aberto agora
+
+function fcolVal(r, c){ return String(r && r[c] != null ? r[c] : '').trim(); }
+
+function fcolAtivos(){
+  var n = 0;
+  for(var c in FCOL) if(FCOL[c] && FCOL[c].length) n++;
+  return n;
+}
+
+function passaFiltroCol(r){
+  for(var c in FCOL){
+    var sel = FCOL[c];
+    if(!sel || !sel.length) continue;
+    if(sel.indexOf(fcolVal(r, c)) < 0) return false;
+  }
+  return true;
+}
+
+/* Conta sobre o dia inteiro, nao sobre o que ja esta filtrado: senao a lista
+   encolheria a cada escolha e voce nao conseguiria mais acrescentar ninguem. */
+function fcolValores(c){
+  var m = {};
+  (allConf || []).forEach(function(r){
+    var v = fcolVal(r, c);
+    m[v] = (m[v] || 0) + 1;
+  });
+  return Object.keys(m).sort(function(a, b){
+    if(a === '') return 1;        // (em branco) sempre por ultimo
+    if(b === '') return -1;
+    return a.localeCompare(b, 'pt-BR', {numeric:true});
+  }).map(function(v){ return {v:v, n:m[v]}; });
+}
+
+function fcolRotulo(c, v){
+  if(v === '') return '(em branco)';
+  if(c === 'flag') return rotuloFlag(v);
+  return v;
+}
+
+/* Monta os funis a partir do <thead> que ja esta na tela. A primeira coluna
+   e a do numero da linha, por isso o +1. Se um dia entrar ou sair coluna da
+   tabela, e esta lista COLS_FILTRO que precisa acompanhar. */
+function montaFcolCabecalho(){
+  var ths = document.querySelectorAll('.conf-table thead th');
+  if(ths.length < COLS_FILTRO.length + 1) return;
+  COLS_FILTRO.forEach(function(col, i){
+    var th = ths[i + 1];
+    if(!th || th.dataset.fcol) return;
+    th.dataset.fcol = col.c;
+    var txt = th.textContent;
+    th.innerHTML = '';
+    var cab = document.createElement('span');
+    cab.className = 'cab';
+    cab.appendChild(document.createTextNode(txt));
+    var bt = document.createElement('button');
+    bt.type = 'button';
+    bt.className = 'funil';
+    bt.title = 'Filtrar por ' + col.rot;
+    bt.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 5h16l-6.2 7.3V19l-3.6-2v-4.7Z"/></svg>';
+    bt.onclick = function(ev){ abreFcol(ev, col.c); };
+    cab.appendChild(bt);
+    th.appendChild(cab);
+  });
+  pintaFcol();
+}
+
+function pintaFcol(){
+  document.querySelectorAll('.conf-table thead th[data-fcol]').forEach(function(th){
+    var lig = !!(FCOL[th.dataset.fcol] && FCOL[th.dataset.fcol].length);
+    th.classList.toggle('filtrando', lig);
+    var bt = th.querySelector('.funil');
+    if(bt) bt.classList.toggle('on', lig);
+  });
+}
+
+function abreFcol(ev, c){
+  ev.stopPropagation();
+  var jaEra = _fcol && _fcol.col === c;
+  fechaFcol();
+  if(jaEra) return;
+  var vals = fcolValores(c);
+  var sel  = (FCOL[c] || []).slice();
+  var m = document.createElement('div');
+  m.className = 'ffd';
+  m.innerHTML =
+    '<div class="ffd-busca"><input type="text" placeholder="DIGITE PARA BUSCAR"></div>' +
+    '<div class="ffd-ops"></div>' +
+    '<div class="ffd-pe"><button type="button" class="lim">Limpar</button>' +
+    '<button type="button" class="ok">Aplicar</button></div>';
+  document.body.appendChild(m);
+  var ops = m.querySelector('.ffd-ops');
+  ops.innerHTML =
+    '<label class="ffd-op todos"><input type="checkbox"' + (sel.length ? '' : ' checked') +
+    '>(Todos)<span class="n">' + (allConf || []).length + '</span></label>' +
+    vals.map(function(o){
+      var on = sel.indexOf(o.v) >= 0;
+      return '<label class="ffd-op' + (on ? ' on' : '') + (o.v === '' ? ' vazio' : '') +
+             '" data-v="' + esc(o.v) + '"><input type="checkbox"' + (on ? ' checked' : '') +
+             '>' + esc(fcolRotulo(c, o.v)) + '<span class="n">' + o.n + '</span></label>';
+    }).join('');
+
+  var campo = m.querySelector('.ffd-busca input');
+  var todos = ops.querySelector('.todos input');
+
+  function linhas(){ return [].slice.call(ops.querySelectorAll('.ffd-op[data-v]')); }
+
+  ops.addEventListener('change', function(e){
+    var cx = e.target;
+    if(cx === todos){
+      // "(Todos)" quer dizer "sem filtro nesta coluna"
+      if(todos.checked) linhas().forEach(function(l){
+        l.querySelector('input').checked = false;
+        l.classList.remove('on');
+      });
+      return;
+    }
+    var l = cx.closest('.ffd-op');
+    if(l) l.classList.toggle('on', cx.checked);
+    todos.checked = !linhas().some(function(x){ return x.querySelector('input').checked; });
+  });
+
+  campo.addEventListener('input', function(){
+    var q = String(campo.value || '').normalize('NFD')
+              .replace(/[\u0300-\u036f]/g,'').trim().toUpperCase();
+    linhas().forEach(function(l){
+      var t = String(l.textContent).normalize('NFD')
+                .replace(/[\u0300-\u036f]/g,'').toUpperCase();
+      l.style.display = t.indexOf(q) >= 0 ? '' : 'none';
+    });
+  });
+  campo.addEventListener('keydown', function(e){
+    e.stopPropagation();
+    if(e.key === 'Escape'){ e.preventDefault(); fechaFcol(); }
+    if(e.key === 'Enter'){ e.preventDefault(); aplicaFcol(c); }
+  });
+
+  m.addEventListener('click', function(e){ e.stopPropagation(); });
+  m.querySelector('.ok').onclick  = function(){ aplicaFcol(c); };
+  m.querySelector('.lim').onclick = function(){
+    todos.checked = true;
+    linhas().forEach(function(l){
+      l.querySelector('input').checked = false;
+      l.classList.remove('on');
+    });
+    aplicaFcol(c);
+  };
+
+  // mede depois de estar na tela, senao a altura seria 0 e ele nunca subiria
+  var r   = ev.currentTarget.getBoundingClientRect();
+  var alt = m.offsetHeight, lar = m.offsetWidth;
+  var sobra = (window.innerHeight || 800) - r.bottom;
+  m.style.left = Math.max(6, Math.min(r.left - lar + 30,
+                   (window.innerWidth || 1200) - lar - 6)) + 'px';
+  m.style.top  = (sobra < alt && r.top > sobra
+                   ? Math.max(6, r.top - alt - 4) : r.bottom + 4) + 'px';
+
+  _fcol = {menu:m, col:c};
+  setTimeout(function(){
+    campo.focus({preventScroll:true});
+    document.addEventListener('click', fechaFcol);
+  }, 0);
+}
+
+function aplicaFcol(c){
+  if(!_fcol) return;
+  var ops = _fcol.menu.querySelectorAll('.ffd-op[data-v] input');
+  var escolhidos = [];
+  [].forEach.call(ops, function(cx){
+    if(cx.checked) escolhidos.push(cx.closest('.ffd-op').dataset.v);
+  });
+  if(escolhidos.length) FCOL[c] = escolhidos; else delete FCOL[c];
+  fechaFcol();
+  pintaFcol();
+  applyFilter();
+}
+
+function fechaFcol(){
+  if(_fcol && _fcol.menu) _fcol.menu.remove();
+  _fcol = null;
+  document.removeEventListener('click', fechaFcol);
+}
+
+function limpaFcolTudo(){
+  FCOL = {};
+  fechaFcol();
+  pintaFcol();
+  applyFilter();
+}
+window.addEventListener('resize', fechaFcol);
+
 function renderTable() {
   const tbody = document.getElementById('conf-tbody');
   if(filtered.length === 0) {
@@ -1011,6 +1268,7 @@ function renderStats() {
     <div class="conf-stat-chip" style="background:rgba(34,197,94,0.1);color:#22c55e">✅ Confirmados: ${conf} (${pct}%)</div>
     ${pend?`<div class="conf-stat-chip" style="background:#1f1f1f;color:#71717a">⏳ Pendentes: ${pend}</div>`:''}
     ${extras}
+    ${fcolAtivos()?`<button type="button" class="conf-stat-chip stat-limpa" onclick="limpaFcolTudo()" title="Tirar todos os filtros de coluna">✕ Limpar filtros (${fcolAtivos()})</button>`:''}
     <button type="button" class="conf-stat-chip stat-cfg" onclick="abreFlagPick(event)" title="Escolher quais flags aparecem nesta linha">⚙ FLAGS</button>`;
 }
 function abreFlagPick(ev){
@@ -2363,6 +2621,7 @@ document.addEventListener('DOMContentLoaded', () => {
   ligaDropdown('sel-year',    'DIGITE O ANO');
   ligaDropdown('sel-day',     'DIGITE O DIA');
   ligaDropdown('filter-flag', 'DIGITE A FLAG');
+  montaFcolCabecalho();   // põe o funil em cada cabeçalho
 });
 // Detecta Ctrl+V na página e abre modal de paste
 document.addEventListener('paste', (e) => {
