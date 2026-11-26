@@ -938,15 +938,28 @@ def api_agendamentos_dia():
     except Exception:
         pass
 
+    # Marcas do modo TV, uma leitura so. Unidade sem registro (ou com a coluna
+    # recem-criada) vale como ligada nas duas — o painel so muda depois que
+    # alguem desmarcar alguma coisa no cadastro.
+    try:
+        _tv = {u['nome']: (bool(u.get('tv_mostrar', True)),
+                           bool(u.get('tv_somar', True)))
+               for u in (db.get_unidades() or [])}
+    except Exception:
+        _tv = {}
+
     out = []
     for u in validas:
         pessoas = [{'nome': n, 'ags': v} for n, v in por_unidade[u].items()]
         pessoas.sort(key=lambda p: (-p['ags'], p['nome']))
+        marcas = _tv.get(u, (True, True))
         out.append({
             'unidade': u,
             'total': sum(p['ags'] for p in pessoas),
             'meta_dia': meta_de.get(u, 0),
             'meta_mes': meta_mes_de.get(u, 0),
+            'tv_mostrar': marcas[0],
+            'tv_somar': marcas[1],
             'pessoas': pessoas,
         })
 
@@ -1379,8 +1392,26 @@ def api_list_unidades():
 def api_create_unidade():
     data = request.get_json(silent=True) or {}
     try:
-        return jsonify(db.create_unidade(data.get('nome'), data.get('regiao'),
-                                         data.get('agend_dia'))), 201
+        return jsonify(db.create_unidade(
+            data.get('nome'), data.get('regiao'), data.get('agend_dia'),
+            data.get('tv_mostrar', True), data.get('tv_somar', True))), 201
+    except ValueError as e:
+        return _err(str(e))
+
+
+@app.route('/api/unidades/<int:uid>/tv', methods=['POST'])
+@admin_required
+def api_set_tv(uid):
+    """Liga/desliga a unidade no modo TV do cartao "Agendamentos do dia".
+
+    As duas marcas sao independentes de proposito: da para somar sem aparecer
+    (um numero que entra na conta mas nao ocupa espaco na parede) e aparecer
+    sem somar (a AÇÃO, que e para acompanhar mas nao entra no total).
+    """
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(db.set_tv_unidade(uid, data.get('tv_mostrar'),
+                                         data.get('tv_somar')))
     except ValueError as e:
         return _err(str(e))
 @app.route('/api/unidades/<int:uid>/agend_dia', methods=['POST'])
