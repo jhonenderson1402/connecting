@@ -375,6 +375,7 @@ def _team_access_guard():
     if role == 'confirmacao':
         allowed = (path.startswith('/confirmacao')
                    or path.startswith('/api/confirmacoes')
+                   or path.startswith('/api/inclusoes')
                    or (path.startswith('/api/appointments') and request.method == 'GET'))
         if not allowed:
             if _wants_json():
@@ -685,7 +686,7 @@ def disparar_webhook(unit, date, leader, rows):
         cfg = _wh_config()
         if not cfg:
             return
-        if unit.startswith(LEADS_PREFIX) or unit in (
+        if unit.startswith(LEADS_PREFIX) or unit.startswith(INCL_PREFIX) or unit in (
                 ACOMP_UNIT, LEADSAG_UNIT, FECH_UNIT, LEADSHH_UNIT):
             return                        # unidade reservada nao e agendamento
         chave = unit + '|' + date
@@ -732,6 +733,7 @@ def api_appointments():
     # Nunca expõe as "unidades" reservadas (Leads e Acompanhamento) nos agendamentos nem no dashboard
     appts = [a for a in appts
              if not a['unit'].startswith(LEADS_PREFIX)
+             and not a['unit'].startswith(INCL_PREFIX)
              and a['unit'] != ACOMP_UNIT and a['unit'] != LEADSAG_UNIT
              and a['unit'] != FECH_UNIT and a['unit'] != LEADSHH_UNIT]
     # A tela do sabado se dissolve nas unidades de destino — menos quando e ela
@@ -1186,6 +1188,74 @@ def api_bulk_confirmacoes():
                 r['atendente'] = at
     db.bulk_insert_confirmacoes(rows)
     return jsonify({'ok': True, 'count': len(rows)}), 201
+# ── Inclusões da Confirmação ────────────────────────────────────────────────
+# Cliente que a atendente lanca na mao: NAO veio da planilha e NAO entra na
+# tabela de confirmacoes. Mora na unidade reservada INCL::<ATENDENTE>, no mesmo
+# esquema do Acompanhamento e do Fechamento — reusa a tabela de appointments,
+# entao nao precisa de tabela nova nem de migracao.
+#
+# Cada linha e {'nome','numero','unidade','horario'}. 'nome', e nao 'name', de
+# proposito: 'name' e a chave que as somas do Hora a Hora procuram. Se um dia
+# este registro escapar de algum filtro, soma zero em vez de sujar o numero de
+# alguem.
+INCL_PREFIX = "INCL::"
+
+
+def _incl_unit(atendente):
+    """A unidade reservada desta atendente. None se o nome nao for da equipe."""
+    nome = str(atendente or '').strip().upper()
+    if nome not in _atendentes():
+        return None
+    return INCL_PREFIX + nome
+
+
+@app.route('/api/inclusoes/<date>', methods=['GET'])
+@login_required
+def api_get_inclusoes(date):
+    if not _role_allowed('confirmacao'):
+        return _err('Sem permissão.', 403)
+    if not _valid_date(date):
+        return _err('Data inválida. Use YYYY-MM-DD.')
+    unidade = _incl_unit(request.args.get('atendente'))
+    if not unidade:
+        return _err('Informe uma atendente da equipe.')
+    linhas = (db.get_appointment(unidade, date) or {}).get('rows') or []
+    return jsonify(linhas if isinstance(linhas, list) else [])
+
+
+@app.route('/api/inclusoes/<date>', methods=['POST'])
+@login_required
+def api_save_inclusoes(date):
+    """Grava a lista inteira do dia.
+
+    E assim que apagar funciona: a tela manda a lista sem a linha. Uma rota
+    so, em vez de criar e apagar separados, e menos coisa para sair de
+    sincronia — e a caixa e de um dia, nunca e uma lista grande.
+    """
+    if not _role_allowed('confirmacao'):
+        return _err('Sem permissão.', 403)
+    if not _valid_date(date):
+        return _err('Data inválida. Use YYYY-MM-DD.')
+    dados = request.get_json(silent=True) or {}
+    unidade = _incl_unit(dados.get('atendente'))
+    if not unidade:
+        return _err('Informe uma atendente da equipe.')
+    linhas = dados.get('rows')
+    if not isinstance(linhas, list):
+        return _err('Campo "rows" deve ser lista.')
+    limpas = []
+    for r in linhas[:300]:          # teto: a caixa e de um dia, nao de um ano
+        if not isinstance(r, dict):
+            continue
+        nome = str(r.get('nome') or '').strip()
+        if not nome:
+            continue                # linha sem nome nao e inclusao
+        limpas.append({'nome':    nome[:120],
+                       'numero':  str(r.get('numero') or '').strip()[:40],
+                       'unidade': str(r.get('unidade') or '').strip()[:60],
+                       'horario': str(r.get('horario') or '').strip()[:20]})
+    db.upsert_appointment(unidade, date, '', limpas)
+    return jsonify({'ok': True, 'count': len(limpas)})
 # ── API: Metas ────────────────────────────────────────────────────────────────
 @app.route('/api/metas', methods=['GET'])
 @login_required
