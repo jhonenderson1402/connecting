@@ -814,6 +814,11 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
   #ag-card:fullscreen .ag-meta-in,
   #ag-card:-webkit-full-screen .ag-meta-in{ height:24px; width:64px; font-size:13px; }
   .ag-tvhead{ display:none; }
+  /* Unidade desmarcada em "mostrar no modo tela" some SÓ na tela cheia.
+     É CSS, e não filtro no desenho, para entrar e sair da TV não precisar
+     redesenhar nada — o cartão se atualiza sozinho a cada 15 segundos. */
+  #ag-card:fullscreen .ag-uni.tv-fora,
+  #ag-card:-webkit-full-screen .ag-uni.tv-fora{ display:none; }
 
   @keyframes agBrilha{ 0%{ background:rgba(34,197,94,.3) } 100%{ background:transparent } }
   .ag-uni tr.novo td{ animation:agBrilha 1.6s ease-out; }
@@ -1051,11 +1056,14 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       }
     };
 
-    function total(v){
+    /* Dois numeros: o pequeno do cartao normal soma todas as unidades; o
+       grande, que so existe na tela cheia, soma as marcadas. Sem o segundo
+       argumento os dois sao iguais — e o caso do cartao vazio. */
+    function total(v, vTV){
       var a = document.getElementById('ag-tot');  if(a) a.textContent = v;
-      var b = document.getElementById('ag-tot2'); if(b) b.textContent = v;
+      var b = document.getElementById('ag-tot2');
+      if(b) b.textContent = (vTV === undefined ? v : vTV);
     }
-
     function desenha(dados, modo){
       var unidades = (dados && dados.unidades) || [];
       var comGente = unidades.filter(function(u){ return (u.pessoas || []).length > 0; });
@@ -1073,9 +1081,12 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
       var maior = 0;
       comGente.forEach(function(u){ if((u.total||0) > maior) maior = u.total||0; });
 
-      var soma = 0;
+      var soma = 0;      // o cartao normal: soma todas as unidades
+      var somaTV = 0;    // a tela cheia: so as marcadas em "somar no modo tela"
       grade.innerHTML = comGente.map(function(u){
         soma += (u.total || 0);
+        if(u.tv_somar !== false) somaTV += (u.total || 0);
+        var fora = (u.tv_mostrar === false) ? ' tv-fora' : '';
         var pes = u.pessoas || [];
         var linhas = pes.map(function(p, i){
           var ch = u.unidade + '||' + p.nome;
@@ -1122,7 +1133,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
                   '</div><div class="ag-barra"><i style="width:0"></i></div></div>';
         }
 
-        return '<div class="ag-uni' + lider + '" data-uni="' + esc(u.unidade) + '">' +
+        return '<div class="ag-uni' + lider + fora + '" data-uni="' + esc(u.unidade) + '">' +
                  '<div class="ag-uni-h"><span class="nm">' + esc(u.unidade) + '</span>' +
                  '<span class="sm">' + (u.total || 0) + '<small>AGS</small></span></div>' +
                  '<table><thead><tr><th class="c">Pos</th><th>TMK</th><th class="r">Ags</th></tr></thead>' +
@@ -1132,7 +1143,7 @@ if(document.readyState==="loading") document.addEventListener("DOMContentLoaded"
                '</div>';
       }).join('');
 
-      total(soma);
+      total(soma, somaTV);    
       primeira = false;
       ajusta();
       return comGente;
