@@ -96,6 +96,34 @@
   padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700;
   display:flex; align-items:center; gap:6px;
 }
+/* Botao que abre a escolha de flags da linha */
+.stat-cfg {
+  background:#1f1f1f; color:#a1a1aa; border:1px dashed #3f3f46;
+  cursor:pointer; font-family:inherit; letter-spacing:.5px;
+}
+.stat-cfg:hover { color:#fbbf24; border-color:#fbbf24; }
+.flagpick {
+  position:fixed; z-index:9999; width:250px; max-height:60vh; overflow:auto;
+  background:#141414; border:1px solid #2a2a2a; border-radius:10px;
+  padding:8px; box-shadow:0 10px 30px rgba(0,0,0,.6);
+}
+.flagpick .fp-tit {
+  font-size:10px; font-weight:800; color:#71717a;
+  letter-spacing:.5px; padding:4px 6px 8px;
+}
+.flagpick .fp-op {
+  display:flex; align-items:center; gap:8px; padding:6px 8px;
+  border-radius:6px; font-size:11px; font-weight:700; color:#e4e4e7; cursor:pointer;
+}
+.flagpick .fp-op:hover { background:#1f1f1f; }
+.flagpick .fp-op.on   { background:rgba(251,191,36,.12); color:#fbbf24; }
+.flagpick .fp-cor     { width:12px; height:12px; border-radius:3px; flex:0 0 12px; }
+.flagpick .fp-limpa {
+  width:100%; margin-top:6px; padding:7px; border-radius:6px; cursor:pointer;
+  background:#1f1f1f; border:1px solid #2a2a2a; color:#a1a1aa;
+  font-size:11px; font-weight:700; font-family:inherit;
+}
+.flagpick .fp-limpa:hover { color:#f87171; border-color:#f87171; }
 .paste-area {
   border:2px dashed #2a2a2a; border-radius:10px;
   padding:24px; color:#71717a; font-size:13px;
@@ -949,6 +977,20 @@ function renderTable() {
     </tr>`;
   }).join('');
 }
+// ── Linha de estatisticas: quais flags aparecem ────────────────────────────
+// A escolha e de quem usa a tela, nao do sistema: fica guardada no navegador,
+// por atendente. Nao vai ao banco de proposito — e preferencia de quem olha,
+// nao dado da operacao. Lista vazia = a linha volta a ser o que era antes.
+const EXTRA_KEY = 'confStatsFlags::' + (ATENDENTE || 'GERAL');
+let EXTRA_FLAGS = [];
+try{
+  const _e = JSON.parse(localStorage.getItem(EXTRA_KEY) || '[]');
+  if(Array.isArray(_e)) EXTRA_FLAGS = _e.filter(k => FLAGS.some(f => f.key === k));
+}catch(e){ EXTRA_FLAGS = []; }
+
+function salvaFlagPick(){
+  try{ localStorage.setItem(EXTRA_KEY, JSON.stringify(EXTRA_FLAGS)); }catch(e){}
+}
 function renderStats() {
   const total = filtered.length;
   const flagCount = {};
@@ -956,10 +998,71 @@ function renderStats() {
   const conf = flagCount['CONFIRMADO']||0;
   const pct  = total>0?Math.round((conf/total)*100):0;
   const pend = filtered.filter(r=>!r.flag).length;
+  // A conta e sempre sobre o que esta na tela (filtered), igual ao Confirmados.
+  const pc = n => total>0?Math.round((n/total)*100):0;
+  const extras = EXTRA_FLAGS.map(function(k){
+    const f = FLAGS.find(x=>x.key===k);
+    if(!f) return '';
+    const n = flagCount[k]||0;
+    return `<div class="conf-stat-chip" style="background:${f.bg};color:${f.color}">${esc(f.label)}: ${n} (${pc(n)}%)</div>`;
+  }).join('');
   document.getElementById('conf-stats').innerHTML = `
     <div class="conf-stat-chip" style="background:rgba(251,191,36,0.1);color:#fbbf24">📋 Total: ${total}</div>
     <div class="conf-stat-chip" style="background:rgba(34,197,94,0.1);color:#22c55e">✅ Confirmados: ${conf} (${pct}%)</div>
-    ${pend?`<div class="conf-stat-chip" style="background:#1f1f1f;color:#71717a">⏳ Pendentes: ${pend}</div>`:''}`;
+    ${pend?`<div class="conf-stat-chip" style="background:#1f1f1f;color:#71717a">⏳ Pendentes: ${pend}</div>`:''}
+    ${extras}
+    <button type="button" class="conf-stat-chip stat-cfg" onclick="abreFlagPick(event)" title="Escolher quais flags aparecem nesta linha">⚙ FLAGS</button>`;
+}
+function abreFlagPick(ev){
+  ev.stopPropagation();
+  if(document.getElementById('flagpick')){ fechaFlagPick(); return; }
+  const bt = ev.currentTarget;
+  const m = document.createElement('div');
+  m.id = 'flagpick'; m.className = 'flagpick';
+  m.innerHTML = '<div class="fp-tit">MOSTRAR NA LINHA</div>' +
+    FLAGS.map(function(f){
+      const on = EXTRA_FLAGS.indexOf(f.key) >= 0;
+      return '<label class="fp-op' + (on?' on':'') + '">' +
+             '<input type="checkbox" ' + (on?'checked':'') +
+             ' onchange="marcaFlagPick(this, \'' + f.key + '\')">' +
+             '<span class="fp-cor" style="background:' + f.bg + '"></span>' +
+             esc(f.label) + '</label>';
+    }).join('') +
+    '<button type="button" class="fp-limpa" onclick="limpaFlagPick()">Limpar todas</button>';
+  // vai pro body: dentro da linha ele ficaria preso no card
+  document.body.appendChild(m);
+  const r = bt.getBoundingClientRect();
+  m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 266)) + 'px';
+  m.style.top  = Math.min(r.bottom + 6, window.innerHeight - 40) + 'px';
+  setTimeout(function(){
+    document.addEventListener('click', fechaFlagPickFora);
+    document.addEventListener('keydown', fechaFlagPickEsc);
+  }, 0);
+}
+function fechaFlagPickFora(e){ if(!e.target.closest('#flagpick')) fechaFlagPick(); }
+function fechaFlagPickEsc(e){ if(e.key === 'Escape') fechaFlagPick(); }
+function fechaFlagPick(){
+  const m = document.getElementById('flagpick');
+  if(m) m.remove();
+  document.removeEventListener('click', fechaFlagPickFora);
+  document.removeEventListener('keydown', fechaFlagPickEsc);
+}
+function marcaFlagPick(el, key){
+  const i = EXTRA_FLAGS.indexOf(key);
+  if(el.checked && i < 0) EXTRA_FLAGS.push(key);
+  if(!el.checked && i >= 0) EXTRA_FLAGS.splice(i, 1);
+  // a linha segue a ordem oficial das FLAGS, nao a ordem dos cliques
+  EXTRA_FLAGS.sort((a,b)=> FLAGS.findIndex(f=>f.key===a) - FLAGS.findIndex(f=>f.key===b));
+  const lb = el.closest('.fp-op');
+  if(lb) lb.classList.toggle('on', el.checked);
+  salvaFlagPick();
+  renderStats();
+}
+function limpaFlagPick(){
+  EXTRA_FLAGS = [];
+  salvaFlagPick();
+  renderStats();
+  fechaFlagPick();
 }
 // ── Salvar observação ──────────────────────────────────────────────────────
 function saveObs(id, val){
