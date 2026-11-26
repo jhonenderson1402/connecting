@@ -455,7 +455,7 @@
       <button class="modal-close" onclick="closeResumoModal()">✕</button>
     </div>
     <div class="modal-body">
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px" id="resumo-stats"></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px" id="resumo-stats"></div>
       <p style="font-size:10px;font-weight:700;color:#71717a;letter-spacing:.15em;margin-bottom:10px">CONTAGEM POR FLAG</p>
       <div id="resumo-flags"></div>
       <div style="margin-top:12px;padding:10px 14px;background:rgba(255,255,255,0.03);border-radius:8px;display:flex;align-items:center;justify-content:space-between">
@@ -1103,21 +1103,29 @@ function openResumoModal() {
   FLAGS.forEach(f=>flagCount[f.key]=0);
   data.forEach(r=>{ if(r.flag && flagCount[r.flag]!==undefined) flagCount[r.flag]++; });
   const semFlag = data.filter(r=>!r.flag).length;
-  const conf = flagCount['CONFIRMADO']||0;
-  const pct  = total>0?Math.round((conf/total)*100):0;
+  const conf  = flagCount['CONFIRMADO']||0;
+  const exame = flagCount['EXAME REALIZADO']||0;
+  // Conversao = quem confirmou MAIS quem ja fez o exame. Decisao de 26/11:
+  // sao os dois desfechos bons do contato, e a conta tem que ser a mesma em
+  // toda a tela (aqui, no Extrair Dados e no Relatorio Fechamento).
+  const pct = total>0?Math.round(((conf+exame)/total)*100):0;
   document.getElementById('resumo-date-label').textContent = getDateStr();
   document.getElementById('resumo-stats').innerHTML = `
-    <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-size:22px;font-weight:800;color:#fbbf24">${total}</div>
-      <div style="font-size:10px;color:#71717a;margin-top:2px">TOTAL</div>
+    <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:12px 6px;text-align:center">
+      <div style="font-size:21px;font-weight:800;color:#fbbf24">${total}</div>
+      <div style="font-size:9px;color:#71717a;margin-top:3px;line-height:1.3">TOTAL</div>
     </div>
-    <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-size:22px;font-weight:800;color:#22c55e">${conf}</div>
-      <div style="font-size:10px;color:#71717a;margin-top:2px">CONFIRMADOS</div>
+    <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:12px 6px;text-align:center">
+      <div style="font-size:21px;font-weight:800;color:#22c55e">${conf}</div>
+      <div style="font-size:9px;color:#71717a;margin-top:3px;line-height:1.3">CONFIRMADOS</div>
     </div>
-    <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-size:22px;font-weight:800;color:#fbbf24">${pct}%</div>
-      <div style="font-size:10px;color:#71717a;margin-top:2px">CONVERSÃO</div>
+    <div style="background:rgba(21,128,61,0.12);border:1px solid rgba(21,128,61,0.35);border-radius:10px;padding:12px 6px;text-align:center">
+      <div style="font-size:21px;font-weight:800;color:#15803d">${exame}</div>
+      <div style="font-size:9px;color:#71717a;margin-top:3px;line-height:1.3">EXAME<br>REALIZADO</div>
+    </div>
+    <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:12px 6px;text-align:center">
+      <div style="font-size:21px;font-weight:800;color:#fbbf24">${pct}%</div>
+      <div style="font-size:9px;color:#71717a;margin-top:3px;line-height:1.3">CONVERSÃO</div>
     </div>`;
   const flagColors = {
     'CONFIRMADO':'#22c55e','SEM RETORNO':'#ca8a04','CANCELADO':'#dc2626',
@@ -1933,7 +1941,8 @@ async function buildRelatorioCompleto(periodo) {
   const desist  = data.filter(r => r.flag === 'DESISTÊNCIA').length;
   const mabe    = data.filter(r => r.flag === 'MABE' || /campanha\s*mabe/i.test(r.flag||'')).length;
   const unidErr = data.filter(r => r.flag === 'UNIDADE ERRADA');
-  const convPct = total>0 ? Math.round((conf/total)*100) : 0;
+  // mesma conta do Resumo do Dia: confirmado + exame realizado
+  const convPct = total>0 ? Math.round(((conf+exame)/total)*100) : 0;
   // Sem retorno agrupado por LÍDER (líder vem do agendamento, cruzado por TMK)
   const semretPorLider = {};
   data.filter(r => r.flag === 'SEM RETORNO').forEach(r => {
@@ -2060,22 +2069,27 @@ async function renderExtract() {
   const conf   = flagCount['CONFIRMADO']||0;
   const canc   = flagCount['CANCELADO']||0;
   const semret = flagCount['SEM RETORNO']||0;
-  const convPct = total>0?Math.round((conf/total)*100):0;
+  const exame  = flagCount['EXAME REALIZADO']||0;
+  // mesma conta do Resumo do Dia: confirmado + exame realizado
+  const convPct = total>0?Math.round(((conf+exame)/total)*100):0;
   // Ranking de TMK: total + confirmados + cada tipo de erro por TMK
   const ERRO_FLAGS = ['UNIDADE ERRADA','REAGENDOU','DESISTÊNCIA','CANCELADO','SEM RETORNO'];
   const tmkMap = {};
   data.forEach(r => {
     const t = (r.tmk||'').trim() || 'Sem TMK';
     if(!tmkMap[t]) {
-      tmkMap[t] = {total:0, conf:0, erros:0};
+      tmkMap[t] = {total:0, conf:0, erros:0, 'EXAME REALIZADO':0};
       ERRO_FLAGS.forEach(f => tmkMap[t][f] = 0);
     }
     tmkMap[t].total++;
     if(r.flag === 'CONFIRMADO') tmkMap[t].conf++;
+    // a TAXA% soma confirmado + exame realizado, entao o exame precisa ser contado
+    if(r.flag === 'EXAME REALIZADO') tmkMap[t]['EXAME REALIZADO']++;
     if(ERRO_FLAGS.includes(r.flag)) { tmkMap[t].erros++; tmkMap[t][r.flag]++; }
   });
   const tmkRank = Object.entries(tmkMap)
-    .map(([nome,d])=>({nome, ...d, taxa: d.total>0?Math.round((d.conf/d.total)*100):0}))
+    // mesma conta da conversao: confirmado + exame realizado
+    .map(([nome,d])=>({nome, ...d, taxa: d.total>0?Math.round(((d.conf+(d['EXAME REALIZADO']||0))/d.total)*100):0}))
     .sort((a,b)=>b.total-a.total);
   extractData = {periodo, label:_periodoLabel(periodo), total, conf, canc, semret, convPct,
                  flagCount, semFlag, tmkRank};
