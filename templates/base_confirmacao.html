@@ -141,7 +141,21 @@
       box-shadow:0 0 10px rgba(52,211,153,.6);
     }
     .conf-nav-item:focus-visible { outline:2px solid #34d399; outline-offset:2px; }
-    .conf-nav-icon { font-size:13px; width:17px; text-align:center; flex-shrink:0; }
+    /* Icone de traco no lugar do emoji. O emoji muda de desenho em cada
+       sistema e nao obedece a cor do texto — por isso parecia colado por cima.
+       O SVG herda o currentColor, entao segue o estado do item. */
+    .conf-nav-icon {
+      width:17px; height:17px; flex-shrink:0; display:flex;
+      align-items:center; justify-content:center;
+      color:#6a6a76; transition:color .13s;
+    }
+    .conf-nav-icon svg {
+      width:17px; height:17px; stroke:currentColor; fill:none;
+      stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;
+    }
+    .conf-nav-item:hover .conf-nav-icon { color:#b4b4be; }
+    .conf-nav-item.active .conf-nav-icon { color:#34d399; }
+    .conf-sair-box .conf-nav-item:hover .conf-nav-icon { color:#f87171; }
 
     /* encolhida: so o icone. O nome vira balao quando o mouse para em cima —
        sem isso a barra fina viraria adivinhacao. */
@@ -364,7 +378,7 @@
         {% if pode_conf('geral') %}
         <p class="conf-nav-label">NAVEGAÇÃO</p>
         <a href="/confirmacao" class="conf-nav-item {% if request.path == "/confirmacao" %}active{% endif %}">
-          <span class="conf-nav-icon">📊</span> <span class="conf-rot">Análise Geral</span>
+          <span class="conf-nav-icon"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg></span> <span class="conf-rot">Análise Geral</span>
         </a>
         {% endif %}
 
@@ -385,11 +399,11 @@
         <p class="conf-nav-label" style="margin-top:10px">CONFIGURAÇÃO</p>
         <a href="/configuracao/equipe"
            class="conf-nav-item {% if request.path == '/configuracao/equipe' %}active{% endif %}">
-          <span class="conf-nav-icon">⚙️</span> <span class="conf-rot">Equipe</span>
+          <span class="conf-nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></svg></span> <span class="conf-rot">Equipe</span>
         </a>
         <a href="/configuracao/usuarios"
            class="conf-nav-item {% if request.path == '/configuracao/usuarios' %}active{% endif %}">
-          <span class="conf-nav-icon">👤</span> <span class="conf-rot">Usuários</span>
+          <span class="conf-nav-icon"><svg viewBox="0 0 24 24"><path d="M16 20.5v-1.7a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.8v1.7"/><circle cx="10" cy="8" r="3.6"/><path d="M20 20.5v-1.7a3.5 3.5 0 0 0-2.6-3.4"/><path d="M15.5 4.6a3.5 3.5 0 0 1 0 6.8"/></svg></span> <span class="conf-rot">Usuários</span>
         </a>
         {% endif %}
 
@@ -405,7 +419,7 @@
       {% endif %}
       <div class="conf-sair-box">
         <a href="/logout" class="conf-nav-item">
-          <span class="conf-nav-icon">⎋</span> <span class="conf-rot">Sair</span>
+          <span class="conf-nav-icon"><svg viewBox="0 0 24 24"><path d="M9 21H5.5A1.5 1.5 0 0 1 4 19.5v-15A1.5 1.5 0 0 1 5.5 3H9"/><path d="m16 16 4-4-4-4M20 12H9"/></svg></span> <span class="conf-rot">Sair</span>
         </a>
       </div>
       <div class="conf-sidebar-footer">v3.2 — Connecting</div>
