@@ -142,6 +142,11 @@ class Unidade(Base):
     # comum. E numero, e nao o nome do dia, para nao depender de acento nem de
     # como alguem escreveu "sabado" — foi assim que a tela quebrou uma vez.
     agend_dia = Column(String(10), default='')
+    # Modo TV do cartao "Agendamentos do dia": a unidade aparece na tela
+    # cheia? soma no TOTAL DO DIA? 1 = sim, 0 = nao. Nascem ligadas, entao
+    # enquanto ninguem desmarcar nada o painel continua exatamente como era.
+    tv_mostrar = Column(Integer, default=1)
+    tv_somar   = Column(Integer, default=1)
 class Atendente(Base):
     __tablename__ = 'atendentes'
     id    = Column(Integer, primary_key=True, autoincrement=True)
@@ -327,7 +332,18 @@ def _run_migrations():
             conn.commit()
             print("[migration] Coluna 'agend_dia' adicionada à tabela unidades.")
         except Exception:
-            conn.rollback()  # Coluna já existe, ignora        # Migração: coluna 'data_fim' em ocorrencias (atestado de varios dias)
+            conn.rollback()  # Coluna já existe, ignora
+        # Migração: 'tv_mostrar' e 'tv_somar' — o modo TV do Resumo Geral.
+        # Nascem em 1 para o painel continuar igual ate alguem desmarcar.
+        for _col in ('tv_mostrar', 'tv_somar'):
+            try:
+                conn.execute(text(
+                    "ALTER TABLE unidades ADD COLUMN " + _col + " INTEGER DEFAULT 1"))
+                conn.commit()
+                print("[migration] Coluna '" + _col + "' adicionada à tabela unidades.")
+            except Exception:
+                conn.rollback()  # Coluna já existe, ignora
+        # Migração: coluna 'data_fim' em ocorrencias (atestado de varios dias)        
         try:
             conn.execute(text("ALTER TABLE ocorrencias ADD COLUMN data_fim VARCHAR(10) DEFAULT ''"))
             conn.commit()
@@ -542,11 +558,22 @@ def _dia_valido(v):
     return v
 
 
+def _tv_flag(v, padrao=1):
+    """Le a marca do modo TV. None (coluna recem-criada) vale como ligada."""
+    if v is None:
+        return bool(padrao)
+    if isinstance(v, str):
+        return v.strip() not in ('', '0', 'false', 'False')
+    return bool(v)
+
+
 def get_unidades():
     with SessionLocal() as s:
         rows = s.scalars(select(Unidade).order_by(Unidade.ordem, Unidade.id)).all()
         return [{'id': r.id, 'nome': r.nome, 'regiao': r.regiao or '',
-                 'ordem': r.ordem or 0, 'agend_dia': r.agend_dia or ''}
+                 'ordem': r.ordem or 0, 'agend_dia': r.agend_dia or '',
+                 'tv_mostrar': _tv_flag(r.tv_mostrar),
+                 'tv_somar':   _tv_flag(r.tv_somar)}
                 for r in rows]
 
 
@@ -562,6 +589,29 @@ def set_agend_dia_unidade(uid, agend_dia):
         s.execute(update(Unidade).where(Unidade.id == uid).values(agend_dia=dia))
         s.commit()
     return {'id': uid, 'agend_dia': dia}
+
+
+def set_tv_unidade(uid, tv_mostrar=None, tv_somar=None):
+    """Liga/desliga a unidade no modo TV. So rotulo — nao toca em lancamento.
+
+    Cada marca e opcional: mandar so uma nao mexe na outra.
+    """
+    campos = {}
+    if tv_mostrar is not None:
+        campos['tv_mostrar'] = 1 if _tv_flag(tv_mostrar) else 0
+    if tv_somar is not None:
+        campos['tv_somar'] = 1 if _tv_flag(tv_somar) else 0
+    if not campos:
+        raise ValueError("Informe tv_mostrar ou tv_somar.")
+    with SessionLocal() as s:
+        s.execute(update(Unidade).where(Unidade.id == uid).values(**campos))
+        s.commit()
+        u = s.scalar(select(Unidade).where(Unidade.id == uid))
+        if not u:
+            raise ValueError("Unidade nao encontrada.")
+        return {'id': u.id, 'nome': u.nome,
+                'tv_mostrar': _tv_flag(u.tv_mostrar),
+                'tv_somar':   _tv_flag(u.tv_somar)}
 def get_regioes():
     """Lista das regioes em uso, sem repetir."""
     vistas, out = set(), []
@@ -571,7 +621,7 @@ def get_regioes():
             vistas.add(r.lower())
             out.append(r)
     return sorted(out, key=lambda x: x.lower())
-def create_unidade(nome, regiao='', agend_dia=''):
+def create_unidade(nome, regiao='', agend_dia='', tv_mostrar=True, tv_somar=True):
     nome = (nome or '').strip().upper()
     regiao = (regiao or '').strip()
     agend_dia = _dia_valido(agend_dia)
@@ -585,12 +635,16 @@ def create_unidade(nome, regiao='', agend_dia=''):
         if s.scalar(select(Unidade).where(Unidade.nome == nome)):
             raise ValueError(f"A unidade '{nome}' ja existe.")
         prox = (s.scalar(select(func.max(Unidade.ordem))) or 0) + 1
-        u = Unidade(nome=nome, regiao=regiao, ordem=prox, agend_dia=agend_dia)
+        u = Unidade(nome=nome, regiao=regiao, ordem=prox, agend_dia=agend_dia,
+                    tv_mostrar=1 if _tv_flag(tv_mostrar) else 0,
+                    tv_somar=1 if _tv_flag(tv_somar) else 0)
         s.add(u)
         s.commit()
         s.refresh(u)
         return {'id': u.id, 'nome': u.nome, 'regiao': u.regiao or '',
-                'ordem': u.ordem, 'agend_dia': u.agend_dia or ''}
+                'ordem': u.ordem, 'agend_dia': u.agend_dia or '',
+                'tv_mostrar': _tv_flag(u.tv_mostrar),
+                'tv_somar':   _tv_flag(u.tv_somar)}
 def set_regiao_unidade(uid, regiao):
     """Renomeia/define a regiao de uma unidade. E so um rotulo — nao mexe em dados."""
     regiao = (regiao or '').strip()
