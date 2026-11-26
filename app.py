@@ -196,8 +196,20 @@ def login_required(view):
             return redirect(url_for('login', next=request.path))
         return view(*args, **kwargs)
     return wrapper
+# Quem administra o sistema: abre as telas de Ajustes e as rotas por tras
+# delas. 'ambos' NAO entra aqui — aquilo e "as duas equipes", nao "o sistema".
+PAPEIS_ADMIN = ('admin', 'all')
+
 def admin_required(view):
-    """Restringe a rota a usuários com papel 'admin'.
+    """Restringe a rota a quem administra o sistema.
+
+    Entram 'admin' e 'all' (Acesso total). Decisao de 26/11: o menu ja
+    mostrava Ajustes para quem tem Acesso total, e essas pessoas batiam numa
+    porta fechada, sem explicacao nenhuma. Agora a porta abre.
+
+    Isso inclui a tela de Usuarios: criar, apagar e trocar senha. Acesso
+    total quer dizer total.
+
     Páginas: redireciona pro dashboard. APIs: retorna 403 JSON."""
     @wraps(view)
     def wrapper(*args, **kwargs):
@@ -205,7 +217,7 @@ def admin_required(view):
             if _wants_json():
                 return _err('Não autenticado.', 401)
             return redirect(url_for('login', next=request.path))
-        if session.get('role') != 'admin':
+        if session.get('role') not in PAPEIS_ADMIN:
             if _wants_json():
                 return _err('Acesso restrito a administradores.', 403)
             return redirect(url_for('dashboard'))
@@ -533,7 +545,7 @@ def api_delete_user(uid):
 def api_change_password(uid):
     # Admin pode trocar a senha de qualquer usuário.
     # Não-admin só pode trocar a PRÓPRIA senha.
-    is_admin = session.get('role') == 'admin'
+    is_admin = session.get('role') in PAPEIS_ADMIN
     if not is_admin and uid != session.get('user_id'):
         return _err('Você só pode alterar a sua própria senha.', 403)
     data = request.get_json(silent=True) or {}
