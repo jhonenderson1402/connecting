@@ -19,30 +19,58 @@
     .conf-wrapper { display:flex; min-height:100vh; }
 
     /* ── Sidebar ── */
+    /* A largura mora numa variavel: a barra e o conteudo leem a MESMA medida,
+       entao encolher um empurra o outro sem a conta repetida em dois lugares. */
+    :root { --sbw:208px; }
+    body.sb-fina { --sbw:68px; }
+
     .conf-sidebar {
-      width:200px;
+      width:var(--sbw);
       /* Altura TRAVADA no tamanho da tela. Com min-height a barra crescia junto
          com a lista de atendentes e o Sair ficava fora do alcance, sem como
          rolar ate ele. A segunda linha usa a medida nova (dvh), que desconta a
          barra do navegador no celular; navegador antigo ignora e usa a de cima. */
       height:100vh;
       height:100dvh;
-      background:#0f0f0f;
-      border-right:1px solid #1f1f1f;
+      background:linear-gradient(180deg,#131313 0%,#0e0e0e 100%);
+      border-right:1px solid #1c1c1c;
+      /* a sombra e o que separa a barra do conteudo, sem precisar de risco grosso */
+      box-shadow:1px 0 0 rgba(255,255,255,.03), 10px 0 34px rgba(0,0,0,.5);
       display:flex; flex-direction:column;
       flex-shrink:0; position:fixed;
       top:0; left:0; z-index:100;
-      transition:transform .25s;
+      transition:width .22s cubic-bezier(.4,0,.2,1), transform .25s;
     }
+
+    /* botao de encolher: metade dentro, metade fora, na borda */
+    .conf-enc {
+      position:absolute; top:26px; right:-13px; z-index:5;
+      width:26px; height:26px; border-radius:50%; cursor:pointer; padding:0;
+      background:#1a1a1a; border:1px solid #2b2b2b; color:#9a9aa5;
+      display:flex; align-items:center; justify-content:center;
+      box-shadow:0 4px 14px rgba(0,0,0,.6); transition:all .15s;
+    }
+    .conf-enc:hover { background:#242424; color:#34d399; border-color:#34d399; }
+    .conf-enc svg {
+      width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2.2;
+      stroke-linecap:round; stroke-linejoin:round; transition:transform .22s;
+    }
+    body.sb-fina .conf-enc svg { transform:rotate(180deg); }
+
+    /* logo: inteira com a barra aberta, so o simbolo redondo ao encolher */
     .conf-sidebar-logo {
-      padding:20px 16px;
+      padding:18px 16px;
       border-bottom:1px solid #1f1f1f;
       text-align:center;
     }
-    .conf-sidebar-logo img {
-      width:100%; max-width:150px;
-      height:auto; display:block; margin:0 auto;
-    }
+    .conf-sidebar-logo img { display:block; margin:0 auto; }
+    .conf-logo-cheia { width:100%; max-width:150px; height:auto; }
+    .conf-logo-mini  { display:none; width:42px; height:42px; border-radius:50%;
+      box-shadow:0 4px 16px rgba(0,0,0,.6); }
+    body.sb-fina .conf-sidebar-logo { padding:18px 0; }
+    body.sb-fina .conf-logo-cheia { display:none; }
+    body.sb-fina .conf-logo-mini  { display:block; }
+
     /* cracha em contorno: deixa de disputar com o item ativo */
     .conf-team-badge {
       margin:11px 12px;
@@ -52,15 +80,23 @@
       font-size:9.5px; font-weight:750;
       color:#34d399; text-align:center; letter-spacing:.08em;
       background:linear-gradient(180deg,rgba(52,211,153,.08),transparent);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
       display:flex; align-items:center; justify-content:center; gap:6px;
+      white-space:nowrap; overflow:hidden;
     }
     .conf-team-badge::before {
       content:''; width:5px; height:5px; border-radius:50%; background:#34d399;
-      box-shadow:0 0 0 3px rgba(52,211,153,.15);
+      box-shadow:0 0 0 3px rgba(52,211,153,.15); flex:none;
     }
+    body.sb-fina .conf-team-badge { margin:11px 14px; padding:7px 0; gap:0; }
+    /* o nome da equipe nao cabe em 68px: encolhida sobra so a bolinha verde */
+    body.sb-fina .conf-team-badge .conf-rot { display:none; }
+
     .conf-nav { flex:1; padding:4px 10px 10px; overflow-y:auto; }
     .conf-nav::-webkit-scrollbar { width:6px; }
     .conf-nav::-webkit-scrollbar-thumb { background:#2a2a32; border-radius:99px; }
+    body.sb-fina .conf-nav { padding:4px 8px 10px; }
+
     .conf-nav-label {
       font-size:8.5px; font-weight:750;
       color:#5e5e6a; letter-spacing:.16em;
@@ -69,25 +105,49 @@
     }
     /* o primeiro rotulo nao leva fio: ja vem logo abaixo do cracha */
     .conf-nav-label:first-of-type { border-top:none; margin-top:0; padding-top:8px; }
+    /* encolhida o rotulo nao cabe: vira um tracinho que so separa os blocos */
+    body.sb-fina .conf-nav-label { font-size:0; padding:12px 0 6px; }
+    body.sb-fina .conf-nav-label::before {
+      content:''; display:block; height:1px; width:22px; margin:0 auto;
+      background:#242424;
+    }
+
     .conf-nav-item {
       display:flex; align-items:center; gap:9px;
       padding:7px 9px; border-radius:9px;
       font-size:12px; font-weight:500;
       color:#9a9aa5; cursor:pointer; margin-bottom:1px;
-      position:relative; transition:background .13s, color .13s;
+      position:relative; border:1px solid transparent;
+      transition:background .13s, color .13s, border-color .13s;
     }
     .conf-nav-item:hover { color:#ececf1; background:rgba(255,255,255,.045); }
     /* ativo: faixa fina na borda, no lugar do bloco verde macico */
     .conf-nav-item.active {
       color:#34d399; font-weight:650;
       background:linear-gradient(90deg,rgba(52,211,153,.17),rgba(52,211,153,.04));
+      border-color:rgba(52,211,153,.2);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 2px 12px rgba(52,211,153,.07);
     }
     .conf-nav-item.active::before {
-      content:''; position:absolute; left:0; top:6px; bottom:6px;
+      content:''; position:absolute; left:-1px; top:6px; bottom:6px;
       width:2.5px; border-radius:0 3px 3px 0; background:#34d399;
+      box-shadow:0 0 10px rgba(52,211,153,.6);
     }
     .conf-nav-item:focus-visible { outline:2px solid #34d399; outline-offset:2px; }
     .conf-nav-icon { font-size:13px; width:17px; text-align:center; flex-shrink:0; }
+
+    /* encolhida: so o icone. O nome vira balao quando o mouse para em cima —
+       sem isso a barra fina viraria adivinhacao. */
+    body.sb-fina .conf-nav-item { justify-content:center; padding:9px 0; gap:0; }
+    body.sb-fina .conf-nav-item .conf-rot { display:none; }
+    body.sb-fina .conf-nav-item:hover .conf-rot {
+      display:block; position:absolute; left:calc(100% + 14px); top:50%;
+      transform:translateY(-50%); z-index:40; white-space:nowrap;
+      background:#1f1f1f; border:1px solid #2d2d2d; border-radius:7px;
+      padding:6px 11px; font-size:12px; color:#ececf1; font-weight:600;
+      box-shadow:0 8px 24px rgba(0,0,0,.7);
+    }
+
     /* iniciais do atendente, no lugar do mesmo bonequinho repetido */
     .conf-ini {
       width:21px; height:21px; flex:0 0 auto; border-radius:7px;
@@ -97,11 +157,16 @@
       transition:background .13s, color .13s;
     }
     .conf-nav-item:hover .conf-ini { background:rgba(255,255,255,.1); color:#ececf1; }
-    .conf-nav-item.active .conf-ini { background:#34d399; color:#04281c; }
+    .conf-nav-item.active .conf-ini { background:#34d399; color:#04281c;
+      box-shadow:0 2px 8px rgba(52,211,153,.35); }
+
     /* Sair mora no rodape, fora da lista que rola */
     .conf-sair-box { padding:9px 10px; border-top:1px solid #1d1d23; }
     .conf-sair-box .conf-nav-item { margin:0; }
-    .conf-sair-box .conf-nav-item:hover { color:#f87171; background:rgba(248,113,113,.08); }
+    .conf-sair-box .conf-nav-item:hover { color:#f87171; background:rgba(248,113,113,.08);
+      border-color:rgba(248,113,113,.3); }
+    body.sb-fina .conf-sair-box { padding:9px 8px; }
+
     /* User box */
     .conf-user-box {
       padding:12px 16px;
@@ -110,10 +175,11 @@
     }
     .conf-user-avatar {
       width:32px; height:32px; border-radius:50%;
-      background:#22c55e; color:#052e16;
+      background:linear-gradient(135deg,#22c55e,#15803d); color:#052e16;
       font-weight:800; display:flex;
       align-items:center; justify-content:center;
       font-size:13px; flex-shrink:0;
+      box-shadow:0 3px 10px rgba(34,197,94,.3);
     }
     .conf-user-info { flex:1; min-width:0; }
     .conf-user-name {
@@ -121,12 +187,16 @@
       white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
     .conf-user-role { font-size:10px; color:#22c55e; }
+    body.sb-fina .conf-user-box { padding:12px 0; justify-content:center; }
+    body.sb-fina .conf-user-info { display:none; }
+
     .conf-sidebar-footer {
       padding:12px 16px;
       font-size:10px; color:#3f3f46;
       border-top:1px solid #1f1f1f;
+      white-space:nowrap; overflow:hidden;
     }
-
+    body.sb-fina .conf-sidebar-footer { font-size:0; padding:12px 0; }
     /* ── Mobile header ── */
     .conf-mobile-header {
       display:none; align-items:center; gap:12px;
@@ -140,7 +210,9 @@
     .conf-overlay.show { display:block; }
 
     /* ── Main ── */
-    .conf-main { flex:1; margin-left:200px; min-width:0; }
+    /* le a mesma variavel da barra: encolheu la, o conteudo vem junto */
+    .conf-main { flex:1; margin-left:var(--sbw); min-width:0;
+      transition:margin-left .22s cubic-bezier(.4,0,.2,1); }
 
     /* ── Reuse global styles ── */
     .page-content { padding:24px 32px; display:flex; flex-direction:column; gap:20px; }
@@ -150,7 +222,8 @@
     .title-bar { display:flex; align-items:center; gap:12px; }
     .title-accent { width:4px; height:32px; background:#22c55e; border-radius:4px; }
     .section-title { font-size:10px; font-weight:700; color:#71717a; letter-spacing:.15em; margin-bottom:10px; }
-    .card { background:#141414; border:1px solid #1f1f1f; border-radius:12px; padding:20px; }
+    .card { background:#141414; border:1px solid #1f1f1f; border-radius:12px; padding:20px;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.025), 0 10px 30px rgba(0,0,0,.35); }
     .filter-bar { display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px; }
     .filter-group { display:flex; flex-direction:column; gap:4px; }
     .filter-label { font-size:9px; font-weight:700; color:#71717a; letter-spacing:.15em; }
@@ -236,6 +309,31 @@
     .cdd-op.sel::after { content:'✓'; color:#22c55e; font-weight:700; }
     /* ── Responsive ── */
     @media (max-width:768px) {
+      /* no celular a barra e gaveta, nao encolhe: a largura volta a ser fixa
+         e a setinha some */
+      :root, body.sb-fina { --sbw:200px; }
+      .conf-enc { display:none; }
+      /* A barra fina e so de tela grande. No celular ela e gaveta: abre inteira,
+         com os nomes — mesmo que o navegador tenha guardado "encolhida" de
+         quando a pessoa estava no computador. */
+      body.sb-fina .conf-sidebar-logo { padding:18px 16px; }
+      body.sb-fina .conf-logo-cheia { display:block; }
+      body.sb-fina .conf-logo-mini { display:none; }
+      body.sb-fina .conf-team-badge { margin:11px 12px; padding:7px 10px; gap:6px; }
+      body.sb-fina .conf-team-badge .conf-rot { display:inline; }
+      body.sb-fina .conf-nav { padding:4px 10px 10px; }
+      body.sb-fina .conf-nav-label { font-size:8.5px; padding:14px 9px 6px; }
+      body.sb-fina .conf-nav-label::before { display:none; }
+      body.sb-fina .conf-nav-item { justify-content:flex-start; padding:7px 9px; gap:9px; }
+      body.sb-fina .conf-nav-item .conf-rot,
+      body.sb-fina .conf-nav-item:hover .conf-rot {
+        display:inline; position:static; transform:none; background:none;
+        border:none; padding:0; font-size:12px; font-weight:500; box-shadow:none;
+      }
+      body.sb-fina .conf-user-box { padding:12px 16px; justify-content:flex-start; }
+      body.sb-fina .conf-user-info { display:block; }
+      body.sb-fina .conf-sair-box { padding:9px 10px; }
+      body.sb-fina .conf-sidebar-footer { font-size:10px; padding:12px 16px; }
       .conf-sidebar { transform:translateX(-100%); }
       .conf-sidebar.open { transform:translateX(0); }
       .conf-mobile-header { display:flex; }
@@ -247,15 +345,19 @@
 <body>
   <div class="conf-wrapper">
     <aside class="conf-sidebar" id="conf-sidebar">
+      <button type="button" class="conf-enc" onclick="toggleBarra()" title="Encolher a barra">
+        <svg viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></svg>
+      </button>
       <div class="conf-sidebar-logo">
-        <img src="/static/logo.png" alt="Connecting"/>
+        <img class="conf-logo-cheia" src="/static/logo.png" alt="Connecting"/>
+        <img class="conf-logo-mini" src="/static/simbolo.png" alt="Connecting"/>
       </div>
-      <div class="conf-team-badge">EQUIPE CONFIRMAÇÃO</div>
+      <div class="conf-team-badge"><span class="conf-rot">EQUIPE CONFIRMAÇÃO</span></div>
       <nav class="conf-nav">
         {% if pode_conf('geral') %}
         <p class="conf-nav-label">NAVEGAÇÃO</p>
         <a href="/confirmacao" class="conf-nav-item {% if request.path == "/confirmacao" %}active{% endif %}">
-          <span class="conf-nav-icon">📊</span> Análise Geral
+          <span class="conf-nav-icon">📊</span> <span class="conf-rot">Análise Geral</span>
         </a>
         {% endif %}
 
@@ -268,7 +370,7 @@
         {% for nome in atendentes_list %}
         <a href="/confirmacao/{{ nome }}"
            class="conf-nav-item {% if atendente == nome %}active{% endif %}">
-          <span class="conf-ini">{{ nome.replace(' ','')[:2]|upper }}</span> {{ nome }}
+          <span class="conf-ini">{{ nome.replace(' ','')[:2]|upper }}</span> <span class="conf-rot">{{ nome }}</span>
         </a>
         {% endfor %}
 
@@ -276,11 +378,11 @@
         <p class="conf-nav-label" style="margin-top:10px">CONFIGURAÇÃO</p>
         <a href="/configuracao/equipe"
            class="conf-nav-item {% if request.path == '/configuracao/equipe' %}active{% endif %}">
-          <span class="conf-nav-icon">⚙️</span> Equipe
+          <span class="conf-nav-icon">⚙️</span> <span class="conf-rot">Equipe</span>
         </a>
         <a href="/configuracao/usuarios"
            class="conf-nav-item {% if request.path == '/configuracao/usuarios' %}active{% endif %}">
-          <span class="conf-nav-icon">👤</span> Usuários
+          <span class="conf-nav-icon">👤</span> <span class="conf-rot">Usuários</span>
         </a>
         {% endif %}
 
@@ -296,12 +398,12 @@
       {% endif %}
       <div class="conf-sair-box">
         <a href="/logout" class="conf-nav-item">
-          <span class="conf-nav-icon">⎋</span> Sair
+          <span class="conf-nav-icon">⎋</span> <span class="conf-rot">Sair</span>
         </a>
       </div>
       <div class="conf-sidebar-footer">v3.2 — Connecting</div>
     </aside>
-
+    
     <div class="conf-mobile-header">
       <button class="conf-hamburger" onclick="toggleConfSidebar()">☰</button>
       <span class="conf-mobile-title">✅ CONFIRMAÇÃO</span>
@@ -324,6 +426,18 @@
       document.getElementById('conf-sidebar').classList.toggle('open');
       document.getElementById('conf-overlay').classList.toggle('show');
     }
+
+    /* Encolher a barra. A escolha fica no navegador, por atendente que usa a
+       maquina — nao vai ao banco de proposito: e preferencia de quem olha, nao
+       dado da operacao. Quem gosta de encolhida abre encolhida amanha. */
+    function toggleBarra(){
+      var fina = document.body.classList.toggle('sb-fina');
+      try{ localStorage.setItem('confBarraFina', fina ? '1' : '0'); }catch(e){}
+    }
+    try{
+      if(localStorage.getItem('confBarraFina') === '1')
+        document.body.classList.add('sb-fina');
+    }catch(e){}
 
     function showToast(msg, type='success') {
       const t = document.createElement('div');
