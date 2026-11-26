@@ -260,6 +260,51 @@
 .fdd-op.sel{ font-weight:700; color:#fff; }
 .fdd-op.sel::after{ content:'✓'; margin-left:auto; color:#22c55e; font-weight:700; }
 .fdd-pt{ width:9px; height:9px; border-radius:50%; flex:none; }
+
+/* ══════ Caixa INCLUSÕES ══════
+   O formulario e uma linha so: digita, da Enter e ja lanca o proximo. A lista
+   do dia fica embaixo, com a lixeira em cada linha. */
+.incl-form{ display:grid; grid-template-columns:1.5fr 1fr 92px 1.1fr 74px auto;
+  gap:9px; align-items:end; }
+@media (max-width:760px){ .incl-form{ grid-template-columns:1fr 1fr; } }
+.incl-campo{ display:flex; flex-direction:column; gap:5px; min-width:0; }
+.incl-campo .input, .incl-campo .select, .incl-campo .cdd-bt{ width:100%; }
+.incl-aviso{ margin-top:11px; padding:8px 11px; border-radius:8px; font-size:11.5px;
+  background:rgba(255,187,0,.1); border:1px solid rgba(255,187,0,.35);
+  color:var(--primary); display:flex; align-items:center; gap:8px; }
+.incl-sep{ margin:16px 0 10px; display:flex; align-items:center; gap:9px; }
+.incl-sep .t{ font-size:9px; font-weight:750; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--muted-fg); }
+.incl-sep .ln{ flex:1; height:1px; background:var(--border); }
+.incl-cont{ font-size:9.5px; font-weight:700; color:var(--primary);
+  background:rgba(255,187,0,.12); border-radius:20px; padding:2px 9px; }
+.incl-lista{ border:1px solid var(--border); border-radius:9px; overflow:hidden; }
+.incl-cab, .incl-linha{ display:grid;
+  grid-template-columns:26px 1.5fr 1fr 1.1fr 74px 34px; gap:9px;
+  align-items:center; padding:7px 10px; }
+.incl-cab{ background:rgba(255,255,255,.03); font-size:8.5px; font-weight:700;
+  letter-spacing:.13em; color:var(--muted-fg); }
+.incl-linha{ border-top:1px solid var(--border); font-size:11.5px; }
+.incl-linha .n{ font-size:10px; font-weight:700; color:var(--muted-fg); text-align:center; }
+.incl-linha .nome{ font-weight:600; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; }
+.incl-linha.dup{ background:rgba(255,187,0,.07); }
+.incl-vazio{ padding:18px; text-align:center; color:var(--muted-fg); font-size:11px; }
+.incl-tag{ font-size:8.5px; font-weight:700; letter-spacing:.06em;
+  background:rgba(255,187,0,.18); color:var(--primary); border-radius:5px;
+  padding:2px 6px; margin-left:7px; white-space:nowrap; }
+.incl-lix{ background:none; border:1px solid transparent; border-radius:7px;
+  cursor:pointer; color:#86666a; height:26px; display:flex;
+  align-items:center; justify-content:center; }
+.incl-lix:hover{ background:rgba(248,113,113,.1);
+  border-color:rgba(248,113,113,.4); color:#f87171; }
+.incl-rodape{ display:flex; gap:8px; justify-content:flex-end; margin-top:16px;
+  border-top:1px solid var(--border); padding-top:13px; }
+.incl-voltar{ margin-right:auto; border-color:rgba(255,187,0,.45) !important;
+  color:var(--primary) !important; font-weight:600; }
+.incl-dica{ font-size:10.5px; color:var(--muted-fg); align-self:center; }
+.incl-bt-cont{ background:rgba(255,187,0,.18); color:var(--primary);
+  border-radius:20px; padding:1px 7px; font-size:9.5px; font-weight:700; }
 </style>
 <div class="page-content">
   <div class="page-header">
@@ -275,6 +320,13 @@
         <svg class="ic" viewBox="0 0 24 24"><path d="M4 19.5V5.2A1.2 1.2 0 0 1 5.2 4h11.6A1.2 1.2 0 0 1 18 5.2v14.3"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H18"/><path d="M8 8.5h6M8 12h6M8 15.5h3.5"/></svg>
         Resumo do Dia
       </button>
+      {% if atendente %}
+      <button onclick="openInclModal()">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M15.5 20.5v-1.6a3.4 3.4 0 0 0-3.4-3.4H6.4A3.4 3.4 0 0 0 3 18.9v1.6"/><circle cx="9.2" cy="8" r="3.6"/><path d="M18.5 7.5v6M21.5 10.5h-6"/></svg>
+        Inclusões
+        <span class="incl-bt-cont" id="incl-cont-bt" style="display:none">0</span>
+      </button>
+      {% endif %}
       <div class="rel-wrap">
         <button onclick="toggleRelMenu(event)">
           <svg class="ic" viewBox="0 0 24 24"><path d="M13.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5Z"/><path d="M13.5 3v5.5H19"/><path d="M8.5 13h7M8.5 16.5h4.5"/></svg>
@@ -537,6 +589,64 @@
     <div class="extract-body" id="extract-body"><div class="loading">Carregando...</div></div>
   </div>
 </div>
+{% if atendente %}
+<!-- Modal: Inclusões -->
+<div class="modal-overlay" id="modal-incl" onclick="closeInclModal()">
+  <div class="modal" style="max-width:780px;width:95vw" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span>➕ Inclusões — <span id="incl-quem"></span></span>
+      <button class="modal-close" onclick="closeInclModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:11.5px;color:#a1a1aa;margin-bottom:12px">
+        Cliente que não veio na planilha. Fica guardado só aqui — não entra na tabela do dia.
+      </p>
+      <div class="incl-form">
+        <div class="incl-campo">
+          <label class="filter-label">NOME</label>
+          <input class="input" id="incl-nome" placeholder="Nome do cliente"
+                 oninput="checaIncl()"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addIncl();}">
+        </div>
+        <div class="incl-campo">
+          <label class="filter-label">NÚMERO</label>
+          <input class="input" id="incl-num" placeholder="Pode ficar em branco"
+                 oninput="checaIncl()"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addIncl();}">
+        </div>
+        <div class="incl-campo">
+          <label class="filter-label">DATA</label>
+          <input class="input" id="incl-data" onchange="trocaDiaIncl()"
+                 title="Trocar aqui troca o dia da tela inteira">
+        </div>
+        <div class="incl-campo">
+          <label class="filter-label">UNIDADE</label>
+          <select class="select" id="incl-uni"></select>
+        </div>
+        <div class="incl-campo">
+          <label class="filter-label">HORÁRIO</label>
+          <input class="input" id="incl-hora" placeholder="08:00"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addIncl();}">
+        </div>
+        <button class="btn btn-primary" id="incl-add" onclick="addIncl()">✅ Incluir</button>
+      </div>
+      <div class="incl-aviso" id="incl-aviso" style="display:none"></div>
+      <div class="incl-sep">
+        <span class="t" id="incl-titulo">Incluídos</span>
+        <span class="incl-cont" id="incl-cont">0</span>
+        <span class="ln"></span>
+      </div>
+      <div class="incl-lista" id="incl-lista"></div>
+      <div class="incl-rodape">
+        <button class="btn btn-outline incl-voltar" onclick="closeInclModal()">
+          ← Voltar para a confirmação
+        </button>
+        <span class="incl-dica">TMK: <span id="incl-quem2"></span> — sai sozinho</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 <!-- Modal: Colar da Planilha -->
 <div class="modal-overlay" id="modal-paste" onclick="closePasteModal()">
   <div class="modal" style="max-width:860px;width:95vw" onclick="event.stopPropagation()">
@@ -654,6 +764,7 @@ async function loadDay() {
   applyFilter();
   document.getElementById('btn-clear').style.display = allConf.length > 0 ? '' : 'none';
   marcarDiasComDados();
+  carregaIncl();      /* a caixa INCLUSÕES sempre mostra o dia que está na tela */
 }
 // Pinta de verde, no seletor de DIA, os dias com registros (desta atendente) no mês/ano atual
 async function marcarDiasComDados() {
@@ -1074,6 +1185,215 @@ async function renderResumoMes() {
     </div>`;
 }
 function closeResumoModal() { document.getElementById('modal-resumo').classList.remove('show'); }
+
+/* ══════════ Inclusões ══════════════════════════════════════════════════════
+   Cliente que a atendente lança na mão. NÃO vira linha da tabela de
+   confirmações: mora numa unidade reservada por atendente (INCL::VIVIANE),
+   lida e gravada pelas rotas /api/inclusoes. A lista é sempre a do dia
+   escolhido no filtro do topo — por isso o campo DATA troca o dia da tela
+   inteira, em vez de guardar num dia que você não está vendo. */
+var INCL = [];
+
+function inclIso(){
+  var mi = parseInt(document.getElementById('sel-month').value);
+  var y  = document.getElementById('sel-year').value;
+  var d  = String(document.getElementById('sel-day').value).padStart(2,'0');
+  return y + '-' + String(mi + 1).padStart(2,'0') + '-' + d;
+}
+
+/* sem acento, sem espaço dobrado e em maiúscula: "josé  carlos" acha "JOSE CARLOS" */
+function inclChave(txt){
+  return String(txt || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+         .replace(/\s+/g,' ').trim().toUpperCase();
+}
+function inclNum(txt){ return String(txt || '').replace(/\D/g,''); }
+
+/* Onde este nome/número já aparece hoje. '' = em lugar nenhum. */
+function inclOndeJaTem(nome, numero, pularIdx){
+  var cn = inclChave(nome), cu = inclNum(numero);
+  if(!cn && !cu) return '';
+  for(var i = 0; i < INCL.length; i++){
+    if(i === pularIdx) continue;
+    var r = INCL[i] || {};
+    if((cn && inclChave(r.nome) === cn) || (cu && cu.length >= 8 && inclNum(r.numero) === cu))
+      return 'nas inclusões deste dia (linha ' + (i + 1) + ')';
+  }
+  for(var j = 0; j < (allConf || []).length; j++){
+    var c = allConf[j] || {};
+    if((cn && inclChave(c.cliente) === cn) || (cu && cu.length >= 8 && inclNum(c.contato) === cu))
+      return 'na tabela do dia, veio da planilha';
+  }
+  return '';
+}
+
+async function carregaIncl(){
+  if(!ATENDENTE){ return; }
+  try{
+    var r = await fetch('/api/inclusoes/' + inclIso() +
+                        '?atendente=' + encodeURIComponent(ATENDENTE));
+    INCL = r.ok ? await r.json() : [];
+  }catch(e){ INCL = []; }
+  if(!Array.isArray(INCL)) INCL = [];
+  pintaIncl();
+}
+
+async function salvaIncl(){
+  var r = await fetch('/api/inclusoes/' + inclIso(), {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({atendente: ATENDENTE, rows: INCL})
+  });
+  if(!r.ok){
+    var e = {};
+    try{ e = await r.json(); }catch(x){}
+    showToast(e.error || 'Erro ao salvar a inclusão.', 'error');
+    await carregaIncl();     /* volta ao que está no banco, não ao que eu achava */
+    return false;
+  }
+  return true;
+}
+
+function pintaIncl(){
+  var bt = document.getElementById('incl-cont-bt');
+  if(bt){
+    bt.textContent = INCL.length;
+    bt.style.display = INCL.length ? '' : 'none';
+  }
+  var cont = document.getElementById('incl-cont');
+  if(cont) cont.textContent = INCL.length;
+  var tit = document.getElementById('incl-titulo');
+  if(tit) tit.textContent = 'Incluídos em ' + getDateStr();
+  var lista = document.getElementById('incl-lista');
+  if(!lista) return;
+  if(!INCL.length){
+    lista.innerHTML = '<div class="incl-vazio">Nenhuma inclusão neste dia.</div>';
+    return;
+  }
+  var cab = '<div class="incl-cab"><span></span><span>NOME</span><span>NÚMERO</span>' +
+            '<span>UNIDADE</span><span>HORÁRIO</span><span></span></div>';
+  lista.innerHTML = cab + INCL.map(function(r, i){
+    var dup = inclOndeJaTem(r.nome, r.numero, i);
+    return '<div class="incl-linha' + (dup ? ' dup' : '') + '">' +
+      '<span class="n">' + (i + 1) + '</span>' +
+      '<span class="nome" title="' + esc(r.nome) + '">' + esc(r.nome) +
+        (dup ? '<span class="incl-tag" title="Também está ' + esc(dup) + '">JÁ EXISTE</span>' : '') +
+      '</span>' +
+      '<span>' + (esc(r.numero) || '—') + '</span>' +
+      '<span>' + (esc(r.unidade) || '—') + '</span>' +
+      '<span>' + (esc(r.horario) || '—') + '</span>' +
+      '<button class="incl-lix" title="Apagar" onclick="apagaIncl(' + i + ')">' +
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9.5 7V5.2A1.2 1.2 0 0 1 ' +
+        '10.7 4h2.6a1.2 1.2 0 0 1 1.2 1.2V7"/><path d="M6.5 7v12.3A1.7 1.7 0 0 0 8.2 21h7.6a1.7 ' +
+        '1.7 0 0 0 1.7-1.7V7"/><path d="M10.5 11v6M13.5 11v6"/></svg>' +
+      '</button></div>';
+  }).join('');
+}
+
+function checaIncl(){
+  var av = document.getElementById('incl-aviso');
+  if(!av) return;
+  var nome = document.getElementById('incl-nome').value;
+  var num  = document.getElementById('incl-num').value;
+  var onde = inclOndeJaTem(nome, num, -1);
+  if(!onde || !inclChave(nome)){ av.style.display = 'none'; return; }
+  av.style.display = '';
+  av.innerHTML = '⚠ <span><b>' + esc(nome.trim().toUpperCase()) + '</b> já está ' + esc(onde) +
+                 '. Pode incluir assim mesmo, mas confira antes.</span>';
+}
+
+async function addIncl(){
+  var nome = (document.getElementById('incl-nome').value || '').trim();
+  if(!nome){ showToast('Digite o nome.', 'error'); return; }
+  var bt = document.getElementById('incl-add');
+  if(bt) bt.disabled = true;
+  INCL.push({
+    nome:    nome.toUpperCase(),
+    numero:  (document.getElementById('incl-num').value || '').trim(),
+    unidade: (document.getElementById('incl-uni').value || '').trim(),
+    horario: (document.getElementById('incl-hora').value || '').trim()
+  });
+  var ok = await salvaIncl();
+  if(bt) bt.disabled = false;
+  if(!ok) return;
+  document.getElementById('incl-nome').value = '';
+  document.getElementById('incl-num').value  = '';
+  document.getElementById('incl-hora').value = '';
+  checaIncl();
+  pintaIncl();
+  document.getElementById('incl-nome').focus();
+  showToast('Inclusão salva.');
+}
+
+function apagaIncl(i){
+  var r = INCL[i];
+  if(!r) return;
+  var apaga = async function(){
+    INCL.splice(i, 1);
+    if(await salvaIncl()){ pintaIncl(); showToast('Inclusão apagada.'); }
+  };
+  if(typeof coConfirm === 'function')
+    coConfirm('Apagar a inclusão de <b>' + esc(r.nome) + '</b>?', apaga, 'Apagar');
+  else apaga();
+}
+
+/* O campo DATA troca o dia da tela inteira — assim a caixa e a tabela nunca
+   mostram dias diferentes. Ano fora da lista do filtro não dá: avisa e volta. */
+function trocaDiaIncl(){
+  var campo = document.getElementById('incl-data');
+  var m = String(campo.value || '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(!m){ campo.value = getDateStr(); return; }
+  var dia = parseInt(m[1], 10), mes = parseInt(m[2], 10), ano = parseInt(m[3], 10);
+  var selAno = document.getElementById('sel-year');
+  var temAno = Array.prototype.some.call(selAno.options, function(o){
+    return parseInt(o.value, 10) === ano;
+  });
+  if(!temAno || mes < 1 || mes > 12 || dia < 1 || dia > 31){
+    showToast('Data fora do que o filtro do topo oferece.', 'error');
+    campo.value = getDateStr();
+    return;
+  }
+  selAno.value = ano;
+  document.getElementById('sel-month').value = mes - 1;
+  document.getElementById('sel-day').value   = dia;
+  /* escrever no <select> não redesenha o botão do dropdown da casa: sem isto
+     o MÊS continuaria mostrando o mês velho enquanto os dados já trocaram */
+  if(typeof atualizaDropdown === 'function'){
+    atualizaDropdown('sel-month');
+    atualizaDropdown('sel-year');
+    atualizaDropdown('sel-day');
+  }
+  onDateChange();     /* recarrega a tabela do dia; o loadDay chama o carregaIncl */
+}
+
+function openInclModal(){
+  var sel = document.getElementById('incl-uni');
+  if(sel && !sel.options.length){
+    sel.innerHTML = '<option value="">—</option>' +
+      CTRL_UNIDADES.map(function(u){
+        return '<option value="' + u.nome + '">' + u.nome + '</option>';
+      }).join('');
+  }
+  if(typeof ligaDropdown === 'function') ligaDropdown('incl-uni', 'DIGITE A UNIDADE');
+  document.getElementById('incl-data').value = getDateStr();
+  var quem = document.getElementById('incl-quem');
+  if(quem) quem.textContent = (ATENDENTE || '') + ' · ' + getDateStr();
+  var quem2 = document.getElementById('incl-quem2');
+  if(quem2) quem2.textContent = ATENDENTE || '';
+  document.getElementById('incl-aviso').style.display = 'none';
+  document.getElementById('modal-incl').classList.add('show');
+  pintaIncl();
+  document.getElementById('incl-nome').focus();
+}
+function closeInclModal(){
+  document.getElementById('modal-incl').classList.remove('show');
+}
+
+/* Esc fecha, como nos outros modais da casa */
+document.addEventListener('keydown', function(e){
+  if(e.key !== 'Escape') return;
+  var m = document.getElementById('modal-incl');
+  if(m && m.classList.contains('show')) closeInclModal();
+});
 /* ══════════ Caixa Relatório: o menu e o Controle de Agendamentos ══════════ */
 function toggleRelMenu(ev){
   ev.stopPropagation();
