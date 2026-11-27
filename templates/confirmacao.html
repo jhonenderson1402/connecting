@@ -815,8 +815,9 @@
             <input type="file" id="csv-file" accept=".csv,text/csv" style="display:none" onchange="trataCsv(this)">
             <span class="csv-dica">
               Escolha o arquivo que você baixou. O sistema trata sozinho — tira a 1ª linha,
-              fica com as cinco colunas, conserta acento — baixa a planilha tratada e enche
-              a prévia aqui embaixo.
+              fica com as cinco colunas, conserta acento e <strong style="color:#a1a1aa">deixa
+              passar só as etapas LEADS INDICAÇÃO, AGENDADO e VISITA/EXAME PROJETO</strong> —
+              baixa a planilha tratada e enche a prévia aqui embaixo.
             </span>
           </div>
         </div>
@@ -2861,13 +2862,24 @@ document.addEventListener('keydown', function(e){
     // 'SAO LUIS':        'SÃO LUÍS'
   };
   
-  /* As colunas que interessam, na ordem em que o Colar da Planilha espera */
+  /* So estas etapas entram. Para aceitar mais uma, acrescente aqui — a
+     comparacao ignora acento e maiuscula, entao "LEADS INDICACAO" tambem passa. */
+  var ETAPAS_OK = ['LEADS INDICAÇÃO', 'AGENDADO', 'VISITA/EXAME PROJETO'];
+
+  function _etapaVale(e){
+    var k = _csvChave(e);
+    return ETAPAS_OK.some(function(x){ return _csvChave(x) === k; });
+  }
+
+  /* As colunas que interessam. A ETAPA e lida so para filtrar: ela NAO vai
+     para a planilha tratada nem para a previa. */
   var CSV_COLS = [
     {de:'NOME',                   para:'cliente'},
     {de:'RESPONSAVEL',            para:'tmk'},
     {de:'UNIDADE DE AGENDAMENTO', para:'unidade'},
     {de:'HORARIO DE AGENDAMENTO', para:'horario'},
-    {de:'TELEFONE',               para:'contato'}
+    {de:'TELEFONE',               para:'contato'},
+    {de:'ETAPA',                  para:'etapa'}
   ];
   
   /* sem acento, sem espaco dobrado, em maiuscula — so para COMPARAR */
@@ -2957,9 +2969,13 @@ document.addEventListener('keydown', function(e){
       return;
     }
   
-    var linhas = [];
+    var linhas = [], porEtapa = {}, fora = 0;
     for(var i = 2; i < cru.length; i++){
       var l = cru[i] || [];
+      var etapa = _csvLimpa(l[ondeEsta.etapa], true);
+      /* fora das tres etapas nao entra — e o que separa as poucas centenas
+         que interessam das milhares que vem no arquivo inteiro */
+      if(!_etapaVale(etapa)){ fora++; continue; }
       var r = {
         cliente: _csvLimpa(l[ondeEsta.cliente], true),
         tmk:     _csvLimpa(l[ondeEsta.tmk],     true),
@@ -2967,9 +2983,15 @@ document.addEventListener('keydown', function(e){
         horario: _csvLimpa(l[ondeEsta.horario], false),
         contato: _csvLimpa(l[ondeEsta.contato], false)
       };
-      if(r.cliente) linhas.push(r);     /* sem nome nao entra */
+      if(!r.cliente) continue;          /* sem nome nao entra */
+      var _k = etapa.toUpperCase();
+      porEtapa[_k] = (porEtapa[_k] || 0) + 1;
+      linhas.push(r);                   /* a etapa fica de fora do que sobe */
     }
-    if(!linhas.length){ showToast('Nenhuma linha com nome foi encontrada.', 'error'); return; }
+    if(!linhas.length){
+      showToast('Nenhuma linha nas etapas aceitas (' + fora + ' fora).', 'error');
+      return;
+    }
   
     _csvBaixa(linhas, nomeArq);
   
@@ -2980,7 +3002,13 @@ document.addEventListener('keydown', function(e){
       return [r.cliente, r.tmk, r.unidade, r.horario, r.contato].join('\t');
     }).join('\n');
     previewPaste();
-    showToast(linhas.length + ' linhas tratadas. Confira e clique em Importar.');
+    /* a conta por etapa, igual ao value_counts() do script: assim da para
+       conferir de relance se o arquivo veio do jeito esperado */
+    var conta = Object.keys(porEtapa).sort().map(function(k){
+      return k + ' ' + porEtapa[k];
+    }).join(' · ');
+    showToast(linhas.length + ' linhas tratadas — ' + conta +
+              (fora ? ' · ' + fora + ' fora das etapas' : '') + '.');
   }
   
   /* A planilha tratada, para voce guardar. Ponto e virgula e BOM: e assim que
