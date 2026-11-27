@@ -167,6 +167,7 @@
           <option value="confirmacao">Confirmação</option>
           <option value="ambos">Agendamento e Confirmação</option>
           <option value="personalizado">Personalizado</option>
+          <option value="visual">Somente visualização</option>
         </select>
       </div>
       <div class="perm-box" id="perm-add" style="display:none"></div>
@@ -216,6 +217,7 @@
           <option value="confirmacao">Confirmação</option>
           <option value="ambos">Agendamento e Confirmação</option>
           <option value="personalizado">Personalizado</option>
+          <option value="visual">Somente visualização</option>
         </select>
       </div>
       <div class="perm-box" id="perm-edit" style="display:none"></div>
@@ -271,6 +273,7 @@ const PAPEIS = {
   confirmacao:   {txt:'Confirmação',   ic:'check',   cor:'#4ade80'},
   ambos:         {txt:'Agend. e Confirm.', ic:'duplo', cor:'#c084fc'},
   personalizado: {txt:'Personalizado', ic:'pessoa',  cor:'#fb7185'},
+  visual:        {txt:'Somente visualização', ic:'busca', cor:'#60a5fa'},
 };
 function papelDe(r){ return PAPEIS[r] || PAPEIS.all; }
 
@@ -383,8 +386,9 @@ function resumoAcesso(u){
   if(u.role === 'agendamento') return 'Todas as unidades';
   if(u.role === 'confirmacao') return 'Todas as atendentes';
   if(u.role === 'ambos')       return 'As duas áreas, sem os ajustes';
+  if(u.role === 'visual')      return 'Vê tudo, não altera nada';
   if(u.role !== 'personalizado') return 'Tudo, inclusive os ajustes';
-
+     
   const p = u.permissoes || {};
   const partes = [];
   if((p.unidades || []).length)
