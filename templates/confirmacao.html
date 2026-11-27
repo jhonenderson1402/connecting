@@ -46,8 +46,25 @@
     overflow:hidden; text-overflow:ellipsis; font-size:12px;
   }
   .conf-table tbody tr:nth-child(even) td { background:#f1f5f9; }
-  .conf-table tbody tr:hover td { background:#dbeafe !important; }
-  .td-flag {
+.conf-table tbody tr:hover td { background:#dbeafe !important; }
+/* ══════ Celula editavel (MES ate HORARIO) ══════
+   Sem contorno de proposito: o contorno de duas celulas vizinhas se encosta
+   na divisoria e vira um risco escuro entre as colunas. O aviso de "da para
+   editar" e o fundo branco e um fio embaixo, que nao toca a coluna do lado. */
+.conf-table tbody td.ed { cursor:text; transition:background .12s, box-shadow .12s; }
+.conf-table tbody td.ed:hover { background:#ffffff !important;
+  box-shadow:inset 0 -2px 0 -1px #cbd5e1; }
+/* no foco a reticencia sai: senao o nome comprido fica cortado justo na hora
+   de corrigir */
+.conf-table tbody td.ed:focus { outline:none; background:#ffffff !important;
+  color:#0f172a; box-shadow:inset 0 -2px 0 0 #2563eb;
+  text-overflow:clip; overflow-x:auto; }
+.conf-table tbody td.ed-salvo { animation:edPisca 1.1s ease-out; }
+@keyframes edPisca {
+  0%   { background:#bbf7d0 !important; }
+  100% { background:transparent; }
+}
+.td-flag {
     position:sticky; right:200px; z-index:3;
     background:#f8fafc !important; min-width:200px;
     border-left:2px solid #cbd5e1;
@@ -1245,18 +1262,23 @@
       }${acoes}</td></tr>`;
       return;
     }
-    tbody.innerHTML = filtered.map((r, i) => {
-      const fCls = getFlagCls(r.flag);
-      const opts = FLAGS.map(f=>`<option value="${f.key}" ${r.flag===f.key?'selected':''} style="background:${f.bg};color:${f.color};font-weight:700">${f.label}</option>`).join('');
-      return `<tr>
-        <td class="td-num">${i+1}</td>
-        <td>${esc(r.mes)}</td>
-        <td>${esc(r.data_str)}</td>
-        <td title="${esc(r.cliente)}">${esc(r.cliente)}</td>
-        <td>${esc(r.tmk)}</td>
-        <td>${esc(r.unidade)}</td>
-        <td>${esc(r.horario)}</td>
-        <td>${esc(r.contato)}</td>
+  tbody.innerHTML = filtered.map((r, i) => {
+    const fCls = getFlagCls(r.flag);
+    const opts = FLAGS.map(f=>`<option value="${f.key}" ${r.flag===f.key?'selected':''} style="background:${f.bg};color:${f.color};font-weight:700">${f.label}</option>`).join('');
+    /* MES ate HORARIO editam na propria celula. O CONTATO fica de fora de
+       proposito: ele ja e editavel pelo bloco CONF-EDITMAIN la em cima, que
+       alem de salvar tira formula do Excel e marca #ERROR em vermelho. */
+    const ed = (campo, val, extra) =>
+      `<td class="ed" contenteditable="true" spellcheck="false" data-c="${campo}" data-id="${r.id}"${extra||''}>${esc(val||'')}</td>`;
+    return `<tr>
+      <td class="td-num">${i+1}</td>
+      ${ed('mes', r.mes)}
+      ${ed('data_str', r.data_str)}
+      ${ed('cliente', r.cliente, ` title="${esc(r.cliente)}"`)}
+      ${ed('tmk', r.tmk)}
+      ${ed('unidade', r.unidade)}
+      ${ed('horario', r.horario)}
+      <td>${esc(r.contato)}</td>
         <td class="td-flag">
           <button type="button" class="fdd-bt ${fCls}" onclick="abreFlag(event,this)">${esc(rotuloFlag(r.flag))}</button>
           <select class="flag-select ${fCls}" onchange="updateFlag(${r.id},this)" style="display:none">
@@ -1356,7 +1378,87 @@
     renderStats();
     fechaFlagPick();
   }
-  // ── Salvar observação ──────────────────────────────────────────────────────
+/* ══════ Editar na propria celula ═════════════════════════════════════════
+   Clica, digita, sai do campo e salva. Enter salva, Esc desfaz.
+   Os ouvintes moram no <tbody>, nao em cada celula: o renderTable refaz a
+   tabela a cada filtro, e amarrar celula por celula vazaria ouvinte toda vez
+   que a tabela fosse redesenhada. */
+var _edAntes = '';
+
+function ligaEdicaoCelula(){
+  var tb = document.getElementById('conf-tbody');
+  if(!tb || tb.dataset.ed) return;      /* nao liga duas vezes */
+  tb.dataset.ed = '1';
+
+  tb.addEventListener('focusin', function(e){
+    var td = e.target.closest ? e.target.closest('td.ed') : null;
+    if(td) _edAntes = td.textContent;
+  });
+
+  tb.addEventListener('keydown', function(e){
+    var td = e.target.closest ? e.target.closest('td.ed') : null;
+    if(!td) return;
+    if(e.key === 'Enter'){ e.preventDefault(); td.blur(); }
+    if(e.key === 'Escape'){ e.preventDefault(); td.textContent = _edAntes; td.blur(); }
+  });
+
+  /* colar numa celula trazia a formatacao do Excel junto (cor, fonte, ate
+     tabela inteira). Aqui entra so o texto. */
+  tb.addEventListener('paste', function(e){
+    var td = e.target.closest ? e.target.closest('td.ed') : null;
+    if(!td) return;
+    e.preventDefault();
+    var t = (e.clipboardData || window.clipboardData).getData('text');
+    document.execCommand('insertText', false, String(t || '').replace(/\s+/g, ' ').trim());
+  });
+
+  tb.addEventListener('focusout', function(e){
+    var td = e.target.closest ? e.target.closest('td.ed') : null;
+    if(td) salvaCelula(td, _edAntes);
+  });
+}
+
+async function salvaCelula(td, antes){
+  var novo = String(td.textContent || '').replace(/\s+/g, ' ').trim();
+  td.textContent = novo;
+  if(novo === String(antes || '').replace(/\s+/g, ' ').trim()) return;  /* nao mudou */
+
+  var id = Number(td.dataset.id);
+  var c  = td.dataset.c;
+  var corpo = {};
+  corpo[c] = novo;
+
+  try{
+    var r = await fetch('/api/confirmacoes/' + id, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(corpo)
+    });
+    if(!r.ok) throw new Error('resposta ' + r.status);
+  }catch(err){
+    /* o banco nao mudou: a tela tambem nao pode ficar mostrando o valor novo */
+    td.textContent = antes;
+    showToast('Não consegui salvar. O valor voltou ao anterior.', 'error');
+    return;
+  }
+
+  var it = allConf.find(function(x){ return x.id === id; });
+  if(it) it[c] = novo;
+  var f = filtered.find(function(x){ return x.id === id; });
+  if(f) f[c] = novo;
+
+  /* MES e DATA mandam a linha para outro dia — ela sai desta tela. Recarregar
+     e avisar e melhor do que a linha sumir sem explicacao. */
+  if(c === 'data_str' || c === 'mes'){
+    showToast('Movido para ' + novo + ' — saiu deste dia.');
+    await loadDay();
+    return;
+  }
+
+  td.classList.add('ed-salvo');
+  setTimeout(function(){ td.classList.remove('ed-salvo'); }, 1100);
+  showToast('Alteração salva.');
+}
+// ── Salvar observação ──────────────────────────────────────────────────────
   function saveObs(id, val){
     const it = allConf.find(r=>r.id===id); if(it) it.observacao = val;
     const f = filtered.find(r=>r.id===id); if(f) f.observacao = val;
@@ -2855,13 +2957,15 @@
     ligaDropdown('sel-year',    'DIGITE O ANO');
     ligaDropdown('sel-day',     'DIGITE O DIA');
     ligaDropdown('filter-flag', 'DIGITE A FLAG');
-    montaFcolCabecalho();   // põe o funil em cada cabeçalho
-    ligaSoltaCsv();         // arrastar o CSV para cima da tabela
+  montaFcolCabecalho();   // põe o funil em cada cabeçalho
+  ligaSoltaCsv();         // arrastar o CSV para cima da tabela
+  ligaEdicaoCelula();     // MÊS até HORÁRIO editam na própria célula
   });
   // Detecta Ctrl+V na página e abre modal de paste
   document.addEventListener('paste', (e) => {
     const active = document.activeElement;
-    if(active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) return;
+  if(active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' ||
+                active.tagName === 'SELECT' || active.isContentEditable)) return;
     e.preventDefault();
     const text = (e.clipboardData || window.clipboardData).getData('text');
     if(text && text.includes('\t')) {
