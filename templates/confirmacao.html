@@ -227,6 +227,13 @@
     color:#a1a1aa; font-family:inherit; }
   .ffd-pe button:hover { color:#e4e4e7; border-color:#3f3f46; }
   .ffd-pe .ok { background:rgba(34,197,94,.13); border-color:rgba(34,197,94,.45); color:#4ade80; }
+    /* O funil tambem na previa da importacao. O .funil e o .ffd ja sao globais;
+     so o .cab e o "filtrando" estavam presos a .conf-table. */
+  #paste-preview-table thead th .cab { display:flex; align-items:center; gap:6px; }
+  #paste-preview-table thead th.filtrando { background:#e8a800; }
+  #bt-plimpa { margin-right:auto; background:rgba(248,113,113,.1);
+    border:1px solid rgba(248,113,113,.4); color:#f87171; }
+  #bt-plimpa:hover { background:rgba(248,113,113,.2); }
   /* ══════ Carregar CSV baixado ══════ */
   .csv-box { display:flex; align-items:center; gap:11px; margin-top:11px; flex-wrap:wrap; }
   .csv-box .btn { white-space:nowrap; }
@@ -844,6 +851,9 @@
           <button onclick="resetPaste()" style="margin-top:8px;background:none;border:none;color:#71717a;font-size:12px;cursor:pointer">← Colar novamente</button>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+          <button type="button" class="btn" id="bt-plimpa" onclick="limpaPfcolTudo()" style="display:none">
+            ✕ Limpar filtros (<span class="n"></span>)
+          </button>
           <button class="btn btn-outline" onclick="closePasteModal()">Cancelar</button>
           <button class="btn btn-primary" id="btn-paste-confirm" onclick="confirmPaste()" style="display:none">✅ Importar <span id="paste-count"></span></button>
         </div>
@@ -2811,7 +2821,13 @@ document.addEventListener('keydown', function(e){
     document.getElementById('modal-paste').classList.add('show');
     setTimeout(()=>document.getElementById('paste-textarea').focus(), 100);
   }
-  function closePasteModal() { document.getElementById('modal-paste').classList.remove('show'); }
+  function closePasteModal() {
+    /* fechou, acabou: o proximo arquivo comeca sem filtro de ontem */
+    PFCOL = {}; PTODAS = [];
+    fechaPfcol();
+    pintaPfcol();
+    document.getElementById('modal-paste').classList.remove('show');
+  }
   document.addEventListener('DOMContentLoaded', () => {
     const ta = document.getElementById('paste-textarea');
     if(ta) ta.addEventListener('input', previewPaste);
@@ -2821,6 +2837,10 @@ document.addEventListener('keydown', function(e){
     if(!text) return;
     const rows = parsePasteText(text);
     if(rows.length === 0) return;
+    /* Previa NOVA (colou ou tratou o CSV): o total passa a ser esta lista e os
+       filtros zeram. Quando a chamada vem do proprio filtro, nao mexe — senao
+       a lista do funil encolheria a cada escolha. */
+    if(!_pFiltrando){ PTODAS = rows.slice(); PFCOL = {}; }
     // Monta preview em tabela
     const tbody = document.getElementById('paste-preview-body');
     tbody.innerHTML = rows.map((r,i) => `<tr style="background:${i%2===0?'#141414':'#1a1a1a'}">
@@ -2838,7 +2858,231 @@ document.addEventListener('keydown', function(e){
     document.getElementById('paste-step1').style.display = 'none';
     document.getElementById('paste-step2').style.display = '';
     document.getElementById('btn-paste-confirm').style.display = '';
+    montaPfcolCab();   // põe o funil em cada cabeçalho da prévia
+    pintaPfcol();
   }
+  /* ══════ Filtro por coluna na previa da importacao ═══════════════════════
+     Mesmo funil e mesmo dropdown da tabela do dia. A diferenca e o destino:
+     aqui filtrar REESCREVE a previa, e o Importar le a previa — entao sobe
+     exatamente o que ficou na tela, sem precisar mexer no confirmPaste. */
+  var PCOLS = [
+    {c:'mes', rot:'MÊS'}, {c:'data_str', rot:'DATA'}, {c:'cliente', rot:'CLIENTE'},
+    {c:'tmk', rot:'TMK'}, {c:'unidade', rot:'UNIDADE'}, {c:'horario', rot:'HORÁRIO'},
+    {c:'contato', rot:'CONTATO'}
+  ];
+  var PTODAS = [];      /* tudo que foi tratado, antes de qualquer filtro */
+  var PFCOL  = {};      /* o que esta filtrado agora */
+  var _pfcol = null;    /* o menu aberto agora */
+  var _pFiltrando = false;
+
+  function pfcolAtivos(){
+    var n = 0;
+    for(var c in PFCOL) if(PFCOL[c] && PFCOL[c].length) n++;
+    return n;
+  }
+  function pfcolVal(r, c){ return String(r && r[c] != null ? r[c] : '').trim(); }
+
+  function pfcolPassa(r, mapa){
+    var f = mapa || PFCOL;
+    for(var c in f){
+      if(!f[c] || !f[c].length) continue;
+      if(f[c].indexOf(pfcolVal(r, c)) < 0) return false;
+    }
+    return true;
+  }
+
+  /* A lista vem do total tratado, nao do que ja esta filtrado: senao as opcoes
+     sumiriam a cada escolha e nao daria para acrescentar de volta. */
+  function pfcolValores(c){
+    var m = {};
+    (PTODAS || []).forEach(function(r){
+      var v = pfcolVal(r, c);
+      m[v] = (m[v] || 0) + 1;
+    });
+    return Object.keys(m).sort(function(a, b){
+      if(a === '') return 1;
+      if(b === '') return -1;
+      return a.localeCompare(b, 'pt-BR', {numeric:true});
+    }).map(function(v){ return {v:v, n:m[v]}; });
+  }
+
+  function montaPfcolCab(){
+    var ths = document.querySelectorAll('#paste-preview-table thead th');
+    if(ths.length < PCOLS.length + 1) return;
+    PCOLS.forEach(function(col, i){
+      var th = ths[i + 1];        /* o primeiro e o do numero da linha */
+      if(!th || th.dataset.pfcol) return;
+      th.dataset.pfcol = col.c;
+      var txt = th.textContent;
+      th.innerHTML = '';
+      var cab = document.createElement('span');
+      cab.className = 'cab';
+      cab.appendChild(document.createTextNode(txt));
+      var bt = document.createElement('button');
+      bt.type = 'button';
+      bt.className = 'funil';
+      bt.title = 'Filtrar por ' + col.rot;
+      bt.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 5h16l-6.2 7.3V19l-3.6-2v-4.7Z"/></svg>';
+      bt.onclick = function(ev){ abrePfcol(ev, col.c); };
+      cab.appendChild(bt);
+      th.appendChild(cab);
+    });
+    pintaPfcol();
+  }
+
+  function pintaPfcol(){
+    document.querySelectorAll('#paste-preview-table thead th[data-pfcol]').forEach(function(th){
+      var lig = !!(PFCOL[th.dataset.pfcol] && PFCOL[th.dataset.pfcol].length);
+      th.classList.toggle('filtrando', lig);
+      var bt = th.querySelector('.funil');
+      if(bt) bt.classList.toggle('on', lig);
+    });
+    var b = document.getElementById('bt-plimpa');
+    if(b){
+      b.style.display = pfcolAtivos() ? '' : 'none';
+      var n = b.querySelector('.n');
+      if(n) n.textContent = pfcolAtivos();
+    }
+  }
+
+  function fechaPfcol(){
+    if(_pfcol && _pfcol.menu) _pfcol.menu.remove();
+    _pfcol = null;
+    document.removeEventListener('click', fechaPfcol);
+  }
+
+  function abrePfcol(ev, c){
+    ev.stopPropagation();
+    var jaEra = _pfcol && _pfcol.col === c;
+    fechaPfcol();
+    if(jaEra) return;
+    var vals = pfcolValores(c);
+    var sel  = (PFCOL[c] || []).slice();
+    var m = document.createElement('div');
+    m.className = 'ffd';
+    m.innerHTML =
+      '<div class="ffd-busca"><input type="text" placeholder="DIGITE PARA BUSCAR"></div>' +
+      '<div class="ffd-ops"></div>' +
+      '<div class="ffd-pe"><button type="button" class="lim">Limpar</button>' +
+      '<button type="button" class="ok">Aplicar</button></div>';
+    document.body.appendChild(m);
+    var ops = m.querySelector('.ffd-ops');
+    ops.innerHTML =
+      '<label class="ffd-op todos"><input type="checkbox"' + (sel.length ? '' : ' checked') +
+      '>(Todos)<span class="n">' + (PTODAS || []).length + '</span></label>' +
+      vals.map(function(o){
+        var on = sel.indexOf(o.v) >= 0;
+        return '<label class="ffd-op' + (on ? ' on' : '') + (o.v === '' ? ' vazio' : '') +
+               '" data-v="' + esc(o.v) + '"><input type="checkbox"' + (on ? ' checked' : '') +
+               '>' + esc(o.v === '' ? '(em branco)' : o.v) + '<span class="n">' + o.n +
+               '</span></label>';
+      }).join('');
+
+    var campo = m.querySelector('.ffd-busca input');
+    var todos = ops.querySelector('.todos input');
+    function linhas(){ return [].slice.call(ops.querySelectorAll('.ffd-op[data-v]')); }
+
+    ops.addEventListener('change', function(e){
+      var cx = e.target;
+      if(cx === todos){
+        if(todos.checked) linhas().forEach(function(l){
+          l.querySelector('input').checked = false;
+          l.classList.remove('on');
+        });
+        return;
+      }
+      var l = cx.closest('.ffd-op');
+      if(l) l.classList.toggle('on', cx.checked);
+      todos.checked = !linhas().some(function(x){ return x.querySelector('input').checked; });
+    });
+
+    campo.addEventListener('input', function(){
+      var q = String(campo.value || '').normalize('NFD')
+                .replace(/[\u0300-\u036f]/g,'').trim().toUpperCase();
+      linhas().forEach(function(l){
+        var t = String(l.textContent).normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g,'').toUpperCase();
+        l.style.display = t.indexOf(q) >= 0 ? '' : 'none';
+      });
+    });
+    campo.addEventListener('keydown', function(e){
+      e.stopPropagation();
+      if(e.key === 'Escape'){ e.preventDefault(); fechaPfcol(); }
+      if(e.key === 'Enter'){ e.preventDefault(); aplicaPfcol(c); }
+    });
+
+    m.addEventListener('click', function(e){ e.stopPropagation(); });
+    m.querySelector('.ok').onclick  = function(){ aplicaPfcol(c); };
+    m.querySelector('.lim').onclick = function(){
+      todos.checked = true;
+      linhas().forEach(function(l){
+        l.querySelector('input').checked = false;
+        l.classList.remove('on');
+      });
+      aplicaPfcol(c);
+    };
+
+    var r   = ev.currentTarget.getBoundingClientRect();
+    var alt = m.offsetHeight, lar = m.offsetWidth;
+    var sobra = (window.innerHeight || 800) - r.bottom;
+    m.style.left = Math.max(6, Math.min(r.left - lar + 30,
+                     (window.innerWidth || 1200) - lar - 6)) + 'px';
+    m.style.top  = (sobra < alt && r.top > sobra
+                     ? Math.max(6, r.top - alt - 4) : r.bottom + 4) + 'px';
+
+    _pfcol = {menu:m, col:c};
+    setTimeout(function(){
+      campo.focus({preventScroll:true});
+      document.addEventListener('click', fechaPfcol);
+    }, 0);
+  }
+
+  function aplicaPfcol(c){
+    if(!_pfcol) return;
+    var ops = _pfcol.menu.querySelectorAll('.ffd-op[data-v] input');
+    var escolhidos = [];
+    [].forEach.call(ops, function(cx){
+      if(cx.checked) escolhidos.push(cx.closest('.ffd-op').dataset.v);
+    });
+
+    /* testa ANTES de valer: filtro que zera a previa deixaria a tela sem
+       tabela e sem caminho de volta */
+    var tentativa = {};
+    for(var k in PFCOL) tentativa[k] = PFCOL[k];
+    if(escolhidos.length) tentativa[c] = escolhidos; else delete tentativa[c];
+
+    var vis = (PTODAS || []).filter(function(r){ return pfcolPassa(r, tentativa); });
+    if(!vis.length){
+      showToast('Esse filtro não deixa nenhuma linha. Nada foi alterado.', 'error');
+      return;
+    }
+    PFCOL = tentativa;
+    fechaPfcol();
+    escrevePrevia(vis);
+  }
+
+  function limpaPfcolTudo(){
+    PFCOL = {};
+    fechaPfcol();
+    escrevePrevia((PTODAS || []).slice());
+  }
+
+  /* Reescreve a previa com o que passou. O Importar le a previa, entao sobe
+     exatamente isto. As sete colunas separadas por TAB sao o formato que o
+     parsePasteText ja entende. */
+  function escrevePrevia(vis){
+    var ta = document.getElementById('paste-textarea');
+    ta.value = vis.map(function(r){
+      return [r.mes, r.data_str, r.cliente, r.tmk, r.unidade, r.horario, r.contato].join('\t');
+    }).join('\n');
+    _pFiltrando = true;
+    try{ previewPaste(); } finally { _pFiltrando = false; }
+    pintaPfcol();
+    var fora = (PTODAS || []).length - vis.length;
+    showToast(vis.length + ' linha(s) na prévia' +
+              (fora ? ' · ' + fora + ' escondida(s) pelo filtro' : '') + '.');
+  }
+
   function resetPaste() {
     document.getElementById('paste-step1').style.display = '';
     document.getElementById('paste-step2').style.display = 'none';
