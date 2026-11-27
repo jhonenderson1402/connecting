@@ -13,18 +13,25 @@
     position:sticky; top:0; z-index:3;
     border-right:1px solid rgba(0,0,0,0.1);
   }
+  /* Tres colunas grudam na borda direita. A ordem das medidas e de fora para
+     dentro: lixeira em 0, OBSERVAÇÃO depois dos 44px dela, FLAG depois dos
+     200px da OBSERVAÇÃO. Mexeu na largura de uma, acerte as de tras. */
   .th-flag {
-    position:sticky; top:0; right:200px; z-index:5;
+    position:sticky; top:0; right:244px; z-index:5;
     background:#fbbf24 !important; min-width:200px;
     border-left:2px solid rgba(0,0,0,0.2) !important;
     box-shadow:-4px 0 8px rgba(0,0,0,0.15);
   }
   .th-obs {
-    position:sticky; top:0; right:0; z-index:6;
+    position:sticky; top:0; right:44px; z-index:6;
     background:#fbbf24 !important; min-width:200px;
     border-left:2px solid rgba(0,0,0,0.2) !important;
   }
-  /* Coluna de número da linha, igual a do Excel */
+  .th-lix {
+    position:sticky; top:0; right:0; z-index:7;
+    background:#e8a800 !important; width:44px; min-width:44px;
+    padding:10px 4px !important;
+  }  /* Coluna de número da linha, igual a do Excel */
   .th-num {
     position:sticky; top:0; left:0; z-index:7;
     background:#e8a800 !important; width:44px; min-width:44px;
@@ -65,23 +72,57 @@
   100% { background:transparent; }
 }
 .td-flag {
-    position:sticky; right:200px; z-index:3;
+    position:sticky; right:244px; z-index:3;
     background:#f8fafc !important; min-width:200px;
     border-left:2px solid #cbd5e1;
     box-shadow:-4px 0 8px rgba(0,0,0,0.1);
     padding:4px 8px !important;
   }
   .td-obs {
-    position:sticky; right:0; z-index:4;
+    position:sticky; right:44px; z-index:4;
     background:#f8fafc !important; min-width:200px;
     border-left:2px solid #cbd5e1;
-    box-shadow:-4px 0 8px rgba(0,0,0,0.1);
     padding:4px 8px !important;
   }
+  .td-lix {
+    position:sticky; right:0; z-index:5;
+    background:#f8fafc !important; width:44px; min-width:44px;
+    text-align:center; padding:4px !important;
+    border-left:2px solid #cbd5e1;
+    box-shadow:-4px 0 8px rgba(0,0,0,0.1);
+  }
   .conf-table tbody tr:nth-child(even) td.td-flag,
-  .conf-table tbody tr:nth-child(even) td.td-obs { background:#eef2f7 !important; }
+  .conf-table tbody tr:nth-child(even) td.td-obs,
+  .conf-table tbody tr:nth-child(even) td.td-lix { background:#eef2f7 !important; }
   .conf-table tbody tr:hover td.td-flag,
-  .conf-table tbody tr:hover td.td-obs { background:#dbeafe !important; }
+  .conf-table tbody tr:hover td.td-obs,
+  .conf-table tbody tr:hover td.td-lix { background:#dbeafe !important; }
+  /* A lixeira so acende na linha em que o mouse esta. Cem icones vermelhos
+     acesos ao mesmo tempo viram ruido — e convidam ao clique errado. */
+  .lix {
+    width:26px; height:26px; border:1px solid transparent; border-radius:7px;
+    background:none; cursor:pointer; color:#cbd5e1;
+    display:inline-flex; align-items:center; justify-content:center;
+    transition:all .13s; padding:0;
+  }
+  .conf-table tbody tr:hover .lix { color:#94a3b8; }
+  .lix:hover { background:rgba(220,38,38,.1); border-color:rgba(220,38,38,.35);
+    color:#dc2626 !important; }
+  .lix svg { width:14px; height:14px; stroke:currentColor; fill:none;
+    stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  /* a linha que volta pelo desfazer pisca amarelo, para voce achar onde caiu */
+  .conf-table tbody tr.voltou td { animation:voltouPisca 1.4s ease-out; }
+  @keyframes voltouPisca {
+    0%   { background:#fde68a !important; }
+    100% { background:transparent; }
+  }
+  /* botao Desfazer na linha de estatisticas */
+  .stat-desf { background:#1f1f1f; color:#a1a1aa; border:1px solid #2f2f2f;
+    cursor:pointer; font-family:inherit; }
+  .stat-desf:hover:not(:disabled) { color:#fbbf24; border-color:#fbbf24; }
+  .stat-desf:disabled { opacity:.4; cursor:default; }
+  .stat-desf svg { width:13px; height:13px; stroke:currentColor; fill:none;
+    stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
   /* Flag select badge */
   .flag-select {
     appearance:none; -webkit-appearance:none;
@@ -516,6 +557,7 @@
               <th>TMK</th><th>UNIDADE</th><th>HORÁRIO</th>
               <th>CONTATO</th>
               <th class="th-flag">PROCESSO DE CONFIRMAÇÃO</th><th class="th-obs">OBSERVAÇÃO</th>
+              <th class="th-lix"></th>
             </tr>
           </thead>
           <tbody id="conf-tbody"></tbody>
@@ -1257,7 +1299,7 @@
           <button type="button" class="btn btn-outline" onclick="openPasteModal()">📋 Colar da Planilha</button>
         </div>
         <div class="td-vazio-dica">Ou arraste o arquivo .csv para cá.</div>` : '';
-      tbody.innerHTML = `<tr><td colspan="10" class="td-vazio">${
+      tbody.innerHTML = `<tr><td colspan="11" class="td-vazio">${
         vazio ? 'Nenhum dado para este dia.' : 'Nenhum resultado para os filtros aplicados.'
       }${acoes}</td></tr>`;
       return;
@@ -1270,7 +1312,7 @@
        alem de salvar tira formula do Excel e marca #ERROR em vermelho. */
     const ed = (campo, val, extra) =>
       `<td class="ed" contenteditable="true" spellcheck="false" data-c="${campo}" data-id="${r.id}"${extra||''}>${esc(val||'')}</td>`;
-    return `<tr>
+    return `<tr data-id="${r.id}">
       <td class="td-num">${i+1}</td>
       ${ed('mes', r.mes)}
       ${ed('data_str', r.data_str)}
@@ -1287,6 +1329,11 @@
           </select>
         </td>
         <td class="td-obs"><input type="text" value="${esc(r.observacao||'')}" placeholder="Anotação..." onchange="saveObs(${r.id}, this.value)" style="width:100%;min-width:150px;border:1px solid #d1d5db;border-radius:5px;padding:4px 6px;font-size:11px;background:#fff;color:#111"/></td>
+        <td class="td-lix">
+          <button type="button" class="lix" title="Excluir esta linha" onclick="apagaLinha(${r.id})">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V5.2A1.2 1.2 0 0 1 10.7 4h2.6a1.2 1.2 0 0 1 1.2 1.2V7"/><path d="M6.5 7v12.3A1.7 1.7 0 0 0 8.2 21h7.6a1.7 1.7 0 0 0 1.7-1.7V7"/><path d="M10.5 11v6M13.5 11v6"/></svg>
+          </button>
+        </td>
       </tr>`;
     }).join('');
   }
@@ -1325,7 +1372,12 @@
       ${pend?`<div class="conf-stat-chip" style="background:#1f1f1f;color:#71717a">⏳ Pendentes: ${pend}</div>`:''}
       ${extras}
       ${fcolAtivos()?`<button type="button" class="conf-stat-chip stat-limpa" onclick="limpaFcolTudo()" title="Tirar todos os filtros de coluna">✕ Limpar filtros (${fcolAtivos()})</button>`:''}
+      <button type="button" class="conf-stat-chip stat-desf" id="bt-desfazer" onclick="desfaz()" title="Desfazer a última ação (Ctrl+Z)">
+        <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
+        Desfazer <span class="n"></span>
+      </button>
       <button type="button" class="conf-stat-chip stat-cfg" onclick="abreFlagPick(event)" title="Escolher quais flags aparecem nesta linha">⚙ FLAGS</button>`;
+    pintaDesfazer();   /* o botao e refeito a cada render: reaplica o estado */
   }
   function abreFlagPick(ev){
     ev.stopPropagation();
@@ -1441,6 +1493,7 @@ async function salvaCelula(td, antes){
     return;
   }
 
+  empilha({tipo:'editou', id:id, campo:c, antes:String(antes || '')});
   var it = allConf.find(function(x){ return x.id === id; });
   if(it) it[c] = novo;
   var f = filtered.find(function(x){ return x.id === id; });
@@ -1458,8 +1511,118 @@ async function salvaCelula(td, antes){
   setTimeout(function(){ td.classList.remove('ed-salvo'); }, 1100);
   showToast('Alteração salva.');
 }
+/* ══════ Apagar linha e desfazer ═════════════════════════════════════════
+   A pilha guarda as ultimas 30 acoes DESTA tela: edicao de celula, flag,
+   observacao e linha apagada. Mora na memoria de proposito — guardar no banco
+   seria tabela nova, e isto aqui e rede de protecao do minuto seguinte, nao
+   historico de auditoria. Recarregou a pagina, zera. */
+var PILHA = [];
+var PILHA_MAX = 30;
+
+function empilha(it){
+  PILHA.push(it);
+  if(PILHA.length > PILHA_MAX) PILHA.shift();
+  pintaDesfazer();
+}
+
+function pintaDesfazer(){
+  var b = document.getElementById('bt-desfazer');
+  if(!b) return;
+  b.disabled = PILHA.length === 0;
+  var n = b.querySelector('.n');
+  if(n) n.textContent = PILHA.length ? '(' + PILHA.length + ')' : '';
+}
+
+async function apagaLinha(id){
+  var i = (allConf || []).findIndex(function(r){ return r.id === id; });
+  if(i < 0) return;
+  var r = allConf[i];
+  try{
+    var res = await fetch('/api/confirmacoes/' + id, {method:'DELETE'});
+    if(!res.ok) throw new Error('resposta ' + res.status);
+  }catch(e){
+    showToast('Não consegui apagar. A linha continua aí.', 'error');
+    return;
+  }
+  /* guarda a posicao tambem: no desfazer ela volta onde estava, nao no fim */
+  empilha({tipo:'apagou', pos:i, linha:Object.assign({}, r)});
+  allConf.splice(i, 1);
+  applyFilter();
+  document.getElementById('btn-clear').style.display = allConf.length > 0 ? '' : 'none';
+  showToast('Linha apagada — Ctrl+Z para voltar.');
+}
+
+async function desfaz(){
+  var it = PILHA.pop();
+  pintaDesfazer();
+  if(!it) return;
+
+  if(it.tipo === 'apagou'){
+    /* o registro foi apagado de verdade: desfazer grava de novo. Os dados
+       voltam iguais, mas com id novo — nao e "a mesma linha" para o banco. */
+    var l = it.linha;
+    var corpo = {
+      atendente: l.atendente || ATENDENTE || '',
+      mes: l.mes, data_str: l.data_str, cliente: l.cliente, tmk: l.tmk,
+      unidade: l.unidade, horario: l.horario, contato: l.contato,
+      flag: l.flag || '', observacao: l.observacao || ''
+    };
+    try{
+      var res = await fetch('/api/confirmacoes', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(corpo)
+      });
+      if(!res.ok) throw new Error('resposta ' + res.status);
+      var out = await res.json();
+      corpo.id = out.id;
+    }catch(e){
+      showToast('Não consegui trazer a linha de volta.', 'error');
+      return;
+    }
+    allConf.splice(Math.min(it.pos, allConf.length), 0, corpo);
+    applyFilter();
+    document.getElementById('btn-clear').style.display = allConf.length > 0 ? '' : 'none';
+    var tr = document.querySelector('#conf-tbody tr[data-id="' + corpo.id + '"]');
+    if(tr) tr.classList.add('voltou');
+    showToast(String(corpo.cliente || 'Linha') + ' voltou.');
+    return;
+  }
+
+  var campo = it.tipo === 'flag' ? 'flag' : (it.tipo === 'obs' ? 'observacao' : it.campo);
+  var corpo2 = {};
+  corpo2[campo] = it.antes;
+  try{
+    var r2 = await fetch('/api/confirmacoes/' + it.id, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(corpo2)
+    });
+    if(!r2.ok) throw new Error('resposta ' + r2.status);
+  }catch(e){
+    showToast('Não consegui desfazer.', 'error');
+    return;
+  }
+  var a = allConf.find(function(x){ return x.id === it.id; });
+  if(a) a[campo] = it.antes;
+  var f = filtered.find(function(x){ return x.id === it.id; });
+  if(f) f[campo] = it.antes;
+  applyFilter();
+  showToast(campo.toUpperCase() + ' voltou ao valor anterior.');
+}
+
+/* Ctrl+Z so com o foco FORA de um campo: dentro da celula o desfazer e o do
+   proprio navegador, e tomar isso dele atrapalharia quem esta digitando. */
+document.addEventListener('keydown', function(e){
+  if(!(e.ctrlKey || e.metaKey) || String(e.key).toLowerCase() !== 'z') return;
+  var a = document.activeElement;
+  if(a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable)) return;
+  e.preventDefault();
+  desfaz();
+});
 // ── Salvar observação ──────────────────────────────────────────────────────
   function saveObs(id, val){
+    const ant = allConf.find(r=>r.id===id);
+    if(ant && String(ant.observacao||'') !== String(val||''))
+      empilha({tipo:'obs', id:id, antes:String(ant.observacao||'')});
     const it = allConf.find(r=>r.id===id); if(it) it.observacao = val;
     const f = filtered.find(r=>r.id===id); if(f) f.observacao = val;
     fetch("/api/confirmacoes/"+id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({observacao:val})});
@@ -1467,6 +1630,9 @@ async function salvaCelula(td, antes){
   // ── Atualizar flag ─────────────────────────────────────────────────────────
   async function updateFlag(id, sel) {
     const flag = sel.value;
+    const ant = allConf.find(r=>r.id===id);
+    if(ant && String(ant.flag||'') !== String(flag||''))
+      empilha({tipo:'flag', id:id, antes:String(ant.flag||'')});
     sel.className = 'flag-select ' + getFlagCls(flag);
     pintaFlag(sel);
     const item = allConf.find(r=>r.id===id);
