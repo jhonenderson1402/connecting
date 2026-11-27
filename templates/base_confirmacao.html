@@ -362,6 +362,59 @@
       .page-content { padding:12px; }
     }
   </style>
+  <script>
+  /* ══════ Somente visualização ══════════════════════════════════════════
+     O bloqueio DE VERDADE mora no app.py, que recusa POST/PUT/PATCH/DELETE
+     com 403. Este bloco e so a cara disso na tela: em vez de a pessoa clicar,
+     esperar a resposta e ver um erro cru, o proprio fetch do navegador recusa
+     na hora e avisa com a mesma mensagem.
+     E um laco no fetch, e nao botao escondido um por um, porque assim vale em
+     TODA tela — inclusive nas que ainda nao existem. Ninguem precisa lembrar
+     de travar nada quando criar uma tela nova. */
+  (function(){
+    if(!{{ so_leitura | tojson }}) return;
+
+    document.addEventListener('DOMContentLoaded', function(){
+      /* a classe fica disponivel para, um dia, esconder botao por CSS */
+      document.body.classList.add('so-leitura');
+      var e = document.createElement('style');
+      e.textContent = '#selo-leitura{position:fixed;right:18px;bottom:18px;z-index:2147483100;' +
+        'display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;' +
+        'background:rgba(96,165,250,.14);border:1px solid rgba(96,165,250,.45);' +
+        'color:#60a5fa;font:800 9.5px Inter,sans-serif;letter-spacing:.11em;' +
+        'box-shadow:0 6px 20px rgba(0,0,0,.45);pointer-events:none}' +
+        '#selo-leitura svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.9}';
+      document.head.appendChild(e);
+      /* sem o selo a pessoa clica, nada acontece e ela acha que travou */
+      var d = document.createElement('div');
+      d.id = 'selo-leitura';
+      d.innerHTML = '<svg viewBox="0 0 24 24"><path d="M2 12s3.8-7 10-7 10 7 10 7-3.8 7-10 7-10-7-10-7Z"/>' +
+                    '<circle cx="12" cy="12" r="3"/></svg>SOMENTE VISUALIZAÇÃO';
+      document.body.appendChild(d);
+    });
+
+    var ESCRITA = {POST:1, PUT:1, PATCH:1, DELETE:1};
+    var _fetch = window.fetch;
+    var _ultimo = 0;
+    window.fetch = function(alvo, opc){
+      var m = String((opc && opc.method) || (alvo && alvo.method) || 'GET').toUpperCase();
+      if(!ESCRITA[m]) return _fetch.apply(window, arguments);
+      /* um aviso por vez: a tela as vezes dispara varias gravacoes seguidas,
+         e seis avisos iguais empilhados nao ajudam ninguem */
+      var agora = Date.now();
+      if(agora - _ultimo > 1500){
+        _ultimo = agora;
+        if(typeof showToast === 'function')
+          showToast('Seu acesso é somente visualização.', 'error');
+      }
+      /* responde 403, igual ao servidor: quem chamou ja sabe tratar isso,
+         entao a celula volta sozinha ao valor antigo */
+      return Promise.resolve(new Response(
+        '{"error":"Este acesso é somente visualização."}',
+        {status:403, headers:{'Content-Type':'application/json'}}));
+    };
+  })();
+  </script>
 </head>
 <body>
   <div class="conf-wrapper">
@@ -413,7 +466,7 @@
         <div class="conf-user-avatar">{{ current_user[0]|upper }}</div>
         <div class="conf-user-info">
           <div class="conf-user-name">{{ current_user }}</div>
-          <div class="conf-user-role">Confirmação</div>
+          <div class="conf-user-role">{% if so_leitura %}Somente visualização{% else %}Confirmação{% endif %}</div>
         </div>
       </div>
       {% endif %}
