@@ -3105,6 +3105,57 @@ document.addEventListener('keydown', function(e){
     // 'MANAUS - CENTRO': 'MANAUS CENTRO',
     // 'SAO LUIS':        'SÃO LUÍS'
   };
+
+  /* ══════ Padronizar o nome da UNIDADE ═════════════════════════════════════
+     A planilha traz a mesma unidade de varias formas: MARABA, MarabÃ¡, MARABÃ,
+     TELEGRAFO, Telegrafo. Vira tudo a grafia que o SISTEMA usa — e o sistema
+     e quem manda, nao uma lista minha: a referencia e o cadastro de bairros e
+     unidades (Configuracao → Unidades). Cadastrou um bairro novo la, o
+     tratamento reconhece sozinho, sem mexer em codigo. */
+  var UNI_PADRAO = {};      /* chave sem acento/caixa -> nome oficial */
+
+  /* Nomes que a planilha usa e o cadastro nao conhece. So e consultado DEPOIS
+     de tentar o cadastro: assim, se um dia o bairro for cadastrado com o nome
+     da planilha, o cadastro ganha e esta linha para de ser usada sozinha. */
+  var UNI_TROCAS = {
+    'AUGUSTO MONTENEGRO': 'Augusto'
+  };
+
+  async function carregaUnidadesPadrao(){
+    UNI_PADRAO = {};
+    try{
+      var r = await fetch('/api/bairros/mapa');
+      if(r.ok){
+        var mapa = await r.json();
+        Object.keys(mapa || {}).forEach(function(uni){
+          UNI_PADRAO[_csvChave(uni)] = uni;              /* PARÁ, MANAUS... */
+          (mapa[uni] || []).forEach(function(b){
+            if(b) UNI_PADRAO[_csvChave(b)] = b;          /* Marabá, Telegrafo... */
+          });
+        });
+      }
+    }catch(e){}
+    try{
+      var r2 = await fetch('/api/unidades');
+      if(r2.ok){
+        var us = await r2.json();
+        (us || []).forEach(function(u){
+          if(u && u.nome) UNI_PADRAO[_csvChave(u.nome)] = u.nome;
+        });
+      }
+    }catch(e){}
+  }
+
+  function padronizaUnidade(v){
+    var k = _csvChave(v);
+    if(!k) return v;
+    if(UNI_PADRAO[k]) return UNI_PADRAO[k];      /* o cadastro manda */
+    var alvo = UNI_TROCAS[k];
+    if(alvo) return UNI_PADRAO[_csvChave(alvo)] || alvo;
+    /* nao conheco este nome: deixa como veio, em vez de inventar. Assim ele
+       aparece esquisito na previa e voce percebe que falta cadastrar. */
+    return v;
+  }
   
   /* So estas etapas entram. Para aceitar mais uma, acrescente aqui — a
      comparacao ignora acento e maiuscula, entao "LEADS INDICACAO" tambem passa. */
@@ -3223,7 +3274,7 @@ document.addEventListener('keydown', function(e){
       var r = {
         cliente: _csvLimpa(l[ondeEsta.cliente], true),
         tmk:     _csvLimpa(l[ondeEsta.tmk],     true),
-        unidade: _csvLimpa(l[ondeEsta.unidade], true),
+        unidade: padronizaUnidade(_csvLimpa(l[ondeEsta.unidade], true)),
         horario: _csvLimpa(l[ondeEsta.horario], false),
         contato: _csvLimpa(l[ondeEsta.contato], false)
       };
@@ -3398,6 +3449,7 @@ document.addEventListener('keydown', function(e){
   montaFcolCabecalho();   // põe o funil em cada cabeçalho
   ligaSoltaCsv();         // arrastar o CSV para cima da tabela
   ligaEdicaoCelula();     // MÊS até HORÁRIO editam na própria célula
+  carregaUnidadesPadrao();// grafia oficial das unidades, direto do cadastro
   });
   // Detecta Ctrl+V na página e abre modal de paste
   document.addEventListener('paste', (e) => {
