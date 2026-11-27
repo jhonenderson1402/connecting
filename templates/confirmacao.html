@@ -455,8 +455,29 @@
   .incl-voltar{ margin-right:auto; border-color:rgba(255,187,0,.45) !important;
     color:var(--primary) !important; font-weight:600; }
   .incl-dica{ font-size:10.5px; color:var(--muted-fg); align-self:center; }
-  .incl-bt-cont{ background:rgba(255,187,0,.18); color:var(--primary);
+    .incl-bt-cont{ background:rgba(255,187,0,.18); color:var(--primary);
     border-radius:20px; padding:1px 7px; font-size:9.5px; font-weight:700; }
+
+  /* ══════ Marcar várias células da mesma coluna ══════
+     Fica no FIM do <style> de propósito: as regras de hover da tabela têm o
+     mesmo peso destas, então quem vem depois é quem vale. Mudar de lugar
+     derruba o cinza da marcação. */
+  .conf-table tbody td.cel{ cursor:cell; }
+  .conf-table tbody tr td.cel.sel{ background:#d4d4d4 !important;
+    box-shadow:inset 1px 0 0 #107c41, inset -1px 0 0 #107c41; }
+  .conf-table tbody tr td.cel.sel.selt{ box-shadow:inset 1px 0 0 #107c41,
+    inset -1px 0 0 #107c41, inset 0 1px 0 #107c41; }
+  .conf-table tbody tr td.cel.sel.selb{ box-shadow:inset 1px 0 0 #107c41,
+    inset -1px 0 0 #107c41, inset 0 -1px 0 #107c41; }
+  .conf-table tbody tr td.cel.sel.selt.selb{ box-shadow:inset 0 0 0 1px #107c41; }
+  /* a âncora fica branca, como na planilha: é nela que o texto é digitado */
+  .conf-table tbody tr td.cel.sel.selanc.ed{ background:#ffffff !important; }
+  /* o que está na área de transferência, tracejado */
+  .conf-table tbody tr td.cel.copiada{ outline:2px dashed #107c41; outline-offset:-2px; }
+  body.selarrasta{ user-select:none; cursor:cell; }
+  body.selarrasta .conf-table tbody td.ed:hover{ box-shadow:none; }
+  .fdd-lote{ font-size:10px; font-weight:800; letter-spacing:.06em; color:#fbbf24;
+    padding:5px 7px 3px; }
   </style>
   <div class="page-content">
     <div class="page-header">
@@ -969,6 +990,7 @@
       const matchF = !flag || r.flag === flag;
       return matchS && matchF && passaFiltroCol(r);
     });
+    selcLimpa();   /* a tabela vai ser redesenhada: a marcação não sobrevive */
     renderTable();
     renderStats();
   }
@@ -1058,6 +1080,19 @@
     // mede DEPOIS de abrir: escondido, offsetHeight seria 0 e o menu que nao
     // coubesse embaixo nunca subiria
     d.menu.classList.add('abre');
+    /* bloco de flags marcado: avisa, no topo da lista, que a escolha vai para
+       todas as linhas — senão a pessoa muda trinta sem saber */
+    var avl = d.menu.querySelector('.fdd-lote');
+    if(!avl){
+      avl = document.createElement('div');
+      avl.className = 'fdd-lote';
+      d.menu.insertBefore(avl, d.ops);
+    }
+    var tdf = bt.closest('td.cel');
+    var rf  = tdf ? Number(tdf.dataset.r) : -1;
+    var emLote = selcBloco() && SELC.c === 'flag' && rf >= selcIni() && rf <= selcFim();
+    avl.textContent = emLote ? 'APLICAR A ' + selcTam() + ' LINHAS' : '';
+    avl.style.display = emLote ? '' : 'none';
     var r   = bt.getBoundingClientRect();
     var alt = d.menu.offsetHeight;
     var lar = d.menu.offsetWidth;
@@ -1075,6 +1110,13 @@
   function _fddEscolhe(v){
     var sel = _fddSel;
     fechaFlag();
+    /* bloco de flags marcado e a etiqueta clicada está dentro dele: a escolha
+       vale para o bloco inteiro, num lote só */
+    if(selcBloco() && SELC.c === 'flag'){
+      var tdl = sel ? sel.closest('td.cel') : null;
+      var rl  = tdl ? Number(tdl.dataset.r) : -1;
+      if(rl >= selcIni() && rl <= selcFim()){ preencheLote(v); return; }
+    }
     if(!sel || sel.value === v) return;   // escolheu a mesma: nao grava a toa
     sel.value = v;
     sel.dispatchEvent(new Event('change', {bubbles:true}));
@@ -1322,7 +1364,7 @@
        proposito: ele ja e editavel pelo bloco CONF-EDITMAIN la em cima, que
        alem de salvar tira formula do Excel e marca #ERROR em vermelho. */
     const ed = (campo, val, extra) =>
-      `<td class="ed" contenteditable="true" spellcheck="false" data-c="${campo}" data-id="${r.id}"${extra||''}>${esc(val||'')}</td>`;
+      `<td class="ed cel" contenteditable="true" spellcheck="false" data-c="${campo}" data-id="${r.id}" data-r="${i}"${extra||''}>${esc(val||'')}</td>`;
     return `<tr data-id="${r.id}">
       <td class="td-num">${i+1}</td>
       ${ed('mes', r.mes)}
@@ -1332,7 +1374,7 @@
       ${ed('unidade', r.unidade)}
       ${ed('horario', r.horario)}
       <td>${esc(r.contato)}</td>
-        <td class="td-flag">
+        <td class="td-flag cel" data-c="flag" data-id="${r.id}" data-r="${i}">
           <button type="button" class="fdd-bt ${fCls}" onclick="abreFlag(event,this)">${esc(rotuloFlag(r.flag))}</button>
           <select class="flag-select ${fCls}" onchange="updateFlag(${r.id},this)" style="display:none">
             <option value="" ${!r.flag?'selected':''}>— Selecionar —</option>
@@ -1598,6 +1640,9 @@ async function desfaz(){
     showToast(String(corpo.cliente || 'Linha') + ' voltou.');
     return;
   }
+
+  /* lote: dezenas de linhas voltam com um Ctrl+Z só */
+  if(it.tipo === 'lote'){ await desfazLote(it); return; }
 
   var campo = it.tipo === 'flag' ? 'flag' : (it.tipo === 'obs' ? 'observacao' : it.campo);
   var corpo2 = {};
@@ -3451,6 +3496,338 @@ document.addEventListener('keydown', function(e){
   ligaEdicaoCelula();     // MÊS até HORÁRIO editam na própria célula
   carregaUnidadesPadrao();// grafia oficial das unidades, direto do cadastro
   });
+  /* ══════ Selecionar várias células da mesma coluna ═══════════════════════
+     Igual à planilha: clica e arrasta, ou clica na primeira e Shift+clica na
+     última. Com o bloco marcado dá para preencher tudo de uma vez, copiar,
+     colar e apagar — e UM Ctrl+Z desfaz o lote inteiro, não linha por linha.
+     Vale nas colunas editáveis (MÊS até HORÁRIO) e na FLAG. O CONTATO fica de
+     fora porque quem manda nele é o bloco CONF-EDITMAIN la do topo: dois
+     códigos escrevendo na mesma célula é problema garantido. */
+  var SELC  = {c:null, anc:0, pt:0};
+  var COPIA = null;             /* {c,ini,fim} — o que esta na area de transferencia */
+  var _selArrasta = false, _selLote = false, _selAntes = '';
+  var ROTC = {mes:'MÊS', data_str:'DATA', cliente:'CLIENTE', tmk:'TMK',
+              unidade:'UNIDADE', horario:'HORÁRIO', flag:'FLAG'};
+
+  function selcAtiva(){ return SELC.c !== null; }
+  function selcIni(){ return Math.min(SELC.anc, SELC.pt); }
+  function selcFim(){ return Math.max(SELC.anc, SELC.pt); }
+  function selcTam(){ return selcAtiva() ? selcFim() - selcIni() + 1 : 0; }
+  function selcBloco(){ return selcAtiva() && selcTam() > 1; }
+  function selcCel(c, r){
+    return document.querySelector('#conf-tbody td.cel[data-c="' + c + '"][data-r="' + r + '"]');
+  }
+  function selcLimpa(){ SELC = {c:null, anc:0, pt:0}; _selLote = false; selcPinta(); }
+
+  function selcPinta(){
+    document.querySelectorAll('#conf-tbody td.cel').forEach(function(td){
+      td.classList.remove('sel','selt','selb','selanc','copiada');
+    });
+    if(COPIA){
+      for(var q = COPIA.ini; q <= COPIA.fim; q++){
+        var tc = selcCel(COPIA.c, q);
+        if(tc) tc.classList.add('copiada');
+      }
+    }
+    if(!selcBloco()) return;
+    var a = selcIni(), z = selcFim();
+    for(var i = a; i <= z; i++){
+      var td = selcCel(SELC.c, i);
+      if(!td) continue;
+      td.classList.add('sel');
+      if(i === a) td.classList.add('selt');
+      if(i === z) td.classList.add('selb');
+      if(i === SELC.anc) td.classList.add('selanc');
+    }
+  }
+
+  /* "cancelado", "NUMERO INVALIDO" → a flag oficial. '' limpa. null = nao existe. */
+  function flagDoTexto(t){
+    var k = _csvChave(t);
+    if(k === '' || k === '-' || k === '—') return '';
+    for(var i = 0; i < FLAGS.length; i++) if(_csvChave(FLAGS[i].key) === k) return FLAGS[i].key;
+    return null;
+  }
+
+  /* ── mouse ───────────────────────────────────────────────────────────── */
+  document.addEventListener('mousedown', function(e){
+    var td = e.target.closest ? e.target.closest('#conf-tbody td.cel') : null;
+    if(!td){
+      /* clicou fora da tabela: larga a marcação — menos quando o clique foi num
+         menu que só está aberto por causa dela */
+      if(!e.target.closest('.fdd-menu') && !e.target.closest('.ffd') &&
+         !e.target.closest('.flagpick') && !e.target.closest('.modal')) selcLimpa();
+      return;
+    }
+    var c = td.dataset.c, r = Number(td.dataset.r);
+    if(e.shiftKey && selcAtiva() && SELC.c === c){
+      e.preventDefault();        /* senão o navegador marca o texto da página */
+      var at0 = document.activeElement; if(at0 && at0.blur) at0.blur();
+      SELC.pt = r;
+      selcPinta();
+      return;
+    }
+    /* clique normal: guarda a âncora mas NÃO marca nada ainda. O bloco só nasce
+       se o mouse andar para outra linha — assim o clique simples continua
+       fazendo o que faz hoje (entrar na edição, ou abrir a lista da flag). */
+    SELC = {c:c, anc:r, pt:r};
+    _selLote = false; _selArrasta = true;
+    selcPinta();
+  });
+
+  document.addEventListener('mouseover', function(e){
+    if(!_selArrasta) return;
+    var td = e.target.closest ? e.target.closest('#conf-tbody td.cel') : null;
+    if(!td || td.dataset.c !== SELC.c) return;   /* arrastar de lado não vale */
+    var r = Number(td.dataset.r);
+    if(r === SELC.pt) return;
+    document.body.classList.add('selarrasta');
+    var at = document.activeElement; if(at && at.blur) at.blur();
+    SELC.pt = r;
+    selcPinta();
+  });
+
+  document.addEventListener('mouseup', function(){
+    if(!_selArrasta) return;
+    _selArrasta = false;
+    document.body.classList.remove('selarrasta');
+    if(selcBloco()) showToast(selcTam() + ' células de ' + ROTC[SELC.c] + ' marcadas.');
+  });
+
+  /* ── teclado ──────────────────────────────────────────────────────────
+     Em CAPTURA (o true no fim): o ouvinte do ligaEdicaoCelula mora no tbody e
+     rodaria antes. Sem isto, o Enter do lote salvaria só a âncora. */
+  document.addEventListener('keydown', function(e){
+    var at = document.activeElement;
+    var emCampo = at && (at.tagName === 'INPUT' || at.tagName === 'TEXTAREA' ||
+                         at.isContentEditable);
+
+    if(_selLote){
+      if(e.key === 'Enter'){
+        e.preventDefault(); e.stopPropagation();
+        var td = selcCel(SELC.c, SELC.anc);
+        var v  = td ? String(td.textContent || '').replace(/\s+/g,' ').trim() : '';
+        selcSaiDoLote(td);
+        preencheLote(v);
+        return;
+      }
+      if(e.key === 'Escape'){
+        e.preventDefault(); e.stopPropagation();
+        selcSaiDoLote(selcCel(SELC.c, SELC.anc));
+        showToast('Preenchimento em lote cancelado.');
+        return;
+      }
+      return;
+    }
+
+    if(e.key === 'Escape' && !emCampo){
+      if(!selcAtiva() && !COPIA) return;
+      e.preventDefault(); COPIA = null; selcLimpa(); return;
+    }
+    if(!selcBloco() || emCampo) return;
+
+    if(e.key === 'Delete' || e.key === 'Backspace'){
+      e.preventDefault(); preencheLote(''); return;
+    }
+
+    if(e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey){
+      e.preventDefault();
+      /* na FLAG não existe texto livre: a letra abre a lista já buscando por ela */
+      if(SELC.c === 'flag'){
+        var bt = selcCel('flag', SELC.anc);
+        bt = bt ? bt.querySelector('.fdd-bt') : null;
+        if(!bt) return;
+        abreFlag({stopPropagation:function(){}}, bt);
+        if(_fdd && _fdd.campo){
+          _fdd.campo.value = e.key;
+          _fdd.campo.dispatchEvent(new Event('input'));
+        }
+        return;
+      }
+      var a = selcCel(SELC.c, SELC.anc);
+      if(!a) return;
+      a.focus();                 /* focar ANTES: o _edAntes guarda o valor original */
+      _selAntes = a.textContent;
+      a.textContent = e.key;
+      _selLote = true;
+      var rg = document.createRange(); rg.selectNodeContents(a); rg.collapse(false);
+      var sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(rg);
+      showToast('Digite e tecle Enter para preencher as ' + selcTam() + '.');
+    }
+  }, true);
+
+  /* Sair do lote devolvendo o texto original: assim o focusout do
+     ligaEdicaoCelula compara igual com igual e não grava a âncora sozinha. */
+  function selcSaiDoLote(td){
+    _selLote = false;
+    if(td){ td.textContent = _selAntes; td.blur(); }
+  }
+  document.addEventListener('focusout', function(e){
+    if(!_selLote) return;
+    var td = e.target.closest ? e.target.closest('#conf-tbody td.ed') : null;
+    if(!td) return;
+    selcSaiDoLote(td);           /* clicou fora no meio do lote: cancela */
+  }, true);
+
+  /* ── copiar e colar ───────────────────────────────────────────────────
+     Copiar vale a partir de UMA caixa. Se houver texto marcado dentro da
+     célula, o Ctrl+C é o normal do navegador — só assumo sem marcação nenhuma. */
+  document.addEventListener('copy', function(e){
+    if(!selcAtiva()) return;
+    var marcado = String(window.getSelection ? window.getSelection().toString() : '').trim();
+    if(marcado) return;
+    var txt = [];
+    for(var i = selcIni(); i <= selcFim(); i++){
+      var reg = filtered[i];
+      txt.push(reg ? String(reg[SELC.c] == null ? '' : reg[SELC.c]) : '');
+    }
+    e.clipboardData.setData('text/plain', txt.join('\n'));
+    e.preventDefault();
+    COPIA = {c:SELC.c, ini:selcIni(), fim:selcFim()};
+    if(typeof fechaFlag === 'function') fechaFlag();
+    selcPinta();
+    showToast(txt.length === 1
+      ? '"' + (txt[0] || 'vazio') + '" copiado — marque as linhas e tecle Ctrl+V.'
+      : txt.length + ' valores de ' + ROTC[SELC.c] + ' copiados.');
+  });
+
+  document.addEventListener('paste', function(e){
+    if(!selcAtiva()) return;
+    var at = document.activeElement;
+    /* dentro de um campo em edição, colar é colar ali — não no bloco */
+    if(at && (at.tagName === 'INPUT' || at.tagName === 'TEXTAREA' || at.isContentEditable)) return;
+    var t = (e.clipboardData || window.clipboardData).getData('text');
+    if(!t) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();  /* não deixa abrir o "Colar da Planilha" */
+    var vals = String(t).split(/\r?\n/).map(function(v){
+      return v.replace(/\t[\s\S]*$/,'').replace(/\s+/g,' ').trim();
+    });
+    while(vals.length && vals[vals.length - 1] === '') vals.pop();
+    if(!vals.length) return;
+
+    var alvo = [], i;
+    if(vals.length === 1){
+      /* um valor só: repete em tudo que estiver marcado, como na planilha */
+      for(i = selcIni(); i <= selcFim(); i++) alvo.push(i);
+      var v = vals[0];
+      vals = alvo.map(function(){ return v; });
+    } else if(selcTam() === 1){
+      /* lista maior que a marcação: desce a partir da célula ativa */
+      var ate = Math.min(selcIni() + vals.length, filtered.length);
+      for(i = selcIni(); i < ate; i++) alvo.push(i);
+    } else {
+      for(i = selcIni(); i <= selcFim(); i++) alvo.push(i);
+    }
+    aplicaLote(vals, true, alvo);
+  });
+
+  /* ── escrever no bloco ────────────────────────────────────────────────── */
+  function preencheLote(v){
+    var n = selcTam(), vals = [];
+    for(var i = 0; i < n; i++) vals.push(v);
+    return aplicaLote(vals, false, null);
+  }
+
+  function selcGrava(id, c, novo){
+    var a = allConf.find(function(x){ return x.id === id; });  if(a) a[c] = novo;
+    var f = filtered.find(function(x){ return x.id === id; }); if(f) f[c] = novo;
+  }
+
+  async function aplicaLote(vals, colando, alvo){
+    var c = SELC.c;
+    if(!c) return;
+    if(!alvo){
+      alvo = [];
+      for(var q = selcIni(); q <= selcFim(); q++) alvo.push(q);
+    }
+    var muda = [], recusados = [], k = 0;
+    for(var x = 0; x < alvo.length; x++){
+      var reg = filtered[alvo[x]];
+      if(!reg) continue;
+      if(colando && k >= vals.length) break;   /* lista menor que o bloco: para */
+      var novo = String(vals[k] == null ? '' : vals[k]);
+      k++;
+      if(c === 'flag'){
+        /* a flag não aceita texto livre: só o que existe na lista entra */
+        var ok = flagDoTexto(novo);
+        if(ok === null){ recusados.push(novo); continue; }
+        novo = ok;
+      } else {
+        novo = novo.replace(/\s+/g,' ').trim();
+      }
+      var antes = String(reg[c] == null ? '' : reg[c]);
+      if(novo === antes) continue;             /* já era esse valor */
+      muda.push({id:reg.id, novo:novo, antes:antes});
+    }
+
+    if(recusados.length){
+      var lis = recusados.slice(0,3).map(function(v){ return '"' + (v || 'vazio') + '"'; }).join(', ');
+      showToast(recusados.length + ' valor(es) não são flags do sistema e foram recusados: ' +
+                lis + (recusados.length > 3 ? '…' : ''), 'error');
+    }
+    if(!muda.length){
+      if(!recusados.length) showToast('Nada mudou — os valores já eram esses.');
+      return;
+    }
+
+    /* grava de seis em seis: cinquenta chamadas de uma vez castigam o servidor
+       à toa, e uma de cada vez deixaria a tela parada tempo demais */
+    var falhou = 0;
+    for(var p = 0; p < muda.length; p += 6){
+      var parte = muda.slice(p, p + 6);
+      var res = await Promise.all(parte.map(function(m){
+        var corpo = {}; corpo[c] = m.novo;
+        return fetch('/api/confirmacoes/' + m.id, {
+          method:'PUT', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(corpo)
+        }).then(function(r){ return r.ok; }).catch(function(){ return false; });
+      }));
+      parte.forEach(function(m, j){
+        if(res[j]) selcGrava(m.id, c, m.novo); else { m.falhou = true; falhou++; }
+      });
+    }
+    var bons = muda.filter(function(m){ return !m.falhou; });
+    if(bons.length) empilha({tipo:'lote', campo:c,
+      itens: bons.map(function(m){ return {id:m.id, antes:m.antes}; })});
+
+    /* MÊS e DATA mandam as linhas para outro dia: elas somem desta tela */
+    if((c === 'data_str' || c === 'mes') && bons.length){
+      selcLimpa();
+      showToast(bons.length + ' linha(s) movida(s) — saíram deste dia.');
+      await loadDay();
+      return;
+    }
+    renderTable(); renderStats(); selcPinta();
+    showToast(bons.length + ' célula(s) de ' + ROTC[c] +
+              (colando ? ' coladas' : ' preenchidas') +
+              (falhou ? ' · ' + falhou + ' não salvaram' : '') + '. Ctrl+Z desfaz tudo.',
+              falhou ? 'error' : undefined);
+  }
+
+  /* ── desfazer o lote inteiro ──────────────────────────────────────────── */
+  async function desfazLote(it){
+    var c = it.campo, falhou = 0;
+    for(var p = 0; p < it.itens.length; p += 6){
+      var parte = it.itens.slice(p, p + 6);
+      var res = await Promise.all(parte.map(function(m){
+        var corpo = {}; corpo[c] = m.antes;
+        return fetch('/api/confirmacoes/' + m.id, {
+          method:'PUT', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(corpo)
+        }).then(function(r){ return r.ok; }).catch(function(){ return false; });
+      }));
+      parte.forEach(function(m, j){
+        if(res[j]) selcGrava(m.id, c, m.antes); else falhou++;
+      });
+    }
+    if(c === 'data_str' || c === 'mes'){ await loadDay(); }
+    else { applyFilter(); }
+    showToast((it.itens.length - falhou) + ' célula(s) de ' + ROTC[c] +
+              ' voltaram ao valor anterior' + (falhou ? ' · ' + falhou + ' falharam' : '') + '.',
+              falhou ? 'error' : undefined);
+  }
+
   // Detecta Ctrl+V na página e abre modal de paste
   document.addEventListener('paste', (e) => {
     const active = document.activeElement;
