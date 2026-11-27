@@ -223,6 +223,13 @@ def admin_required(view):
             return redirect(url_for('dashboard'))
         return view(*args, **kwargs)
     return wrapper
+# ── Somente visualização ────────────────────────────────────────────────────
+# Quem tem este papel consulta TUDO e nao escreve NADA. Nao e uma equipe nova:
+# e uma trava por cima de qualquer area. Por isso ele nao entra no
+# _team_access_guard — la ele simplesmente passa — e sim num guarda proprio,
+# que olha o METODO da requisicao em vez de olhar o endereco.
+PAPEL_VISUAL = 'visual'
+
 # Disponibiliza o nome do usuário pra todos os templates
 @app.context_processor
 def inject_user():
@@ -230,6 +237,7 @@ def inject_user():
         'current_user': session.get('username'),
         'current_user_id': session.get('user_id'),
         'current_role': session.get('role', 'all'),
+        'so_leitura': session.get('role') == PAPEL_VISUAL,
         'pode': _pode_tela,
         'pode_conf': _pode_conf,
     }
@@ -375,6 +383,27 @@ def _sincroniza_papel():
         session['papel_em'] = agora
     except Exception:
         pass
+# ── O bloqueio do "somente visualizacao" ────────────────────────────────────
+# Oito linhas que valem para o sistema INTEIRO, inclusive para as rotas que
+# ainda nao existem. Esconder botao na tela e conforto; quem impede de verdade
+# e isto aqui, porque mora antes de qualquer rota e nao depende de ninguem
+# lembrar de nada. Leitura (GET, HEAD) passa; escrita para em 403.
+METODOS_ESCRITA = ('POST', 'PUT', 'PATCH', 'DELETE')
+
+@app.before_request
+def _guarda_somente_visualizacao():
+    if session.get('role') != PAPEL_VISUAL:
+        return
+    if request.method not in METODOS_ESCRITA:
+        return
+    p = request.path or '/'
+    if p.startswith('/login') or p == '/logout':
+        return                      # entrar e sair continuam funcionando
+    if _wants_json():
+        return _err('Este acesso é somente visualização.', 403)
+    return redirect(url_for('dashboard'))
+
+
 # ── Controle de acesso por equipe (agendamento x confirmacao) ────────────────
 @app.before_request
 def _team_access_guard():
@@ -1079,7 +1108,9 @@ def api_leads_por_tmk():
     return jsonify(por_tmk)
 def _role_allowed(*roles):
     user_role = session.get('role', 'all')
-    if user_role in ('all', 'admin', 'ambos'):
+    # 'visual' entra em todas as areas — ele so nao escreve, e quem impede
+    # isso e o _guarda_somente_visualizacao, nao esta funcao.
+    if user_role in ('all', 'admin', 'ambos', PAPEL_VISUAL):
         return True
     # Personalizado entra na Confirmacao se tiver ao menos uma atendente
     # marcada ou a Analise Geral. QUAL aba ela abre quem decide e o
